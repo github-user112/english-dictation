@@ -1,0 +1,15 @@
+[Unit]
+Description=English Dictation API (Flask)
+After=network.target
+
+[Service]
+Type=simple
+User=dictation
+WorkingDirectory=/opt/english-dictation
+ExecStart=/opt/english-dictation/.venv/bin/python app.py
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
