@@ -6,3 +6,5 @@ data/
 audio/
 .DS_Store
 *.log
+frontend/node_modules/
+frontend/package-lock.json

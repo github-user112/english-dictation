@@ -2,6 +2,10 @@
 
 对标 Happytapper 的"听 → 打字 → 判分"英语练习系统。部署于 OCI ARM，域名通过 Cloudflare 代理。
 
+## 🔗 在线体验
+
+**https://mi2.cc.cd** — 打开即用，浏览器自动分配学习帐号（UUID 挂在 URL 后面），分享链接即可同步进度。
+
 ## 功能
 
 - **单词听打**：听发音，逐字母填入格子，判分后显示音标与中文释义
@@ -14,20 +18,21 @@
 ## 技术栈
 
 - 后端：Flask + SQLite（API）
-- 前端：Vue 3（组件化，无构建步骤）
+- 前端：Vue 3 + Vite 8（SFC 组件，`frontend/` 目录）
 - TTS：edge-tts 预生成 + 按需懒生成兜底
 - 部署：nginx 静态直出 + API 反代，双份 TLS（Cloudflare 边缘 + Let's Encrypt 源站）
 
 ## 目录结构
 
 ```
-app.py                  Flask 后端（API + 静态兜底）
+app.py                  Flask 后端（API）
+frontend/               Vue 3 + Vite 8 前端（SFC 组件，构建输出到 static/）
 wordlists/              GitHub 开源词库（已转换 JSON）
 sentences/              句子素材（口语 900 句）
 audio/                  edge-tts 预生成音频（gitignore）
 scripts/build_data.py   拉取素材并转换统一格式
 scripts/gen_audio.py    edge-tts 批量生成音频
-static/                 Vue 3 前端（组件化）
+static/                 构建产物（nginx 直接服务）
 ```
 
 ## 本地运行
@@ -37,6 +42,15 @@ pip install -r requirements.txt
 python scripts/build_data.py    # 拉取词库（需网络）
 python scripts/gen_audio.py     # 生成音频（可选，缺了会自动懒生成）
 python app.py                   # 127.0.0.1:8200
+```
+
+前端开发（Vite 8）：
+
+```bash
+cd frontend
+npm install
+npm run dev      # 开发预览
+npm run build    # 构建产物输出到 ../static（nginx 直接服务）
 ```
 
 ### API
