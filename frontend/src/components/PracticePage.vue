@@ -16,6 +16,7 @@ const loading = ref(true);
 const custom = ref(false);
 const audioCache = ref({});
 const replayTimer = ref(null);
+const nextTimer = ref(null);
 const cells = ref(null);
 
 const item = computed(() => items.value[cur.value]);
@@ -42,15 +43,37 @@ onMounted(async () => {
     focusCatch();
     play();
   }
+  document.addEventListener("pointerdown", onDocDown, true);
+  window.addEventListener("keydown", onGlobalKey, true);
 });
 
-onUnmounted(() => clearReplay());
+onUnmounted(() => {
+  clearReplay();
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  document.removeEventListener("pointerdown", onDocDown, true);
+  window.removeEventListener("keydown", onGlobalKey, true);
+});
 
 async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
 
 function focusCatch() {
   const el = document.getElementById("catch");
-  if (el) el.focus();
+  if (el) {
+    el.removeAttribute("readonly");
+    el.focus({ preventScroll: true });
+  }
+}
+function onDocDown(ev) {
+  ev.preventDefault();
+  focusCatch();
+}
+function onBlurCatch(ev) {
+  ev.target.setAttribute("readonly", "");
+}
+function onGlobalKey(ev) {
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
+  onKey(ev);
 }
 function clearReplay() {
   if (replayTimer.value) { clearTimeout(replayTimer.value); replayTimer.value = null; }
@@ -85,6 +108,7 @@ function typeChar(ch) {
     if (mode.value === "word") cells.value.typeLetter(c);
     else cells.value.typeWordChar(c);
   }
+  if (!submitted.value && cells.value.isCorrect()) submit();
 }
 async function play() {
   if (!item.value) return;
@@ -110,10 +134,14 @@ function submit() {
   if (right) sndRight();
   else sndWrong();
   api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right }) });
-  if (right) setTimeout(() => next(), 650);
+  if (right) {
+    clearTimeout(nextTimer.value);
+    nextTimer.value = setTimeout(() => next(), 2000);
+  }
 }
 function next() {
   clearReplay();
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   if (cur.value + 1 >= items.value.length) {
     location.hash = "#/catalog";
     return;
@@ -160,11 +188,11 @@ function cycleSpeed() {
         <button class="btn ghost" @click="skip">跳过</button>
         <button class="btn primary big" id="play-btn" @click="play">🔊</button>
       </div>
-      <div class="hint">打字输入 · Enter 提交 · Esc 重听 · 读完后 5 秒自动重读</div>
+      <div class="hint">打字输入 · 打对 2 秒后自动下一题 · Enter 提交 · Esc 重听 · 读完后 5 秒自动重读</div>
     </div>
     <input id="catch" autocomplete="off" autocorrect="off"
-           autocapitalize="off" spellcheck="false"
-           style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;"
-           @keydown="onKey" @input="onInput">
+           autocapitalize="off" spellcheck="false" enterkeyhint="done"
+           style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
+           @input="onInput" @blur="onBlurCatch">
   </div>
 </template>

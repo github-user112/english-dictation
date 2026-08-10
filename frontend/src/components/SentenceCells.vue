@@ -14,6 +14,12 @@ const words = computed(() =>
 watch(() => props.tokens.text, () => { scur.value = 0; input.value = []; });
 
 function typeWordChar(ch) {
+  if (ch === " ") {
+    if (!(input.value[scur.value] || "")) return;
+    if (scur.value + 1 >= words.value.length) return;
+    scur.value++;
+    return;
+  }
   if (!/[a-zA-Z']/.test(ch)) return;
   const w = input.value[scur.value] || "";
   if (w.length >= 30) return;

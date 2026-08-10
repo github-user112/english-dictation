@@ -1,6 +1,6 @@
 # 英语听打系统 (English Dictation)
 
-对标 Happytapper 的"听 → 打字 → 判分"英语练习系统。部署于 OCI ARM，域名通过 Cloudflare 代理。
+"听 → 打字 → 判分"英语练习系统。部署于 OCI ARM（Always Free），域名通过 Cloudflare 代理，nginx 静态直出 + API 反代，双份 TLS（Cloudflare 边缘 + Let's Encrypt 源站）。
 
 ## 🔗 在线体验
 
@@ -20,7 +20,6 @@
 - 后端：Flask + SQLite（API）
 - 前端：Vue 3 + Vite 8（SFC 组件，`frontend/` 目录）
 - TTS：edge-tts 预生成 + 按需懒生成兜底
-- 部署：nginx 静态直出 + API 反代，双份 TLS（Cloudflare 边缘 + Let's Encrypt 源站）
 
 ## 目录结构
 
