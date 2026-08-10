@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean });
 const scur = ref(0);
 const input = ref([]);
+const box = ref(null);
 
 const words = computed(() =>
   props.tokens.text.split(/\s+/).map((w) => {

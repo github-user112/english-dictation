@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue";
 const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean });
 const wcur = ref(0);
 const input = ref([]);
+const box = ref(null);
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
@@ -30,7 +31,7 @@ function backspace() {
 function paint() {
   refTokens.value.forEach((t, i) => {
     if (t.type !== "letter") return;
-    const el = box.children[i];
+    const el = box.value.children[i];
     if (!el) return;
     const mine = (input.value[i] || "").toLowerCase();
     const ok = mine === t.text.toLowerCase();
