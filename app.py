@@ -28,6 +28,10 @@ MATERIALS = {
     "cet6": {"type": "words", "title": "CET-6 词汇"},
     "kaoyan": {"type": "words", "title": "考研词汇"},
     "tuofu": {"type": "words", "title": "托福词汇"},
+    "nc1": {"type": "sentences", "title": "新概念英语1册"},
+    "nc2": {"type": "sentences", "title": "新概念英语2册"},
+    "nc3": {"type": "sentences", "title": "新概念英语3册"},
+    "nc4": {"type": "sentences", "title": "新概念英语4册"},
     "oral900": {"type": "sentences", "title": "口语900句"},
 }
 

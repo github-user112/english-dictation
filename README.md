@@ -10,7 +10,7 @@
 
 - **单词听打**：听发音，逐字母填入格子，判分后显示音标与中文释义
 - **句子听写**：听整句，逐词填入格子，逐词标色对比（正确绿/遗漏黄/拼错红）
-- **素材库**：CET-4 / CET-6 / 考研 / 托福 词汇 + 口语 900 句（GitHub 开源数据）
+- **素材库**：CET-4 / CET-6 / 考研 / 托福 词汇 + 新概念英语 1-4 册逐句 + 口语 900 句
 - **错词本**：错词自动收录，按简化间隔重复（1/3/7 天）安排复习
 - **用户隔离**：每个访问者分配 UUID 挂在 URL 后面（`?u=xxx`），数据互不干扰，分享链接即同步进度
 - **统计**：近期曲线、连续打卡天数、累计正确率
@@ -69,6 +69,7 @@ npm run build    # 构建产物输出到 ../static（nginx 直接服务）
 
 - 词汇：https://github.com/vxiaozhi/vocabulary-book-by-deepseek (Apache-2.0)
 - 句子：https://github.com/drizzletown/English900
+- 新概念：https://github.com/iChochy/NCE（逐句中英对照 LRC 数据，脚本 `scripts/build_nce.py`）
 - 发音：Microsoft Edge TTS（edge-tts 库）
 
 ## LICENSE

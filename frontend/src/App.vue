@@ -13,6 +13,7 @@ const ROUTES = {
 };
 const view = ref(CatalogPage);
 const params = ref(new URLSearchParams());
+const APP_VERSION = __APP_VERSION__;
 
 onMounted(() => {
   window.addEventListener("hashchange", route);
@@ -33,4 +34,5 @@ function route() {
   <main @click="route">
     <component :is="view" :params="params" />
   </main>
+  <footer class="app-footer">英语听打 v{{ APP_VERSION.replace(/\.0$/, "") }}</footer>
 </template>

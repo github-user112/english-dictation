@@ -40,7 +40,7 @@ def load_items(list_key: str):
     elif spath.exists():
         data = json.loads(spath.read_text("utf-8"))
         for s in data["items"]:
-            items.append((f"{s['id']}", s["en"]))
+            items.append((safe_name(s["en"]), s["en"]))
     return items
 
 
