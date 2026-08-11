@@ -3,7 +3,7 @@
 /* ---- 设置 ---- */
 export const Settings = {
   KEY: "dict_settings",
-  DEFAULTS: { showMeaning: true, showPhonetic: true, speed: 1.0, newPerDay: 10, showWord: true, theme: "dark" },
+  DEFAULTS: { showMeaning: true, showPhonetic: true, speed: 1.0, newPerDay: 10, showWord: true, theme: "dark", replayInterval: 5, replayTimes: 2 },
   get() {
     try { return Object.assign({}, this.DEFAULTS, JSON.parse(localStorage.getItem(this.KEY) || "{}")); }
     catch { return { ...this.DEFAULTS }; }

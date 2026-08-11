@@ -47,6 +47,16 @@ function copyLink() {
       <input type="number" min="5" max="50" style="width:70px;"
         :value="s.newPerDay" @change="set('newPerDay', Number($event.target.value))">
     </div>
+    <div class="setting-row">
+      <div><div class="lab">自动重播间隔（秒）</div><div class="desc">读完后隔几秒自动重播一次</div></div>
+      <input type="number" min="1" max="60" style="width:70px;"
+        :value="s.replayInterval" @change="set('replayInterval', Number($event.target.value))">
+    </div>
+    <div class="setting-row">
+      <div><div class="lab">自动重播次数</div><div class="desc">第一次播放后再重播几次，0 表示只播一遍</div></div>
+      <input type="number" min="0" max="10" style="width:70px;"
+        :value="s.replayTimes" @change="set('replayTimes', Number($event.target.value))">
+    </div>
     <div class="section-title">我的</div>
     <div class="setting-row">
       <div><div class="lab">我的学习链接</div><div class="desc" style="word-break:break-all;">当前地址已含你的 uuid，分享这个链接即可同步你的进度</div></div>

@@ -23,8 +23,6 @@ onUnmounted(() => window.removeEventListener("hashchange", sync));
       <span id="title">{{ title }}</span>
     </div>
     <nav id="nav">
-      <a class="nav-link" :class="{active: page==='word'}" href="#/word?list=cet4">单词</a>
-      <a class="nav-link" :class="{active: page==='sentence'}" href="#/sentence?list=oral900">句子</a>
       <a class="nav-link" :class="{active: page==='wrong'}" href="#/wrong">错词</a>
       <a class="nav-link" :class="{active: page==='stats'}" href="#/stats">统计</a>
       <a class="nav-link" :class="{active: page==='settings'}" href="#/settings">设置</a>

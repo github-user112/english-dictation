@@ -17,6 +17,7 @@ const custom = ref(false);
 const audioCache = ref({});
 const replayTimer = ref(null);
 const nextTimer = ref(null);
+const replayCount = ref(0);
 const cells = ref(null);
 
 const item = computed(() => items.value[cur.value]);
@@ -40,6 +41,7 @@ onMounted(async () => {
   loading.value = false;
   if (items.value.length) {
     await nextTick();
+    replayCount.value = 0;
     focusCatch();
     play();
   }
@@ -103,12 +105,13 @@ function onInput(ev) {
   typeChar(ch);
 }
 function typeChar(ch) {
-  if (!cells.value) return;
+  if (!cells.value || submitted.value) return;
   for (const c of ch) {
     if (mode.value === "word") cells.value.typeLetter(c);
     else cells.value.typeWordChar(c);
   }
-  if (!submitted.value && cells.value.isCorrect()) submit();
+  const done = mode.value === "word" ? cells.value.isFull() : cells.value.isCorrect();
+  if (done) submit();
 }
 async function play() {
   if (!item.value) return;
@@ -121,7 +124,12 @@ async function play() {
   }
   playUrl(url);
   audioEl.onended = () => {
-    if (!submitted.value) replayTimer.value = setTimeout(() => play(), 5000);
+    if (submitted.value) return;
+    const s = Settings.get();
+    if (replayCount.value < (s.replayTimes ?? 2)) {
+      replayCount.value++;
+      replayTimer.value = setTimeout(() => play(), Math.max(1, s.replayInterval || 5) * 1000);
+    }
   };
 }
 function submit() {
@@ -148,6 +156,7 @@ function next() {
   }
   cur.value++;
   submitted.value = false;
+  replayCount.value = 0;
   setTimeout(() => { focusCatch(); play(); }, 130);
 }
 function skip() {
@@ -180,7 +189,7 @@ function cycleSpeed() {
       </div>
       <div class="follow-line" v-if="settings.showWord && !submitted">{{ item.text }}</div>
       <div id="answer-line">
-        <span v-if="submitted && !lastRight" class="show-word">正确：{{ item.text }}</span>
+        <span v-if="submitted && !lastRight" class="show-word">✗ 答案：{{ item.text }}</span>
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
       </div>
       <div class="controls">
@@ -188,7 +197,7 @@ function cycleSpeed() {
         <button class="btn ghost" @click="skip">跳过</button>
         <button class="btn primary big" id="play-btn" @click="play">🔊</button>
       </div>
-      <div class="hint">打字输入 · 打对 2 秒后自动下一题 · Enter 提交 · Esc 重听 · 读完后 5 秒自动重读</div>
+      <div class="hint">打字输入 · 打对 2 秒后自动下一题 · Enter 提交 · Esc 重听 · 自动重播间隔可在设置调整</div>
     </div>
     <input id="catch" autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"

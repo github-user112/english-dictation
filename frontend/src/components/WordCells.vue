@@ -5,11 +5,12 @@ const props = defineProps({ tokens: { type: Object, required: true }, submitted:
 const wcur = ref(0);
 const input = ref([]);
 const box = ref(null);
+const flash = ref([]);
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => props.tokens.text, () => { wcur.value = 0; input.value = []; });
+watch(() => props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; });
 
 function letterIdxs() {
   const out = [];
@@ -20,8 +21,19 @@ function typeLetter(ch) {
   if (!/[a-zA-Z]/.test(ch)) return;
   const ids = letterIdxs();
   if (wcur.value >= ids.length) return;
-  input.value[ids[wcur.value]] = ch;
+  const idx = ids[wcur.value];
+  input.value[idx] = ch;
   wcur.value++;
+  if (ch.toLowerCase() !== refTokens.value[idx].text.toLowerCase() && !flash.value.includes(idx)) {
+    flash.value.push(idx);
+    setTimeout(() => {
+      const i = flash.value.indexOf(idx);
+      if (i >= 0) flash.value.splice(i, 1);
+    }, 700);
+  }
+}
+function isFull() {
+  return wcur.value >= letterIdxs().length;
 }
 function backspace() {
   if (wcur.value <= 0) return;
@@ -43,12 +55,12 @@ function isCorrect() {
   return refTokens.value.every((t, i) => t.type === "punct" ||
     (input.value[i] || "").toLowerCase() === t.text.toLowerCase());
 }
-defineExpose({ typeLetter, backspace, paint, isCorrect });
+defineExpose({ typeLetter, backspace, paint, isCorrect, isFull });
 </script>
 
 <template>
   <div ref="box" class="cells-wrap" style="margin:0;">
     <span v-for="(t, i) in refTokens" :key="i" class="cell"
-          :class="t.type === 'punct' ? 'fixed' : ''">{{ t.type === 'punct' ? t.text : input[i] }}</span>
+          :class="t.type === 'punct' ? 'fixed' : (flash.includes(i) ? 'bad' : '')">{{ t.type === 'punct' ? t.text : input[i] }}</span>
   </div>
 </template>
