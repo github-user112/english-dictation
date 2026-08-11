@@ -20,9 +20,10 @@ const nextTimer = ref(null);
 const replayCount = ref(0);
 const cells = ref(null);
 
+const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
 const prog = computed(() => items.value.length ? `${cur.value + 1} / ${items.value.length}` : "");
-const speedLabel = computed(() => Settings.get().speed.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
+const speedLabel = computed(() => speed.value.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
 const settings = computed(() => Settings.get());
 
 onMounted(async () => {
@@ -166,7 +167,10 @@ function skip() {
 function again() { location.reload(); }
 function cycleSpeed() {
   const s = Settings.get();
-  Settings.set({ speed: s.speed === 0.75 ? 1.0 : s.speed === 1.0 ? 1.25 : 0.75 });
+  const next = s.speed === 0.75 ? 1.0 : s.speed === 1.0 ? 1.25 : 0.75;
+  Settings.set({ speed: next });
+  speed.value = next;
+  audioEl.playbackRate = next;
 }
 </script>
 
