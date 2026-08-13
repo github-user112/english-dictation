@@ -29,20 +29,26 @@ function typeWordChar(ch) {
   if (w.length >= 30) return;
   input.value[i] = w + ch;
   const target = (words.value[i]?.core || "").toLowerCase();
-  if (target && !target.startsWith((w + ch).toLowerCase()) && !flash.value.includes(i)) {
-    flash.value.push(i);
-    setTimeout(() => {
-      const k = flash.value.indexOf(i);
-      if (k >= 0) flash.value.splice(k, 1);
-    }, 700);
-  }
+  const wrong = target && !target.startsWith((w + ch).toLowerCase());
+  mark.value[i] = wrong ? "wrong" : "";
+  return wrong;
+}
+function refreshMark(i) {
+  const typed = (input.value[i] || "").toLowerCase();
+  const target = (words.value[i]?.core || "").toLowerCase();
+  mark.value[i] = typed && !target.startsWith(typed) ? "wrong" : "";
 }
 function backspace() {
   const w = input.value[scur.value] || "";
-  if (w.length) { input.value[scur.value] = w.slice(0, -1); return; }
+  if (w.length) {
+    input.value[scur.value] = w.slice(0, -1);
+    refreshMark(scur.value);
+    return;
+  }
   if (scur.value > 0) {
     scur.value--;
     input.value[scur.value] = (input.value[scur.value] || "").slice(0, -1);
+    refreshMark(scur.value);
   }
 }
 function cell(i) { return box.value?.querySelector("#sc" + i); }

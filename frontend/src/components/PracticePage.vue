@@ -14,6 +14,7 @@ const submitted = ref(false);
 const lastRight = ref(false);
 const retrying = ref(false);   // 本题答错，等待重输
 const failed = ref(false);     // 本题是否错过（最终提交时告知后端）
+const inputError = ref(false); // 当前尝试已播放过即时错误音
 const loading = ref(true);
 const custom = ref(false);
 const audioCache = ref({});
@@ -118,15 +119,20 @@ function onInput(ev) {
 function typeChar(ch) {
   if (!cells.value || submitted.value) return;
   if (retrying.value) return;   // 判错后红色保持，按 Enter 才清空重输
+  let wrong = false;
   for (const c of ch) {
-    if (mode.value === "word") cells.value.typeLetter(c);
-    else cells.value.typeWordChar(c);
+    wrong = (mode.value === "word" ? cells.value.typeLetter(c) : cells.value.typeWordChar(c)) || wrong;
+  }
+  if (wrong) {
+    inputError.value = true;
+    sndWrong();
   }
   const done = mode.value === "word" ? cells.value.isFull() : cells.value.isCorrect();
   if (done) submit();
 }
 function resetInput() {
   retrying.value = false;
+  inputError.value = false;
   cells.value.reset();
   focusCatch();
 }
@@ -165,7 +171,8 @@ function submit() {
     nextTimer.value = setTimeout(() => next(), 2000);
   } else {
     cells.value.markWrong();
-    sndWrong();
+    if (!inputError.value) sndWrong();
+    inputError.value = false;
     lastRight.value = false;
     retrying.value = true;
     failed.value = true;
@@ -199,6 +206,7 @@ function next() {
   submitted.value = false;
   retrying.value = false;
   failed.value = false;
+  inputError.value = false;
   replayCount.value = 0;
   setTimeout(() => { focusCatch(); play(); }, 130);
 }

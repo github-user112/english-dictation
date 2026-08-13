@@ -25,13 +25,9 @@ function typeLetter(ch) {
   const idx = ids[wcur.value];
   input.value[idx] = ch;
   wcur.value++;
-  if (ch.toLowerCase() !== refTokens.value[idx].text.toLowerCase() && !flash.value.includes(idx)) {
-    flash.value.push(idx);
-    setTimeout(() => {
-      const i = flash.value.indexOf(idx);
-      if (i >= 0) flash.value.splice(i, 1);
-    }, 700);
-  }
+  const wrong = ch.toLowerCase() !== refTokens.value[idx].text.toLowerCase();
+  mark.value[idx] = wrong ? "wrong" : "";
+  return wrong;
 }
 function isFull() {
   return wcur.value >= letterIdxs().length;
@@ -39,7 +35,9 @@ function isFull() {
 function backspace() {
   if (wcur.value <= 0) return;
   wcur.value--;
-  input.value[letterIdxs()[wcur.value]] = "";
+  const idx = letterIdxs()[wcur.value];
+  input.value[idx] = "";
+  mark.value[idx] = "";
 }
 function paint() {
   mark.value = refTokens.value.map((t) => t.type === "punct" ? "" : "right");
