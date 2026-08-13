@@ -1,17 +1,20 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 
-const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean });
+const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean,
+  practiceMode: { type: String, default: "assisted" } });
 const wcur = ref(0);
 const input = ref([]);
 const box = ref(null);
 const flash = ref([]);
 const mark = ref([]);
+const extraInput = ref("");
+const showSequence = computed(() => props.practiceMode !== "pure" || mark.value.some(Boolean));
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; });
+watch(() => props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
 
 function letterIdxs() {
   const out = [];
@@ -21,13 +24,16 @@ function letterIdxs() {
 function typeLetter(ch) {
   if (!/[a-zA-Z]/.test(ch)) return;
   const ids = letterIdxs();
-  if (wcur.value >= ids.length) return;
+  if (wcur.value >= ids.length) {
+    if (props.practiceMode === "pure") extraInput.value += ch;
+    return false;
+  }
   const idx = ids[wcur.value];
   input.value[idx] = ch;
   wcur.value++;
   const wrong = ch.toLowerCase() !== refTokens.value[idx].text.toLowerCase();
-  mark.value[idx] = wrong ? "wrong" : "";
-  return wrong;
+  if (props.practiceMode !== "pure") mark.value[idx] = wrong ? "wrong" : "";
+  return props.practiceMode !== "pure" && wrong;
 }
 function isFull() {
   return wcur.value >= letterIdxs().length;
@@ -35,7 +41,22 @@ function isFull() {
 function isCurrent(i) {
   return !props.submitted && letterIdxs()[wcur.value] === i;
 }
+function answerText() {
+  return letterIdxs().map((i) => input.value[i] || "").join("") + extraInput.value;
+}
+function serialize() { return { input: [...input.value], cursor: wcur.value, mark: [...mark.value], extraInput: extraInput.value }; }
+function restore(s) {
+  if (!s) return;
+  input.value = [...(s.input || [])];
+  wcur.value = Number(s.cursor) || 0;
+  mark.value = [...(s.mark || [])];
+  extraInput.value = s.extraInput || "";
+}
 function backspace() {
+  if (extraInput.value) {
+    extraInput.value = extraInput.value.slice(0, -1);
+    return;
+  }
   if (wcur.value <= 0) return;
   wcur.value--;
   const idx = letterIdxs()[wcur.value];
@@ -58,21 +79,25 @@ function reset() {
   input.value = [];
   flash.value = [];
   mark.value = [];
+  extraInput.value = "";
   box.value?.querySelectorAll(".cell").forEach((el) => el.classList.remove("right", "wrong", "miss"));
 }
 function isCorrect() {
-  return refTokens.value.every((t, i) => t.type === "punct" ||
+  return !extraInput.value && refTokens.value.every((t, i) => t.type === "punct" ||
     (input.value[i] || "").toLowerCase() === t.text.toLowerCase());
 }
-defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull });
+defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull, serialize, restore });
 </script>
 
 <template>
   <div ref="box" class="cells-wrap letter-lines" style="margin:0;">
+    <span v-if="!showSequence" class="cell word-line current pure-line"
+          :style="{ '--chars': Math.max(6, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(t, i) in refTokens" :key="i">
-      <span v-if="t.type === 'punct'" class="punct">{{ t.text }}</span>
-      <span v-else class="cell letter-line"
+      <span v-if="showSequence && t.type === 'punct'" class="punct">{{ t.text }}</span>
+      <span v-else-if="showSequence" class="cell letter-line"
             :class="[mark[i] || '', isCurrent(i) ? 'current' : '']">{{ input[i] }}</span>
     </template>
+    <span v-for="(c, i) in extraInput" v-if="showSequence" :key="'extra-' + i" class="cell letter-line wrong">{{ c }}</span>
   </div>
 </template>

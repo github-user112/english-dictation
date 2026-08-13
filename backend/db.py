@@ -7,6 +7,8 @@ from .config import DB
 def db():
     conn = sqlite3.connect(str(DB))
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -42,6 +44,44 @@ def init_db():
             memorize_wrong INTEGER DEFAULT 0,
             PRIMARY KEY(day, user)
         );
+        CREATE TABLE IF NOT EXISTS daily_plan (
+            day TEXT NOT NULL, user TEXT NOT NULL, list TEXT NOT NULL,
+            new_quota INTEGER NOT NULL, allocated_new INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            PRIMARY KEY(day, user, list)
+        );
+        CREATE TABLE IF NOT EXISTS study_session (
+            id TEXT PRIMARY KEY, user TEXT NOT NULL, list TEXT NOT NULL,
+            practice_mode TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'all',
+            strategy TEXT NOT NULL DEFAULT 'daily', lesson INTEGER,
+            assigned_day TEXT NOT NULL, requested_new INTEGER NOT NULL DEFAULT 0,
+            state TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL, completed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS study_session_item (
+            session_id TEXT NOT NULL, seq INTEGER NOT NULL, item_id TEXT NOT NULL,
+            kind TEXT NOT NULL, phase TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
+            first_right INTEGER, final_right INTEGER,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            first_answer_at TEXT, answered_at TEXT,
+            PRIMARY KEY(session_id, item_id), UNIQUE(session_id, seq),
+            FOREIGN KEY(session_id) REFERENCES study_session(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS daily_practice_log (
+            day TEXT NOT NULL, user TEXT NOT NULL, practice_mode TEXT NOT NULL,
+            new_count INTEGER NOT NULL DEFAULT 0, review_count INTEGER NOT NULL DEFAULT 0,
+            first_right_count INTEGER NOT NULL DEFAULT 0,
+            first_wrong_count INTEGER NOT NULL DEFAULT 0,
+            final_right_count INTEGER NOT NULL DEFAULT 0,
+            skipped_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(day, user, practice_mode)
+        );
+        CREATE INDEX IF NOT EXISTS idx_word_state_review
+            ON word_state(user, list, status, next_review);
+        CREATE INDEX IF NOT EXISTS idx_session_item_pending
+            ON study_session_item(session_id, state, seq);
+        CREATE INDEX IF NOT EXISTS idx_daily_practice_user_day
+            ON daily_practice_log(user, day);
         """)
 
 

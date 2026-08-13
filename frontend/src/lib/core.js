@@ -3,9 +3,16 @@
 /* ---- 设置 ---- */
 export const Settings = {
   KEY: "dict_settings",
-  DEFAULTS: { showMeaning: true, showPhonetic: true, speed: 1.0, newPerDay: 10, showWord: true, theme: "dark", replayInterval: 5, replayTimes: 2 },
+  DEFAULTS: { showMeaning: true, showPhonetic: true, speed: 1.0, newPerDay: 10,
+    practiceMode: "assisted", theme: "dark", replayInterval: 5, replayTimes: 2 },
   get() {
-    try { return Object.assign({}, this.DEFAULTS, JSON.parse(localStorage.getItem(this.KEY) || "{}")); }
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.KEY) || "{}");
+      if (!saved.practiceMode && Object.prototype.hasOwnProperty.call(saved, "showWord")) {
+        saved.practiceMode = saved.showWord ? "follow" : "assisted";
+      }
+      return Object.assign({}, this.DEFAULTS, saved);
+    }
     catch { return { ...this.DEFAULTS }; }
   },
   set(p) {
@@ -39,6 +46,7 @@ export async function api(path, opts = {}) {
     headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
   });
   const d = await r.json();
+  if (!r.ok) throw new Error(d.error || `请求失败 (${r.status})`);
   if (d.user) User.save(d.user);
   return d;
 }

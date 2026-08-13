@@ -1,8 +1,9 @@
 """配置：路径 / 学习参数 / 素材清单"""
+import os
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
-DB = BASE / "data" / "learn.db"
+DB = Path(os.environ.get("ENGLISH_DICTATION_DB", BASE / "data" / "learn.db"))
 AUDIO = BASE / "audio"
 STATIC_DIR = BASE / "static"
 
@@ -16,6 +17,8 @@ CONFIG = {
     "memorize_threshold": 2,
     "memorize_review_days": 7,
 }
+
+PRACTICE_MODES = {"pure", "assisted", "follow"}
 
 MATERIALS = {
     "cet4": {"type": "words", "title": "CET-4 词汇"},

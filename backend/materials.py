@@ -1,40 +1,52 @@
 """素材加载：词库/句子 JSON → 统一条目；音频 URL"""
 import hashlib
 import json
+from functools import lru_cache
 
 from .config import AUDIO, BASE, MATERIALS
 
 
-def iter_material(list_key):
+@lru_cache(maxsize=None)
+def load_material(list_key):
     meta = MATERIALS.get(list_key)
     if not meta:
-        return None
+        return []
+    items = []
     if meta["type"] == "words":
         p = BASE / "wordlists" / f"{list_key}.json"
         data = json.loads(p.read_text("utf-8"))
         for w in data["words"]:
-            yield {
+            items.append({
                 "id": w["word"],
                 "text": w["word"],
                 "phonetic": w.get("phonetic") or "",
                 "meaning": w.get("meaning") or "",
                 "kind": "word",
-            }
+            })
     else:
         p = BASE / "sentences" / f"{list_key}.json"
         data = json.loads(p.read_text("utf-8"))
         for s in data["items"]:
-            yield {
+            items.append({
                 "id": str(s["id"]),
                 "text": s["en"],
                 "phonetic": "",
                 "meaning": s.get("zh") or "",
                 "kind": "sentence",
-            }
+                "lesson": s.get("lesson"),
+                "module": s.get("module"),
+            })
+    return items
+
+
+def iter_material(list_key, lesson=None):
+    for item in load_material(list_key):
+        if lesson is None or item.get("lesson") == lesson:
+            yield item
 
 
 def find_item(list_key, item_id):
-    for m in iter_material(list_key):
+    for m in load_material(list_key):
         if m["id"] == item_id:
             return m
     return None

@@ -18,6 +18,7 @@ const last14 = computed(() => {
   return out;
 });
 const maxDay = computed(() => Math.max(1, ...last14.value.map((d) => d.total)));
+const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打" };
 </script>
 
 <template>
@@ -29,6 +30,13 @@ const maxDay = computed(() => Math.max(1, ...last14.value.map((d) => d.total)));
       <div class="stat-card"><div class="num">{{ stats.total_right }}</div><div class="lab">累计听打对</div></div>
       <div class="stat-card"><div class="num">{{ stats.total_wrong }}</div><div class="lab">累计答错</div></div>
       <div class="stat-card"><div class="num">{{ stats.wrong_words }}</div><div class="lab">错词本</div></div>
+    </div>
+    <div class="section-title">首答真实统计</div>
+    <div class="stat-cards">
+      <div v-for="(m, key) in stats.practice_modes" :key="key" class="stat-card">
+        <div class="num">{{ Math.round(m.first_accuracy * 100) }}%</div>
+        <div class="lab">{{ modeNames[key] || key }} · 首答 {{ m.first_right }} 对 / {{ m.first_wrong }} 错</div>
+      </div>
     </div>
     <div class="section-title">最近 14 天</div>
     <div class="stat-card" style="padding:14px 10px 26px;">

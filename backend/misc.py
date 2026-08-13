@@ -48,6 +48,11 @@ def api_stats():
     u = get_user()
     with db() as conn:
         rows = conn.execute("SELECT * FROM daily_log WHERE user=? ORDER BY day", (u,)).fetchall()
+        mode_rows = conn.execute(
+            "SELECT practice_mode,SUM(first_right_count) first_right,"
+            "SUM(first_wrong_count) first_wrong,SUM(final_right_count) final_right,"
+            "SUM(skipped_count) skipped FROM daily_practice_log WHERE user=? GROUP BY practice_mode",
+            (u,)).fetchall()
     days = [{"day": r["day"], "new": r["new_count"], "review": r["review_count"],
              "right": r["right_count"], "wrong": r["wrong_count"],
              "memorize_right": r["memorize_right"], "memorize_wrong": r["memorize_wrong"]}
@@ -68,9 +73,18 @@ def api_stats():
     wrong = 0
     with db() as conn:
         wrong = conn.execute("SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0", (u,)).fetchone()["c"]
+    practice_modes = {}
+    for row in mode_rows:
+        total = row["first_right"] + row["first_wrong"]
+        practice_modes[row["practice_mode"]] = {
+            "first_right": row["first_right"], "first_wrong": row["first_wrong"],
+            "first_accuracy": row["first_right"] / total if total else 0,
+            "final_right": row["final_right"], "skipped": row["skipped"],
+        }
     return resp({"days": days, "total_right": total_r, "total_wrong": total_w,
                  "total_memorize_right": total_mr, "total_memorize_wrong": total_mw,
-                 "streak": streak, "wrong_words": wrong})
+                 "streak": streak, "wrong_words": wrong,
+                 "practice_modes": practice_modes})
 
 
 @bp.post("/api/tts")

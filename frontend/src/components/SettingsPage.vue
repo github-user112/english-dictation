@@ -19,6 +19,13 @@ function copyLink() {
   <div>
     <div class="section-title">听写显示</div>
     <div class="setting-row">
+      <div><div class="lab">默认练习模式</div><div class="desc">纯听写不显示提示；辅助听写即时纠错；跟打显示原文且不计入掌握</div></div>
+      <div class="mode-options">
+        <button v-for="m in [{k:'pure',n:'纯听写'},{k:'assisted',n:'辅助'},{k:'follow',n:'跟打'}]" :key="m.k"
+          class="btn ghost sm" :class="{primary:s.practiceMode===m.k}" @click="set('practiceMode',m.k)">{{ m.n }}</button>
+      </div>
+    </div>
+    <div class="setting-row">
       <div><div class="lab">显示中文释义</div><div class="desc">在题卡上方显示汉语意思，答错后也会显示</div></div>
       <label class="switch"><input type="checkbox" :checked="s.showMeaning"
         @change="set('showMeaning', $event.target.checked)"><span class="slider"></span></label>
@@ -27,11 +34,6 @@ function copyLink() {
       <div><div class="lab">显示音标</div><div class="desc">单词模式下显示国际音标</div></div>
       <label class="switch"><input type="checkbox" :checked="s.showPhonetic"
         @change="set('showPhonetic', $event.target.checked)"><span class="slider"></span></label>
-    </div>
-    <div class="setting-row">
-      <div><div class="lab">单词跟打</div><div class="desc">格子下方显示原文，照着打（跟打模式）</div></div>
-      <label class="switch"><input type="checkbox" :checked="s.showWord"
-        @change="set('showWord', $event.target.checked)"><span class="slider"></span></label>
     </div>
     <div class="section-title">外观</div>
     <div class="setting-row">

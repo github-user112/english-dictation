@@ -8,6 +8,10 @@ const props = defineProps({ params: { type: Object, default: null } });
 
 const list = ref("cet4");
 const scope = ref("all");
+const lesson = ref(null);
+const practiceMode = ref(Settings.get().practiceMode);
+const sessionId = ref("");
+const quota = ref(null);
 const items = ref([]);
 const cur = ref(0);
 const submitted = ref(false);
@@ -15,6 +19,10 @@ const lastRight = ref(false);
 const retrying = ref(false);   // 本题答错，等待重输
 const failed = ref(false);     // 本题是否错过（最终提交时告知后端）
 const inputError = ref(false); // 当前尝试已播放过即时错误音
+const firstRight = ref(null);
+const attemptCount = ref(0);
+const saving = ref(false);
+const firstAttemptSent = ref(false);
 const loading = ref(true);
 const custom = ref(false);
 const audioCache = ref({});
@@ -27,15 +35,23 @@ const catchEl = ref(null);
 const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
 const mode = computed(() => (item.value && item.value.kind === "sentence") ? "sentence" : "word");
-const prog = computed(() => items.value.length ? `${cur.value + 1} / ${items.value.length}` : "");
+const completedAtLoad = ref(0);
+const prog = computed(() => {
+  if (!items.value.length) return "";
+  if (sessionProgress.value?.total) return `${completedAtLoad.value + cur.value + 1} / ${sessionProgress.value.total}`;
+  return `${cur.value + 1} / ${items.value.length}`;
+});
 const speedLabel = computed(() => speed.value.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
 const settings = computed(() => Settings.get());
+const sessionProgress = ref(null);
 
 onMounted(async () => {
   const h = location.hash.replace(/^#\/?/, "").split("?");
   const qs = new URLSearchParams(h[1] || "");
   list.value = qs.get("list") || "cet4";
   scope.value = qs.get("scope") || (props.params?.get("scope") || "all");
+  lesson.value = Number(qs.get("lesson") || props.params?.get("lesson")) || null;
+  practiceMode.value = qs.get("mode") || props.params?.get("mode") || Settings.get().practiceMode;
   const c = sessionStorage.getItem("dict_custom");
   if (c) {
     items.value = JSON.parse(c);
@@ -47,6 +63,8 @@ onMounted(async () => {
   loading.value = false;
   if (items.value.length) {
     await nextTick();
+    restoreAttempt();
+    restoreInputSnapshot();
     replayCount.value = 0;
     focusCatch();
     play();
@@ -104,6 +122,7 @@ function onKey(ev) {
   if (ev.key === "Backspace") {
     ev.preventDefault();
     cells.value.backspace();
+    saveInputSnapshot();
     return;
   }
   if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
@@ -124,17 +143,27 @@ function typeChar(ch) {
   for (const c of ch) {
     wrong = (mode.value === "word" ? cells.value.typeLetter(c) : cells.value.typeWordChar(c)) || wrong;
   }
-  if (wrong) {
+  saveInputSnapshot();
+  if (wrong && practiceMode.value !== "pure") {
     inputError.value = true;
     sndWrong();
+    if (firstRight.value === null) {
+      firstRight.value = false;
+      attemptCount.value = 1;
+      if (sessionId.value && !firstAttemptSent.value) {
+        firstAttemptSent.value = true;
+        saveResult("attempt", false).catch(() => { firstAttemptSent.value = false; });
+      }
+    }
   }
   const done = mode.value === "word" ? cells.value.isFull() : cells.value.isCorrect();
-  if (done) submit();
+  if (done && practiceMode.value !== "pure") submit();
 }
 function resetInput() {
   retrying.value = false;
   inputError.value = false;
   cells.value.reset();
+  clearInputSnapshot();
   focusCatch();
 }
 async function play() {
@@ -156,17 +185,25 @@ async function play() {
     }
   };
 }
-function submit() {
+async function submit() {
+  if (saving.value || submitted.value) return;
   const right = cells.value.isCorrect();
+  attemptCount.value++;
   clearReplay();
   audioEl.pause();
+  if (firstRight.value === null) firstRight.value = right;
   if (right) {
     cells.value.paint(true);
     sndRight();
     submitted.value = true;
     lastRight.value = true;
     retrying.value = false;
-    api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right: true, retried: failed.value }) });
+    saving.value = true;
+    try {
+      await saveResult("completed", true);
+    } finally {
+      saving.value = false;
+    }
     failed.value = false;
     clearTimeout(nextTimer.value);
     nextTimer.value = setTimeout(() => next(), 2000);
@@ -177,20 +214,43 @@ function submit() {
     lastRight.value = false;
     retrying.value = true;
     failed.value = true;
+    if (attemptCount.value === 1 && sessionId.value && !firstAttemptSent.value) {
+      firstAttemptSent.value = true;
+      saving.value = true;
+      try { await saveResult("attempt", false); }
+      finally { saving.value = false; }
+    }
   }
 }
+async function saveResult(outcome, finalRight) {
+  return api("/result", { method: "POST", body: JSON.stringify({
+    session_id: sessionId.value || undefined,
+    list: list.value, id: item.value.id, mode: practiceMode.value,
+    first_right: firstRight.value, final_right: finalRight,
+    attempt_count: attemptCount.value, outcome,
+    right: finalRight, retried: firstRight.value === false,
+  }) });
+}
 async function loadSession() {
-  const d = await api(`/session?list=${list.value}&new=${Settings.get().newPerDay}&scope=${scope.value}`);
+  const p = new URLSearchParams({ list: list.value, new: Settings.get().newPerDay,
+    scope: scope.value, mode: practiceMode.value });
+  if (lesson.value) p.set("lesson", lesson.value);
+  const d = await api(`/session?${p}`);
   items.value = d.items || [];
+  sessionId.value = d.session?.id || "";
+  quota.value = d.quota || null;
+  sessionProgress.value = d.progress || null;
+  completedAtLoad.value = (d.progress?.completed || 0) + (d.progress?.skipped || 0);
 }
 function toggleScope() {
   if (custom.value || mode.value !== "word") return;
   scope.value = scope.value === "memorized" ? "all" : "memorized";
   loadSession().then(() => {
-    cur.value = 0;
+      cur.value = 0;
     submitted.value = false;
     if (items.value.length) {
       replayCount.value = 0;
+      resetAttempt();
       focusCatch();
       play();
     }
@@ -199,6 +259,7 @@ function toggleScope() {
 function next() {
   clearReplay();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  clearInputSnapshot();
   if (cur.value + 1 >= items.value.length) {
     location.hash = "#/catalog";
     return;
@@ -209,11 +270,47 @@ function next() {
   failed.value = false;
   inputError.value = false;
   replayCount.value = 0;
-  setTimeout(() => { focusCatch(); play(); }, 130);
+  resetAttempt();
+  setTimeout(() => { restoreAttempt(); restoreInputSnapshot(); focusCatch(); play(); }, 130);
 }
-function skip() {
-  api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right: false, retried: false }) });
-  next();
+function resetAttempt() {
+  firstRight.value = null;
+  attemptCount.value = 0;
+  saving.value = false;
+  firstAttemptSent.value = false;
+}
+async function skip() {
+  if (saving.value) return;
+  if (firstRight.value === null) firstRight.value = false;
+  attemptCount.value = Math.max(1, attemptCount.value);
+  saving.value = true;
+  try { await saveResult("skipped", false); next(); }
+  finally { saving.value = false; }
+}
+function snapshotKey() {
+  return sessionId.value && item.value ? `dict_input:${sessionId.value}:${item.value.id}` : "";
+}
+function saveInputSnapshot() {
+  const key = snapshotKey();
+  if (key && cells.value?.serialize) sessionStorage.setItem(key, JSON.stringify(cells.value.serialize()));
+}
+function restoreInputSnapshot() {
+  const key = snapshotKey();
+  if (!key || !cells.value?.restore) return;
+  try { cells.value.restore(JSON.parse(sessionStorage.getItem(key) || "null")); } catch { /* ignore */ }
+}
+function clearInputSnapshot() {
+  const key = snapshotKey();
+  if (key) sessionStorage.removeItem(key);
+}
+function restoreAttempt() {
+  const first = item.value?.first_right;
+  firstRight.value = first === null || first === undefined ? null : Boolean(first);
+  attemptCount.value = Number(item.value?.attempt_count) || 0;
+  failed.value = first === false;
+  retrying.value = first === false;
+  firstAttemptSent.value = first !== null && first !== undefined;
+  if (retrying.value) setTimeout(() => cells.value?.markWrong(), 0);
 }
 function again() { location.reload(); }
 function cycleSpeed() {
@@ -235,6 +332,7 @@ function cycleSpeed() {
   <div v-else @pointerdown="focusCatch">
     <div class="practice-top">
       <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（错词重练）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span></span>
+      <span class="badge mode-badge">{{ practiceMode === 'pure' ? '纯听写' : practiceMode === 'follow' ? '跟打' : '辅助听写' }}</span>
       <div class="scope-group" v-if="mode === 'word' && !custom">
         <button class="btn ghost sm" :class="{ active: scope === 'all' }" @click="scope !== 'all' && toggleScope()">全部</button>
         <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" @click="scope !== 'memorized' && toggleScope()">已背</button>
@@ -243,21 +341,22 @@ function cycleSpeed() {
     </div>
     <div class="practice-card">
       <div class="info-line">
-        <span id="phonetic">{{ settings.showPhonetic && item.phonetic ? item.phonetic : '' }}</span>
-        <span id="meaning">{{ settings.showMeaning && item.meaning ? item.meaning : '' }}</span>
+        <span id="phonetic">{{ practiceMode !== 'pure' && settings.showPhonetic && item.phonetic ? item.phonetic : '' }}</span>
+        <span id="meaning">{{ practiceMode !== 'pure' && settings.showMeaning && item.meaning ? item.meaning : '' }}</span>
       </div>
       <div class="cells-wrap">
         <component :is="mode === 'word' ? WordCells : SentenceCells"
-          ref="cells" :tokens="item" :submitted="submitted"></component>
+          ref="cells" :tokens="item" :submitted="submitted" :practice-mode="practiceMode"></component>
       </div>
-      <div class="follow-line" v-if="settings.showWord && !submitted">{{ item.text }}</div>
+      <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
       <div id="answer-line">
         <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
       </div>
       <div class="controls">
         <button class="btn ghost" @click="again">↻ 再来一轮</button>
-        <button class="btn ghost" @click="skip">跳过</button>
+        <button class="btn ghost" :disabled="saving" @click="skip">跳过</button>
+        <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" @click="submit">提交答案</button>
         <button class="btn primary big" id="play-btn" @click="play">🔊</button>
       </div>
       <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 自动重播间隔可在设置调整</div>

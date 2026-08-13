@@ -35,7 +35,7 @@ function route() {
 
 <template>
   <TopBar />
-  <main @click="route">
+  <main>
     <component :is="view" :params="params" :key="hashKey" />
   </main>
   <footer class="app-footer">英语听打 v{{ APP_VERSION.replace(/\.0$/, "") }}</footer>
