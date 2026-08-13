@@ -8,3 +8,4 @@ audio/
 *.log
 frontend/node_modules/
 frontend/package-lock.json
+*.tar.gz

@@ -18,8 +18,11 @@ const loading = ref(true);
 const cells = ref(null);
 const catchEl = ref(null);
 const audioCache = ref({});
+const playToken = ref(0);
 const nextTimer = ref(null);
+const quizRound = ref(0);
 const stat = ref({ right: 0, wrong: 0, memorized: 0 });
+let mounted = true;
 
 const prog = computed(() => "剩余 " + (queue.value.length + (cur.value && phase.value === "quiz" ? 1 : 0)));
 const learnTotal = computed(() => items.value.length);
@@ -27,6 +30,7 @@ const learnTotal = computed(() => items.value.length);
 onMounted(async () => {
   list.value = props.params?.get("list") || "cet4";
   const d = await api(`/memorize/session?list=${list.value}`);
+  if (!mounted) return;
   items.value = d.items || [];
   queue.value = [...items.value];
   loading.value = false;
@@ -41,6 +45,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  mounted = false;
+  playToken.value++;
   audioEl.pause();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   document.removeEventListener("pointerdown", onDocDown, true);
@@ -99,21 +105,28 @@ function onKey(ev) {
 
 async function play() {
   if (!cur.value) return;
-  let url = audioCache.value[cur.value.text];
+  const token = ++playToken.value;
+  const playingItem = cur.value;
+  let url = audioCache.value[playingItem.text];
   if (!url) {
-    url = await ensureAudio(cur.value);
-    audioCache.value[cur.value.text] = url;
+    url = await ensureAudio(playingItem);
+    if (token !== playToken.value || cur.value !== playingItem) return;
+    audioCache.value[playingItem.text] = url;
   }
+  if (token !== playToken.value || cur.value !== playingItem) return;
   playUrl(url);
 }
 
 /* ---- 学习态 ---- */
 function flip() {
   if (phase.value !== "learn") return;
+  playToken.value++;
   flipped.value = !flipped.value;
   if (flipped.value) audioEl.pause();
 }
 function learnNext() {
+  playToken.value++;
+  audioEl.pause();
   flipped.value = false;
   const idx = items.value.indexOf(cur.value);
   if (idx < items.value.length - 1) {
@@ -124,6 +137,9 @@ function learnNext() {
   }
 }
 function startQuiz() {
+  playToken.value++;
+  audioEl.pause();
+  quizRound.value++;
   phase.value = "quiz";
   flipped.value = false;
   if (queue.value.length) {
@@ -149,6 +165,8 @@ function onInput(ev) {
 async function submit() {
   if (submitted.value) return;
   const right = cells.value.isCorrect();
+  playToken.value++;
+  audioEl.pause();
   submitted.value = true;
   if (right) cells.value.paint(true);
   else cells.value.markWrong();
@@ -156,6 +174,7 @@ async function submit() {
     method: "POST",
     body: JSON.stringify({ list: list.value, id: cur.value.id, right }),
   });
+  if (!mounted) return;
   if (right) {
     sndRight();
     stat.value.right++;
@@ -177,6 +196,9 @@ async function submit() {
   }
 }
 function quizNext() {
+  playToken.value++;
+  audioEl.pause();
+  quizRound.value++;
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   submitted.value = false;
   lastNote.value = "";
@@ -193,8 +215,9 @@ function redo() {
   location.reload();
 }
 function goDictation() {
-  location.hash = `#/word?list=${list.value}&scope=memorized`;
+  window.location.hash = `#/word?list=${list.value}&scope=memorized`;
 }
+function goCatalog() { window.location.hash = "#/catalog"; }
 </script>
 
 <template>
@@ -203,7 +226,7 @@ function goDictation() {
     <p>本轮没有要背的词（已背的词 7 天内会回来复习）</p>
     <div class="controls" style="margin-top:16px;">
       <button class="btn primary" @click="goDictation">去听打（只看已背）</button>
-      <button class="btn ghost" @click="location.hash='#/catalog'">返回素材库</button>
+      <button class="btn ghost" @click="goCatalog">返回素材库</button>
     </div>
   </div>
 
@@ -242,7 +265,7 @@ function goDictation() {
         <span id="meaning" style="font-size:18px;">{{ cur.meaning }}</span>
       </div>
       <div class="cells-wrap">
-        <WordCells ref="cells" :tokens="cur" :submitted="submitted"></WordCells>
+        <WordCells ref="cells" :key="quizRound" :tokens="cur" :submitted="submitted"></WordCells>
       </div>
       <div id="answer-line">
         <template v-if="submitted">
@@ -265,7 +288,7 @@ function goDictation() {
     <div class="controls" style="margin-top:16px;">
       <button class="btn primary big" @click="goDictation">去听打（只看已背）</button>
       <button class="btn ghost" @click="redo">再背一轮</button>
-      <button class="btn ghost" @click="location.hash='#/catalog'">返回素材库</button>
+      <button class="btn ghost" @click="goCatalog">返回素材库</button>
     </div>
   </div>
 

@@ -2,19 +2,19 @@
 import { computed, ref, watch } from "vue";
 
 const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean,
-  practiceMode: { type: String, default: "assisted" } });
+  feedback: Boolean, practiceMode: { type: String, default: "assisted" } });
 const wcur = ref(0);
 const input = ref([]);
 const box = ref(null);
 const flash = ref([]);
 const mark = ref([]);
 const extraInput = ref("");
-const showSequence = computed(() => props.practiceMode !== "pure" || mark.value.some(Boolean));
+const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback || mark.value.some(Boolean));
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
+watch(() => props.tokens.id || props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
 
 function letterIdxs() {
   const out = [];
@@ -49,7 +49,7 @@ function restore(s) {
   if (!s) return;
   input.value = [...(s.input || [])];
   wcur.value = Number(s.cursor) || 0;
-  mark.value = [...(s.mark || [])];
+  mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
   extraInput.value = s.extraInput || "";
 }
 function backspace() {

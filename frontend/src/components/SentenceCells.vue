@@ -2,14 +2,14 @@
 import { computed, ref, watch } from "vue";
 
 const props = defineProps({ tokens: { type: Object, required: true }, submitted: Boolean,
-  practiceMode: { type: String, default: "assisted" } });
+  feedback: Boolean, practiceMode: { type: String, default: "assisted" } });
 const scur = ref(0);
 const input = ref([]);
 const box = ref(null);
 const flash = ref([]);
 const mark = ref([]);
 const extras = ref([]);
-const showSequence = computed(() => props.practiceMode !== "pure" || mark.value.some(Boolean) || extras.value.length);
+const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback);
 
 const words = computed(() =>
   props.tokens.text.split(/\s+/).map((w) => {
@@ -17,7 +17,7 @@ const words = computed(() =>
     return { pre: m[1], core: m[2] || m[1] || w, suf: m[3] };
   }));
 
-watch(() => props.tokens.text, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
+watch(() => props.tokens.id || props.tokens.text, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
 
 function typeWordChar(ch) {
   if (ch === " ") {
@@ -36,6 +36,10 @@ function typeWordChar(ch) {
   return props.practiceMode !== "pure" && wrong;
 }
 function refreshMark(i) {
+  if (props.practiceMode === "pure" && !props.submitted) {
+    mark.value[i] = "";
+    return;
+  }
   const typed = (input.value[i] || "").toLowerCase();
   const target = (words.value[i]?.core || "").toLowerCase();
   mark.value[i] = typed && !target.startsWith(typed) ? "wrong" : "";
@@ -112,8 +116,8 @@ function restore(s) {
   if (!s) return;
   input.value = [...(s.input || [])];
   scur.value = Number(s.cursor) || 0;
-  mark.value = [...(s.mark || [])];
-  extras.value = [...(s.extras || [])];
+  mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
+  extras.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.extras || [])];
 }
 function alignWords(target, mine) {
   const rows = target.length + 1, cols = mine.length + 1;

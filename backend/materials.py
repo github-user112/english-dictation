@@ -36,6 +36,11 @@ def load_material(list_key):
                 "lesson": s.get("lesson"),
                 "module": s.get("module"),
             })
+    counts = {}
+    for item in items:
+        base_id = item["id"]
+        counts[base_id] = counts.get(base_id, 0) + 1
+        item["id"] = base_id if counts[base_id] == 1 else f"{base_id}~{counts[base_id]}"
     return items
 
 

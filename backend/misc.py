@@ -30,7 +30,7 @@ def api_wrong():
             items.append({**m, "list": r["list"], "wrong_count": r["wrong_count"],
                           "right_count": r["right_count"], "last_seen": r["last_seen"],
                           "audio": audio_url(r["list"], r["item_id"], m["text"])})
-    return jsonify({"items": items})
+    return resp({"items": items})
 
 
 @bp.post("/api/wrong/remove")

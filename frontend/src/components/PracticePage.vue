@@ -26,11 +26,13 @@ const firstAttemptSent = ref(false);
 const loading = ref(true);
 const custom = ref(false);
 const audioCache = ref({});
+const playToken = ref(0);
 const replayTimer = ref(null);
 const nextTimer = ref(null);
 const replayCount = ref(0);
 const cells = ref(null);
 const catchEl = ref(null);
+let mounted = true;
 
 const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
@@ -59,10 +61,12 @@ onMounted(async () => {
     custom.value = true;
   } else {
     await loadSession();
+    if (!mounted) return;
   }
   loading.value = false;
   if (items.value.length) {
     await nextTick();
+    if (!mounted) return;
     restoreAttempt();
     restoreInputSnapshot();
     replayCount.value = 0;
@@ -76,7 +80,10 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  mounted = false;
+  playToken.value++;
   clearReplay();
+  audioEl.pause();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   document.removeEventListener("pointerdown", onDocDown, true);
   window.removeEventListener("keydown", onGlobalKey, true);
@@ -121,8 +128,10 @@ function onKey(ev) {
   if (ev.key === "Escape") { clearReplay(); play(); return; }
   if (ev.key === "Backspace") {
     ev.preventDefault();
-    cells.value.backspace();
-    saveInputSnapshot();
+    if (!retrying.value) {
+      cells.value.backspace();
+      saveInputSnapshot();
+    }
     return;
   }
   if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
@@ -169,19 +178,24 @@ function resetInput() {
 async function play() {
   if (!item.value) return;
   clearReplay();
-  const it = item.value;
-  let url = audioCache.value[it.text];
+  const token = ++playToken.value;
+  const playingItem = item.value;
+  let url = audioCache.value[playingItem.text];
   if (!url) {
-    url = await ensureAudio(it);
-    audioCache.value[it.text] = url;
+    url = await ensureAudio(playingItem);
+    if (token !== playToken.value || item.value !== playingItem) return;
+    audioCache.value[playingItem.text] = url;
   }
+  if (token !== playToken.value || item.value !== playingItem) return;
   playUrl(url);
   audioEl.onended = () => {
-    if (submitted.value) return;
+    if (token !== playToken.value || item.value !== playingItem || submitted.value) return;
     const s = Settings.get();
     if (replayCount.value < (s.replayTimes ?? 2)) {
       replayCount.value++;
-      replayTimer.value = setTimeout(() => play(), Math.max(1, s.replayInterval || 5) * 1000);
+      replayTimer.value = setTimeout(() => {
+        if (token === playToken.value && item.value === playingItem) play();
+      }, Math.max(1, s.replayInterval || 5) * 1000);
     }
   };
 }
@@ -189,6 +203,7 @@ async function submit() {
   if (saving.value || submitted.value) return;
   const right = cells.value.isCorrect();
   attemptCount.value++;
+  playToken.value++;
   clearReplay();
   audioEl.pause();
   if (firstRight.value === null) firstRight.value = right;
@@ -201,6 +216,7 @@ async function submit() {
     saving.value = true;
     try {
       await saveResult("completed", true);
+      if (!mounted) return;
     } finally {
       saving.value = false;
     }
@@ -244,9 +260,13 @@ async function loadSession() {
 }
 function toggleScope() {
   if (custom.value || mode.value !== "word") return;
+  playToken.value++;
+  clearReplay();
+  audioEl.pause();
   scope.value = scope.value === "memorized" ? "all" : "memorized";
   loadSession().then(() => {
-      cur.value = 0;
+    if (!mounted) return;
+    cur.value = 0;
     submitted.value = false;
     if (items.value.length) {
       replayCount.value = 0;
@@ -257,7 +277,9 @@ function toggleScope() {
   });
 }
 function next() {
+  playToken.value++;
   clearReplay();
+  audioEl.pause();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   clearInputSnapshot();
   if (cur.value + 1 >= items.value.length) {
@@ -271,7 +293,13 @@ function next() {
   inputError.value = false;
   replayCount.value = 0;
   resetAttempt();
-  setTimeout(() => { restoreAttempt(); restoreInputSnapshot(); focusCatch(); play(); }, 130);
+  setTimeout(() => {
+    if (!mounted) return;
+    restoreAttempt();
+    restoreInputSnapshot();
+    focusCatch();
+    play();
+  }, 130);
 }
 function resetAttempt() {
   firstRight.value = null;
@@ -284,7 +312,10 @@ async function skip() {
   if (firstRight.value === null) firstRight.value = false;
   attemptCount.value = Math.max(1, attemptCount.value);
   saving.value = true;
-  try { await saveResult("skipped", false); next(); }
+  try {
+    await saveResult("skipped", false);
+    if (mounted) next();
+  }
   finally { saving.value = false; }
 }
 function snapshotKey() {
@@ -310,7 +341,7 @@ function restoreAttempt() {
   failed.value = first === false;
   retrying.value = first === false;
   firstAttemptSent.value = first !== null && first !== undefined;
-  if (retrying.value) setTimeout(() => cells.value?.markWrong(), 0);
+  if (retrying.value) setTimeout(() => { if (mounted) cells.value?.markWrong(); }, 0);
 }
 function again() { location.reload(); }
 function cycleSpeed() {
@@ -346,7 +377,8 @@ function cycleSpeed() {
       </div>
       <div class="cells-wrap">
         <component :is="mode === 'word' ? WordCells : SentenceCells"
-          ref="cells" :tokens="item" :submitted="submitted" :practice-mode="practiceMode"></component>
+          ref="cells" :tokens="item" :submitted="submitted" :feedback="retrying || submitted"
+          :practice-mode="practiceMode"></component>
       </div>
       <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
       <div id="answer-line">

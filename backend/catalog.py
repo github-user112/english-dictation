@@ -299,13 +299,20 @@ def api_result():
     session_id = data.get("session_id")
     item_id = str(data.get("id"))
     outcome = data.get("outcome", "completed" if data.get("right") else "skipped")
+    if outcome not in {"attempt", "completed", "skipped"}:
+        return jsonify({"error": "outcome 无效"}), 400
     first_right = bool(data.get("first_right", data.get("right") and not data.get("retried")))
     final_right = bool(data.get("final_right", data.get("right")))
-    attempt_count = max(1, int(data.get("attempt_count", 1)))
+    try:
+        attempt_count = int(data.get("attempt_count", 1))
+    except (TypeError, ValueError):
+        return jsonify({"error": "attempt_count 无效"}), 400
+    if attempt_count < 1:
+        return jsonify({"error": "attempt_count 无效"}), 400
     today = date.today().isoformat()
     stamp = now()
     if not session_id:
-        return legacy_result(user, data, item_id, first_right, final_right, today)
+        return legacy_result(user, data, item_id, first_right, final_right, outcome, today)
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = conn.execute(
@@ -316,6 +323,8 @@ def api_result():
         ).fetchone()
         if not session or not item:
             return jsonify({"error": "会话或题目不存在"}), 404
+        if item["state"] != "pending":
+            return resp({"ok": True, "duplicate": True})
         if outcome == "attempt":
             if item["first_right"] is None:
                 conn.execute(
@@ -325,24 +334,29 @@ def api_result():
                 update_mode_log(conn, today, user, session["practice_mode"], item["phase"],
                                 first_right, None, False)
             return resp({"ok": True, "pending": True})
-        if item["state"] != "pending":
-            return resp({"ok": True, "duplicate": True})
         effective_first = bool(item["first_right"]) if item["first_right"] is not None else first_right
-        state = "skipped" if outcome == "skipped" else "completed"
+        skipped = outcome == "skipped"
+        state = "skipped" if skipped else "completed"
         conn.execute(
             "UPDATE study_session_item SET state=?,first_right=COALESCE(first_right,?),final_right=?,"
             "attempt_count=?,first_answer_at=COALESCE(first_answer_at,?),answered_at=? "
             "WHERE session_id=? AND item_id=? AND state='pending'",
-            (state, 1 if effective_first else 0, 1 if final_right else 0, attempt_count,
-             stamp, stamp, session_id, item_id))
-        if item["first_right"] is None:
+            (state, None if skipped else (1 if effective_first else 0),
+             None if skipped else (1 if final_right else 0), attempt_count,
+             None if skipped else stamp, stamp, session_id, item_id))
+        if skipped:
+            update_mode_log(conn, today, user, session["practice_mode"],
+                            item["phase"] if item["first_right"] is None else None,
+                            None, None, True)
+        elif item["first_right"] is None:
             update_mode_log(conn, today, user, session["practice_mode"], item["phase"],
-                            effective_first, final_right, state == "skipped")
+                            effective_first, final_right, False)
         else:
             update_mode_log(conn, today, user, session["practice_mode"], None,
-                            None, final_right, state == "skipped")
-        update_word_state(conn, user, session["list"], item_id, effective_first,
-                          final_right, session["practice_mode"], today)
+                            None, final_right, False)
+        if not skipped:
+            update_word_state(conn, user, session["list"], item_id, effective_first,
+                              final_right, session["practice_mode"], today)
         if session["practice_mode"] != "follow":
             conn.execute(
                 """INSERT INTO daily_log(day,user,new_count,review_count,right_count,wrong_count)
@@ -351,7 +365,8 @@ def api_result():
                    right_count=right_count+excluded.right_count,wrong_count=wrong_count+excluded.wrong_count""",
                 (today, user, 1 if item["phase"] == "new" else 0,
                  1 if item["phase"] == "review" else 0,
-                 1 if effective_first else 0, 0 if effective_first else 1))
+                 0 if skipped else (1 if effective_first else 0),
+                 0 if skipped or effective_first else 1))
         pending = conn.execute(
             "SELECT COUNT(*) c FROM study_session_item WHERE session_id=? AND state='pending'", (session_id,)
         ).fetchone()["c"]
@@ -386,14 +401,16 @@ def update_mode_log(conn, day, user, mode, phase, first_right, final_right, skip
          values["first_wrong"], values["final_right"], values["skipped"]))
 
 
-def legacy_result(user, data, item_id, first_right, final_right, today):
+def legacy_result(user, data, item_id, first_right, final_right, outcome, today):
     """兼容错词本自定义重练等旧调用；新练习页一律传 session_id。"""
     list_key = data.get("list")
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
+    skipped = outcome == "skipped"
     with db() as conn:
-        update_word_state(conn, user, list_key, item_id, first_right, final_right,
-                          data.get("mode", "assisted"), today)
+        if not skipped:
+            update_word_state(conn, user, list_key, item_id, first_right, final_right,
+                              data.get("mode", "assisted"), today)
         update_mode_log(conn, today, user, data.get("mode", "assisted"), "review",
-                        first_right, final_right, not final_right)
+                        None if skipped else first_right, None if skipped else final_right, skipped)
     return resp({"ok": True, "legacy": True})

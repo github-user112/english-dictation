@@ -17,7 +17,12 @@ def api_memorize_session():
     """背单词任务：到期待重背的词优先 + 未背过的新词补齐"""
     u = get_user()
     list_key = request.args.get("list", "cet4")
-    batch = int(request.args.get("n", CONFIG["memorize_batch"]))
+    try:
+        batch = int(request.args.get("n", CONFIG["memorize_batch"]))
+    except (TypeError, ValueError):
+        return jsonify({"error": "n 无效"}), 400
+    if not 1 <= batch <= 100:
+        return jsonify({"error": "n 必须在 1..100 之间"}), 400
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":

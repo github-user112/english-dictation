@@ -20,4 +20,8 @@ def create_app():
     def static_files(filename):
         return send_from_directory(app.static_folder, filename)
 
+    @app.get("/assets/<path:filename>")
+    def asset_files(filename):
+        return send_from_directory(STATIC_DIR / "assets", filename)
+
     return app

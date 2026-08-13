@@ -32,6 +32,7 @@ function resume(s) {
   if (s.lesson) p.set("lesson", s.lesson);
   location.hash = `#/${lists.value.find((l) => l.key === s.list)?.type === "words" ? "word" : "sentence"}?${p}`;
 }
+function memorize(key) { window.location.hash = `#/memorize?list=${key}`; }
 function title(key) { return lists.value.find((l) => l.key === key)?.title || key; }
 </script>
 
@@ -54,7 +55,7 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="meta">共 {{ l.total }} · 已背 {{ l.memorized }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
         <div class="progress"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
         <div class="card-actions">
-          <button class="btn ghost sm" @click="location.hash='#/memorize?list=' + l.key">📖 背单词</button>
+          <button class="btn ghost sm" @click="memorize(l.key)">📖 背单词</button>
           <button class="btn primary sm" @click="start(l)">👂 开始听打</button>
         </div>
       </div>
