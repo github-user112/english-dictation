@@ -63,6 +63,11 @@ body {
 #title { font-size: 17px; font-weight: 600; margin-left: 8px; }
 #nav { display: flex; gap: 6px; }
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  vertical-align: middle;
   border: 1px solid var(--border);
   background: var(--panel2);
   color: var(--text);
@@ -75,6 +80,7 @@ body {
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .btn.ghost { background: transparent; border-color: var(--border); }
+.btn.ghost.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .btn:active { transform: scale(.96); }
 .btn:disabled { opacity: .4; pointer-events: none; }
 .btn.big { padding: 12px 22px; font-size: 16px; }
@@ -145,12 +151,14 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
   border: 2px solid var(--accent);
   background: var(--panel2);
   color: var(--accent);
+  padding: 0;
   font-size: 26px;
+  line-height: 1;
   cursor: pointer;
   transition: all .15s;
   flex: none;
 }
-#play-btn:active { transform: scale(.92); background: var(--accent); color: #0b1220; }
+#play-btn:active { transform: scale(.92); background: var(--accent); color: var(--accent-text); }
 .practice-card {
   background: var(--panel);
   border: 1px solid var(--border);
