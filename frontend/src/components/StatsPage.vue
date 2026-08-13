@@ -25,7 +25,8 @@ const maxDay = computed(() => Math.max(1, ...last14.value.map((d) => d.total)));
   <div v-else>
     <div class="stat-cards">
       <div class="stat-card"><div class="num">{{ stats.streak }}</div><div class="lab">连续打卡(天)</div></div>
-      <div class="stat-card"><div class="num">{{ stats.total_right }}</div><div class="lab">累计答对</div></div>
+      <div class="stat-card"><div class="num">{{ stats.total_memorize_right }}</div><div class="lab">累计背诵对</div></div>
+      <div class="stat-card"><div class="num">{{ stats.total_right }}</div><div class="lab">累计听打对</div></div>
       <div class="stat-card"><div class="num">{{ stats.total_wrong }}</div><div class="lab">累计答错</div></div>
       <div class="stat-card"><div class="num">{{ stats.wrong_words }}</div><div class="lab">错词本</div></div>
     </div>

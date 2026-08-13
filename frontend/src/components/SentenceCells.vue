@@ -5,6 +5,8 @@ const props = defineProps({ tokens: { type: Object, required: true }, submitted:
 const scur = ref(0);
 const input = ref([]);
 const box = ref(null);
+const flash = ref([]);
+const mark = ref([]);
 
 const words = computed(() =>
   props.tokens.text.split(/\s+/).map((w) => {
@@ -12,7 +14,7 @@ const words = computed(() =>
     return { pre: m[1], core: m[2] || m[1] || w, suf: m[3] };
   }));
 
-watch(() => props.tokens.text, () => { scur.value = 0; input.value = []; });
+watch(() => props.tokens.text, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; });
 
 function typeWordChar(ch) {
   if (ch === " ") {
@@ -22,9 +24,18 @@ function typeWordChar(ch) {
     return;
   }
   if (!/[a-zA-Z']/.test(ch)) return;
-  const w = input.value[scur.value] || "";
+  const i = scur.value;
+  const w = input.value[i] || "";
   if (w.length >= 30) return;
-  input.value[scur.value] = w + ch;
+  input.value[i] = w + ch;
+  const target = (words.value[i]?.core || "").toLowerCase();
+  if (target && !target.startsWith((w + ch).toLowerCase()) && !flash.value.includes(i)) {
+    flash.value.push(i);
+    setTimeout(() => {
+      const k = flash.value.indexOf(i);
+      if (k >= 0) flash.value.splice(k, 1);
+    }, 700);
+  }
 }
 function backspace() {
   const w = input.value[scur.value] || "";
@@ -37,28 +48,35 @@ function backspace() {
 function cell(i) { return box.value?.querySelector("#sc" + i); }
 function paint() {
   const t = words.value.map((w) => w.core.toLowerCase());
-  words.value.forEach((w, i) => {
-    const el = cell(i);
-    if (!el) return;
+  mark.value = t.map((w, i) => (input.value[i] || "").toLowerCase() === w ? "right" : "wrong");
+}
+function markWrong() {
+  const t = words.value.map((w) => w.core.toLowerCase());
+  mark.value = t.map((w, i) => {
     const mine = (input.value[i] || "").toLowerCase();
-    if (i < t.length && mine === t[i]) el.classList.add("right");
-    else if (mine && i < t.length) { el.classList.add("wrong"); el.textContent = t[i]; }
-    else if (!mine && i < t.length) { el.classList.add("miss"); el.textContent = t[i]; }
-    else { el.classList.add("wrong"); el.textContent = mine + " ✕"; }
+    if (mine === w) return "right";
+    return mine ? "wrong" : "miss";
   });
+}
+function reset() {
+  scur.value = 0;
+  input.value = [];
+  flash.value = [];
+  mark.value = [];
+  box.value?.querySelectorAll(".cell").forEach((el) => el.classList.remove("right", "wrong", "miss"));
 }
 function isCorrect() {
   const t = words.value.map((w) => w.core.toLowerCase());
   return t.every((w, i) => (input.value[i] || "").toLowerCase() === w);
 }
-defineExpose({ typeWordChar, backspace, paint, isCorrect });
+defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect });
 </script>
 
 <template>
   <div ref="box" class="cells-wrap" style="margin:0;">
     <template v-for="(w, i) in words" :key="i">
       <span v-if="w.pre" class="cell fixed" style="width:auto;padding:0 4px;">{{ w.pre }}</span>
-      <span :id="'sc' + i" class="cell" style="min-width:40px;">{{ input[i] }}</span>
+      <span :id="'sc' + i" class="cell" :class="[flash.includes(i) ? 'bad' : '', mark[i] || '']" style="min-width:40px;">{{ input[i] }}</span>
       <span v-if="w.suf" class="cell fixed" style="width:auto;padding:0 4px;">{{ w.suf }}</span>
     </template>
   </div>

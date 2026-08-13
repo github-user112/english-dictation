@@ -48,14 +48,21 @@ export const audioEl = new Audio();
 audioEl.preload = "auto";
 
 let actx = null;
+function unlockActx() {
+  if (!actx) {
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+  }
+  if (actx.state === "suspended") actx.resume().catch(() => {});
+}
 document.addEventListener("pointerdown", () => {
   audioEl.play().catch(() => {});
-  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (actx && actx.state === "suspended") actx.resume();
+  unlockActx();
 }, { passive: true, once: false });
+document.addEventListener("keydown", unlockActx, { passive: true, once: false });
 
 function beep(freq, dur, delay = 0) {
   if (!actx) return;
+  if (actx.state === "suspended") actx.resume();
   const o = actx.createOscillator(), g = actx.createGain();
   o.type = "sine"; o.frequency.value = freq;
   g.gain.setValueAtTime(0.001, actx.currentTime + delay);
@@ -66,7 +73,7 @@ function beep(freq, dur, delay = 0) {
   o.stop(actx.currentTime + delay + dur + 0.05);
 }
 export const sndRight = () => { beep(660, 0.09); beep(880, 0.12, 0.09); };
-export const sndWrong = () => { beep(200, 0.22); };
+export const sndWrong = () => { beep(250, 0.13); beep(150, 0.3, 0.13); };
 
 export function playUrl(url) {
   if (!url) return;

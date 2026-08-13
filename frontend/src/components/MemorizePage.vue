@@ -1,0 +1,275 @@
+<script setup>
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { api, audioEl, ensureAudio, playUrl, sndRight, sndWrong } from "../lib/core";
+import WordCells from "./WordCells.vue";
+
+const props = defineProps({ params: { type: Object, default: null } });
+
+const list = ref("cet4");
+const phase = ref("learn");            // learn | quiz | done
+const items = ref([]);                 // 全部任务
+const queue = ref([]);                 // 自测队列
+const cur = ref(null);
+const flipped = ref(false);
+const submitted = ref(false);
+const lastRight = ref(false);
+const lastNote = ref("");
+const loading = ref(true);
+const cells = ref(null);
+const audioCache = ref({});
+const nextTimer = ref(null);
+const stat = ref({ right: 0, wrong: 0, memorized: 0 });
+
+const prog = computed(() => "剩余 " + (queue.value.length + (cur.value && phase.value === "quiz" ? 1 : 0)));
+const learnTotal = computed(() => items.value.length);
+
+onMounted(async () => {
+  list.value = props.params?.get("list") || "cet4";
+  const d = await api(`/memorize/session?list=${list.value}`);
+  items.value = d.items || [];
+  queue.value = [...items.value];
+  loading.value = false;
+  if (queue.value.length) {
+    cur.value = queue.value[0];
+    queue.value.shift();
+    play();
+  }
+  forceFocus();
+  document.addEventListener("pointerdown", onDocDown, true);
+  window.addEventListener("keydown", onGlobalKey, true);
+});
+
+onUnmounted(() => {
+  audioEl.pause();
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  document.removeEventListener("pointerdown", onDocDown, true);
+  window.removeEventListener("keydown", onGlobalKey, true);
+});
+
+async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
+
+function focusCatch() {
+  const el = document.getElementById("catch");
+  if (el) {
+    el.removeAttribute("readonly");
+    try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+  }
+}
+function forceFocus() {
+  setTimeout(focusCatch, 150);
+  setTimeout(focusCatch, 450);
+}
+function onDocDown(ev) {
+  ev.preventDefault();
+  focusCatch();
+}
+function onBlurCatch(ev) { ev.target.setAttribute("readonly", ""); }
+function onGlobalKey(ev) {
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
+  onKey(ev);
+}
+
+function onKey(ev) {
+  if (phase.value === "learn") {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      if (!flipped.value) flip();
+      else learnNext();
+    }
+    return;
+  }
+  if (phase.value !== "quiz") return;
+  if (submitted.value) {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); quizNext(); return; }
+    return;
+  }
+  if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
+  if (ev.key === "Backspace") {
+    ev.preventDefault();
+    cells.value.backspace();
+    return;
+  }
+  if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    ev.preventDefault();
+    typeChar(ev.key);
+  }
+}
+
+async function play() {
+  if (!cur.value) return;
+  let url = audioCache.value[cur.value.text];
+  if (!url) {
+    url = await ensureAudio(cur.value);
+    audioCache.value[cur.value.text] = url;
+  }
+  playUrl(url);
+}
+
+/* ---- 学习态 ---- */
+function flip() {
+  if (phase.value !== "learn") return;
+  flipped.value = !flipped.value;
+  if (flipped.value) audioEl.pause();
+}
+function learnNext() {
+  flipped.value = false;
+  const idx = items.value.indexOf(cur.value);
+  if (idx < items.value.length - 1) {
+    cur.value = items.value[idx + 1];
+    play();
+  } else {
+    startQuiz();
+  }
+}
+function startQuiz() {
+  phase.value = "quiz";
+  flipped.value = false;
+  if (queue.value.length) {
+    cur.value = queue.value[0];
+    queue.value.shift();
+    play();
+    nextTick().then(() => { focusCatch(); });
+  }
+}
+
+/* ---- 自测态 ---- */
+function typeChar(ch) {
+  if (!cells.value || submitted.value) return;
+  for (const c of ch) cells.value.typeLetter(c);
+  if (cells.value.isFull()) submit();
+}
+function onInput(ev) {
+  const ch = ev.data || ev.target.value;
+  ev.target.value = "";
+  if (!ch || submitted.value || ev.isComposing) return;
+  typeChar(ch);
+}
+async function submit() {
+  if (submitted.value) return;
+  const right = cells.value.isCorrect();
+  submitted.value = true;
+  if (right) cells.value.paint(true);
+  else cells.value.markWrong();
+  const r = await api("/memorize", {
+    method: "POST",
+    body: JSON.stringify({ list: list.value, id: cur.value.id, right }),
+  });
+  if (right) {
+    sndRight();
+    stat.value.right++;
+    if (r.memorized) {
+      stat.value.memorized++;
+      lastNote.value = "✔ 已背过！";
+    } else {
+      lastNote.value = "✔ 对了，待会再确认一遍";
+      queue.value.push({ ...cur.value });   // 连续答对 2 次才已背，排队复测
+    }
+    lastRight.value = true;
+    clearTimeout(nextTimer.value);
+    nextTimer.value = setTimeout(() => quizNext(), 900);
+  } else {
+    sndWrong();
+    stat.value.wrong++;
+    lastNote.value = "✗ 再背一次，明天还会见到它";
+    lastRight.value = false;
+  }
+}
+function quizNext() {
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  submitted.value = false;
+  lastNote.value = "";
+  if (!queue.value.length) {
+    phase.value = "done";
+    return;
+  }
+  cur.value = queue.value[0];
+  queue.value.shift();
+  play();
+  nextTick().then(() => { focusCatch(); });
+}
+function redo() {
+  location.reload();
+}
+function goDictation() {
+  location.hash = `#/word?list=${list.value}&scope=memorized`;
+}
+</script>
+
+<template>
+  <div v-if="loading" class="empty">加载中…</div>
+  <div v-else-if="!items.length" class="empty">
+    <p>本轮没有要背的词（已背的词 7 天内会回来复习）</p>
+    <div class="controls" style="margin-top:16px;">
+      <button class="btn primary" @click="goDictation">去听打（只看已背）</button>
+      <button class="btn ghost" @click="location.hash='#/catalog'">返回素材库</button>
+    </div>
+  </div>
+
+  <!-- 学习态：英→中翻卡 -->
+  <div v-else-if="phase === 'learn'" @pointerdown="focusCatch">
+    <div class="practice-top">
+      <span class="progress-line">先认个脸：{{ items.indexOf(cur) + 1 }} / {{ learnTotal }}</span>
+      <button class="btn ghost" @click="startQuiz">跳过学习，直接自测</button>
+    </div>
+    <div class="practice-card">
+      <div class="flash-card" :class="{ flipped }" @click="flip">
+        <div class="face front">
+          <div class="fw">{{ cur.text }}</div>
+          <div class="fp">{{ cur.phonetic }}</div>
+        </div>
+        <div class="face back">
+          <div class="fm">{{ cur.meaning }}</div>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:16px;">
+        <button class="btn ghost" @click="play">🔊 发音</button>
+        <button class="btn primary big" @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
+      </div>
+      <div class="hint">点击卡片翻面 · 记住拼写后开始自测</div>
+    </div>
+  </div>
+
+  <!-- 自测态：中→英打字 -->
+  <div v-else-if="phase === 'quiz'" @pointerdown="focusCatch">
+    <div class="practice-top">
+      <span class="progress-line">{{ prog }} · 已背 {{ stat.memorized }}</span>
+      <span class="badge" style="background:#24402d;color:#7fdcab;">{{ cur.phase === 'review' ? '复习' : '新词' }}</span>
+    </div>
+    <div class="practice-card">
+      <div class="info-line" style="margin-bottom:10px;">
+        <span id="meaning" style="font-size:18px;">{{ cur.meaning }}</span>
+      </div>
+      <div class="cells-wrap">
+        <WordCells ref="cells" :tokens="cur" :submitted="submitted"></WordCells>
+      </div>
+      <div id="answer-line">
+        <template v-if="submitted">
+          <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}</span>
+          <span v-if="lastRight">{{ lastNote }}</span>
+        </template>
+      </div>
+      <div class="controls">
+        <button class="btn primary big" @click="submitted ? quizNext() : submit()">{{ submitted ? '继续' : '提交' }}</button>
+        <button class="btn ghost" @click="play">🔊 听发音</button>
+      </div>
+      <div class="hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
+    </div>
+  </div>
+
+  <!-- 结束 -->
+  <div v-else class="empty">
+    <div style="font-size:20px;font-weight:700;margin-bottom:10px;">本轮完成 🎉</div>
+    <p>已背 {{ stat.memorized }} 个 · 答对 {{ stat.right }} 次 · 答错 {{ stat.wrong }} 次</p>
+    <div class="controls" style="margin-top:16px;">
+      <button class="btn primary big" @click="goDictation">去听打（只看已背）</button>
+      <button class="btn ghost" @click="redo">再背一轮</button>
+      <button class="btn ghost" @click="location.hash='#/catalog'">返回素材库</button>
+    </div>
+  </div>
+
+  <input id="catch" autocomplete="off" autocorrect="off"
+         autocapitalize="off" spellcheck="false" enterkeyhint="done"
+         style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
+         @input="onInput" @blur="onBlurCatch">
+</template>

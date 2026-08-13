@@ -7,11 +7,13 @@ import SentenceCells from "./SentenceCells.vue";
 const props = defineProps({ params: { type: Object, default: null } });
 
 const list = ref("cet4");
-const mode = ref("word");
+const scope = ref("all");
 const items = ref([]);
 const cur = ref(0);
 const submitted = ref(false);
 const lastRight = ref(false);
+const retrying = ref(false);   // 本题答错，等待重输
+const failed = ref(false);     // 本题是否错过（最终提交时告知后端）
 const loading = ref(true);
 const custom = ref(false);
 const audioCache = ref({});
@@ -22,22 +24,23 @@ const cells = ref(null);
 
 const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
+const mode = computed(() => (item.value && item.value.kind === "sentence") ? "sentence" : "word");
 const prog = computed(() => items.value.length ? `${cur.value + 1} / ${items.value.length}` : "");
 const speedLabel = computed(() => speed.value.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
 const settings = computed(() => Settings.get());
 
 onMounted(async () => {
   const h = location.hash.replace(/^#\/?/, "").split("?");
-  list.value = new URLSearchParams(h[1] || "").get("list") || "cet4";
-  mode.value = new URLSearchParams(h[1] || "").get("mode") || (list.value === "oral900" ? "sentence" : "word");
+  const qs = new URLSearchParams(h[1] || "");
+  list.value = qs.get("list") || "cet4";
+  scope.value = qs.get("scope") || (props.params?.get("scope") || "all");
   const c = sessionStorage.getItem("dict_custom");
   if (c) {
     items.value = JSON.parse(c);
     sessionStorage.removeItem("dict_custom");
     custom.value = true;
   } else {
-    const d = await api(`/session?list=${list.value}&new=${Settings.get().newPerDay}`);
-    items.value = d.items || [];
+    await loadSession();
   }
   loading.value = false;
   if (items.value.length) {
@@ -46,6 +49,8 @@ onMounted(async () => {
     focusCatch();
     play();
   }
+  setTimeout(focusCatch, 150);
+  setTimeout(focusCatch, 450);
   document.addEventListener("pointerdown", onDocDown, true);
   window.addEventListener("keydown", onGlobalKey, true);
 });
@@ -63,7 +68,7 @@ function focusCatch() {
   const el = document.getElementById("catch");
   if (el) {
     el.removeAttribute("readonly");
-    el.focus({ preventScroll: true });
+    try { el.focus({ preventScroll: true }); } catch { el.focus(); }
   }
 }
 function onDocDown(ev) {
@@ -87,6 +92,11 @@ function onKey(ev) {
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); next(); return; }
     return;
   }
+  if (retrying.value && ev.key === "Enter") {
+    ev.preventDefault();
+    resetInput();
+    return;
+  }
   if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
   if (ev.key === "Escape") { clearReplay(); play(); return; }
   if (ev.key === "Backspace") {
@@ -107,12 +117,18 @@ function onInput(ev) {
 }
 function typeChar(ch) {
   if (!cells.value || submitted.value) return;
+  if (retrying.value) return;   // 判错后红色保持，按 Enter 才清空重输
   for (const c of ch) {
     if (mode.value === "word") cells.value.typeLetter(c);
     else cells.value.typeWordChar(c);
   }
   const done = mode.value === "word" ? cells.value.isFull() : cells.value.isCorrect();
   if (done) submit();
+}
+function resetInput() {
+  retrying.value = false;
+  cells.value.reset();
+  focusCatch();
 }
 async function play() {
   if (!item.value) return;
@@ -135,18 +151,42 @@ async function play() {
 }
 function submit() {
   const right = cells.value.isCorrect();
-  submitted.value = true;
-  lastRight.value = right;
-  cells.value.paint(right);
   clearReplay();
   audioEl.pause();
-  if (right) sndRight();
-  else sndWrong();
-  api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right }) });
   if (right) {
+    cells.value.paint(true);
+    sndRight();
+    submitted.value = true;
+    lastRight.value = true;
+    retrying.value = false;
+    api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right: true, retried: failed.value }) });
+    failed.value = false;
     clearTimeout(nextTimer.value);
     nextTimer.value = setTimeout(() => next(), 2000);
+  } else {
+    cells.value.markWrong();
+    sndWrong();
+    lastRight.value = false;
+    retrying.value = true;
+    failed.value = true;
   }
+}
+async function loadSession() {
+  const d = await api(`/session?list=${list.value}&new=${Settings.get().newPerDay}&scope=${scope.value}`);
+  items.value = d.items || [];
+}
+function toggleScope() {
+  if (custom.value || mode.value !== "word") return;
+  scope.value = scope.value === "memorized" ? "all" : "memorized";
+  loadSession().then(() => {
+    cur.value = 0;
+    submitted.value = false;
+    if (items.value.length) {
+      replayCount.value = 0;
+      focusCatch();
+      play();
+    }
+  });
 }
 function next() {
   clearReplay();
@@ -157,11 +197,13 @@ function next() {
   }
   cur.value++;
   submitted.value = false;
+  retrying.value = false;
+  failed.value = false;
   replayCount.value = 0;
   setTimeout(() => { focusCatch(); play(); }, 130);
 }
 function skip() {
-  api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right: false }) });
+  api("/result", { method: "POST", body: JSON.stringify({ list: list.value, id: item.value.id, right: false, retried: false }) });
   next();
 }
 function again() { location.reload(); }
@@ -171,6 +213,10 @@ function cycleSpeed() {
   Settings.set({ speed: next });
   speed.value = next;
   audioEl.playbackRate = next;
+  if (audioEl.src && !audioEl.paused) {
+    audioEl.currentTime = 0;
+    audioEl.play().catch(() => {});
+  }
 }
 </script>
 
@@ -179,7 +225,11 @@ function cycleSpeed() {
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
   <div v-else @pointerdown="focusCatch">
     <div class="practice-top">
-      <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（错词重练）</span></span>
+      <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（错词重练）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span></span>
+      <div class="scope-group" v-if="mode === 'word' && !custom">
+        <button class="btn ghost sm" :class="{ active: scope === 'all' }" @click="scope !== 'all' && toggleScope()">全部</button>
+        <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" @click="scope !== 'memorized' && toggleScope()">已背</button>
+      </div>
       <button class="btn ghost" @click="cycleSpeed">{{ speedLabel }}</button>
     </div>
     <div class="practice-card">
@@ -193,7 +243,7 @@ function cycleSpeed() {
       </div>
       <div class="follow-line" v-if="settings.showWord && !submitted">{{ item.text }}</div>
       <div id="answer-line">
-        <span v-if="submitted && !lastRight" class="show-word">✗ 答案：{{ item.text }}</span>
+        <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
       </div>
       <div class="controls">
@@ -201,7 +251,7 @@ function cycleSpeed() {
         <button class="btn ghost" @click="skip">跳过</button>
         <button class="btn primary big" id="play-btn" @click="play">🔊</button>
       </div>
-      <div class="hint">打字输入 · 打对 2 秒后自动下一题 · Enter 提交 · Esc 重听 · 自动重播间隔可在设置调整</div>
+      <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 自动重播间隔可在设置调整</div>
     </div>
     <input id="catch" autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"

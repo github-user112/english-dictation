@@ -89,6 +89,11 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
 .card .meta { color: var(--dim); font-size: 13px; line-height: 1.7; }
 .card .progress { margin-top: 10px; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
 .card .progress > div { height: 100%; background: var(--green); border-radius: 3px; }
+.card-actions { display: flex; gap: 8px; margin-top: 12px; }
+.btn.sm { padding: 6px 10px; font-size: 13px; }
+.scope-group { display: flex; gap: 4px; }
+.scope-group .btn { padding: 4px 10px; font-size: 13px; }
+.scope-group .btn.active { border-color: var(--accent); color: var(--accent); }
 .badge {
   display: inline-block; margin-left: 6px; padding: 1px 8px;
   font-size: 12px; border-radius: 6px; vertical-align: 2px;
@@ -153,6 +158,33 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
   color: var(--yellow);
 }
 #answer-line .show-word { color: var(--text); font-weight: 600; }
+
+/* ===== 背单词 ===== */
+.flash-card {
+  position: relative;
+  height: 180px;
+  perspective: 800px;
+  cursor: pointer;
+  user-select: none;
+  margin: 6px 0 4px;
+}
+.flash-card .face {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backface-visibility: hidden;
+  transition: transform .35s;
+}
+.flash-card .front { transform: rotateY(0deg); }
+.flash-card .back { transform: rotateY(180deg); }
+.flash-card.flipped .front { transform: rotateY(-180deg); }
+.flash-card.flipped .back { transform: rotateY(0deg); }
+.flash-card .fw { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
+.flash-card .fp { color: var(--accent); font-size: 16px; }
+.flash-card .fm { font-size: 18px; color: var(--text); padding: 0 18px; text-align: center; }
 
 /* ===== 错词本 / 统计 / 设置 ===== */
 .wrong-item {
