@@ -358,6 +358,8 @@ def api_result():
             update_word_state(conn, user, session["list"], item_id, effective_first,
                               final_right, session["practice_mode"], today)
         if session["practice_mode"] != "follow":
+            # new/review 统计记录当日已分配并处理过的题目，跳过也计入；
+            # right/wrong 与掌握度统计则只记录实际作答。
             conn.execute(
                 """INSERT INTO daily_log(day,user,new_count,review_count,right_count,wrong_count)
                    VALUES(?,?,?,?,?,?) ON CONFLICT(day,user) DO UPDATE SET

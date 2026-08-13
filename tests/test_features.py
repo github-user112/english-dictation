@@ -93,6 +93,31 @@ class FeatureTests(unittest.TestCase):
                                (self.user, item["id"])).fetchone()
         self.assertIsNone(row)
 
+    def test_completed_results_schedule_reviews_after_1_3_7_days(self):
+        from backend.catalog import now
+        from backend.db import db
+        expected = ((1, "learning"), (3, "learning"), (7, "known"))
+        item_id = "abandon"
+        for consecutive, (days, status) in enumerate(expected, 1):
+            session_id = f"schedule-{consecutive}"
+            stamp = now()
+            with db() as conn:
+                conn.execute("INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (session_id, self.user, "cet4", "pure", "all", "daily", None,
+                              date.today().isoformat(), 0, "active", stamp, stamp, None))
+                conn.execute("""INSERT INTO study_session_item(session_id,seq,item_id,kind,phase)
+                              VALUES(?,?,?,?,?)""",
+                             (session_id, 0, item_id, "word", "review" if consecutive > 1 else "new"))
+            r = self.post("/api/result", {"session_id": session_id, "id": item_id,
+                "first_right": True, "final_right": True, "attempt_count": 1,
+                "outcome": "completed"})
+            self.assertEqual(r.status_code, 200)
+            with db() as conn:
+                row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                                   (self.user, "cet4", item_id)).fetchone()
+            self.assertEqual((row["consecutive_right"], row["status"]), (consecutive, status))
+            self.assertEqual(row["next_review"], (date.today() + timedelta(days=days)).isoformat())
+
     def test_lesson_session_is_ordered_and_filtered(self):
         lessons = self.get("/api/lessons?list=nc1").json["lessons"]
         self.assertEqual(len(lessons), 72)
@@ -118,7 +143,8 @@ class FeatureTests(unittest.TestCase):
         by_text = {}
         for item in s.json["items"]:
             by_text.setdefault(item["text"], []).append(item)
-        pair = next(items for items in by_text.values() if len(items) > 1)[:2]
+        pair = next(items for items in by_text.values()
+                    if len(items) > 1 and any("~2" in item["id"] for item in items))[:2]
         self.assertTrue(any("~2" in item["id"] for item in pair))
         session_id = s.json["session"]["id"]
         for item in pair:
@@ -176,8 +202,9 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual((state["wrong_count"], state["status"], state["consecutive_right"]),
                          (2, "known", 3))
         self.assertEqual((state["memorized"], state["memorize_count"]), (1, 2))
-        self.assertEqual(daily["wrong_count"], 0)
-        self.assertEqual((mode["first_wrong_count"], mode["skipped_count"]), (0, 1))
+        self.assertEqual((daily["review_count"], daily["wrong_count"]), (1, 0))
+        self.assertEqual((mode["review_count"], mode["first_wrong_count"], mode["skipped_count"]),
+                         (1, 0, 1))
 
     def test_skipped_new_and_legacy_item_have_no_learning_side_effects(self):
         from backend.db import db
@@ -202,13 +229,17 @@ class FeatureTests(unittest.TestCase):
             session_item = conn.execute("""SELECT first_right,state FROM study_session_item
                                           WHERE session_id=? AND item_id=?""",
                                         (s["session"]["id"], item["id"])).fetchone()
+            daily = conn.execute("SELECT * FROM daily_log WHERE day=? AND user=?",
+                                 (date.today().isoformat(), self.user)).fetchone()
             mode = conn.execute("SELECT * FROM daily_practice_log WHERE day=? AND user=? "
                                 "AND practice_mode='pure'",
                                 (date.today().isoformat(), self.user)).fetchone()
         self.assertIsNone(skipped_row)
         self.assertIsNone(legacy_row)
         self.assertEqual((session_item["state"], session_item["first_right"]), ("skipped", None))
-        self.assertEqual((mode["first_wrong_count"], mode["skipped_count"]), (0, 2))
+        self.assertEqual((daily["new_count"], daily["wrong_count"]), (1, 0))
+        self.assertEqual((mode["new_count"], mode["review_count"], mode["first_wrong_count"],
+                          mode["skipped_count"]), (1, 1, 0, 2))
 
     def test_invalid_numeric_inputs_return_400(self):
         for n in ("bad", "0", "101"):

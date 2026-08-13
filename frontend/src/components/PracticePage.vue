@@ -208,6 +208,9 @@ async function submit() {
   audioEl.pause();
   if (firstRight.value === null) firstRight.value = right;
   if (right) {
+    const completedItem = item.value;
+    const completedIndex = cur.value;
+    const completedToken = playToken.value;
     cells.value.paint(true);
     sndRight();
     submitted.value = true;
@@ -216,7 +219,8 @@ async function submit() {
     saving.value = true;
     try {
       await saveResult("completed", true);
-      if (!mounted) return;
+      if (!mounted || playToken.value !== completedToken || item.value !== completedItem ||
+          cur.value !== completedIndex || !submitted.value) return;
     } finally {
       saving.value = false;
     }
@@ -309,6 +313,9 @@ function resetAttempt() {
 }
 async function skip() {
   if (saving.value) return;
+  playToken.value++;
+  clearReplay();
+  audioEl.pause();
   if (firstRight.value === null) firstRight.value = false;
   attemptCount.value = Math.max(1, attemptCount.value);
   saving.value = true;
