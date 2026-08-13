@@ -75,15 +75,20 @@ function isCorrect() {
   const t = words.value.map((w) => w.core.toLowerCase());
   return t.every((w, i) => (input.value[i] || "").toLowerCase() === w);
 }
+function lineChars(i) {
+  return Math.max(3, words.value[i]?.core.length || 0, (input.value[i] || "").length);
+}
 defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect });
 </script>
 
 <template>
   <div ref="box" class="cells-wrap" style="margin:0;">
     <template v-for="(w, i) in words" :key="i">
-      <span v-if="w.pre" class="cell fixed" style="width:auto;padding:0 4px;">{{ w.pre }}</span>
-      <span :id="'sc' + i" class="cell" :class="[flash.includes(i) ? 'bad' : '', mark[i] || '']" style="min-width:40px;">{{ input[i] }}</span>
-      <span v-if="w.suf" class="cell fixed" style="width:auto;padding:0 4px;">{{ w.suf }}</span>
+      <span v-if="w.pre" class="punct">{{ w.pre }}</span>
+      <span :id="'sc' + i" class="cell word-line"
+            :class="[mark[i] || '', !submitted && i === scur ? 'current' : '']"
+            :style="{ '--chars': lineChars(i) }">{{ input[i] }}</span>
+      <span v-if="w.suf" class="punct">{{ w.suf }}</span>
     </template>
   </div>
 </template>

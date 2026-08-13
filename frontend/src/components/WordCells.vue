@@ -32,6 +32,9 @@ function typeLetter(ch) {
 function isFull() {
   return wcur.value >= letterIdxs().length;
 }
+function isCurrent(i) {
+  return !props.submitted && letterIdxs()[wcur.value] === i;
+}
 function backspace() {
   if (wcur.value <= 0) return;
   wcur.value--;
@@ -65,8 +68,11 @@ defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull
 </script>
 
 <template>
-  <div ref="box" class="cells-wrap" style="margin:0;">
-    <span v-for="(t, i) in refTokens" :key="i" class="cell"
-          :class="[t.type === 'punct' ? 'fixed' : '', flash.includes(i) ? 'bad' : '', mark[i] || '']">{{ t.type === 'punct' ? t.text : input[i] }}</span>
+  <div ref="box" class="cells-wrap letter-lines" style="margin:0;">
+    <template v-for="(t, i) in refTokens" :key="i">
+      <span v-if="t.type === 'punct'" class="punct">{{ t.text }}</span>
+      <span v-else class="cell letter-line"
+            :class="[mark[i] || '', isCurrent(i) ? 'current' : '']">{{ input[i] }}</span>
+    </template>
   </div>
 </template>
