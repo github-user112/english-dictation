@@ -22,6 +22,7 @@ const replayTimer = ref(null);
 const nextTimer = ref(null);
 const replayCount = ref(0);
 const cells = ref(null);
+const catchEl = ref(null);
 
 const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
@@ -66,7 +67,7 @@ onUnmounted(() => {
 async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
 
 function focusCatch() {
-  const el = document.getElementById("catch");
+  const el = catchEl.value;
   if (el) {
     el.removeAttribute("readonly");
     try { el.focus({ preventScroll: true }); } catch { el.focus(); }
@@ -261,7 +262,7 @@ function cycleSpeed() {
       </div>
       <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 自动重播间隔可在设置调整</div>
     </div>
-    <input id="catch" autocomplete="off" autocorrect="off"
+    <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"
            style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
            @input="onInput" @blur="onBlurCatch">

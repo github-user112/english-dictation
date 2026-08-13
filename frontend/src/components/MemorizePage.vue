@@ -16,6 +16,7 @@ const lastRight = ref(false);
 const lastNote = ref("");
 const loading = ref(true);
 const cells = ref(null);
+const catchEl = ref(null);
 const audioCache = ref({});
 const nextTimer = ref(null);
 const stat = ref({ right: 0, wrong: 0, memorized: 0 });
@@ -49,7 +50,7 @@ onUnmounted(() => {
 async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
 
 function focusCatch() {
-  const el = document.getElementById("catch");
+  const el = catchEl.value;
   if (el) {
     el.removeAttribute("readonly");
     try { el.focus({ preventScroll: true }); } catch { el.focus(); }
@@ -268,7 +269,7 @@ function goDictation() {
     </div>
   </div>
 
-  <input id="catch" autocomplete="off" autocorrect="off"
+  <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
          autocapitalize="off" spellcheck="false" enterkeyhint="done"
          style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
          @input="onInput" @blur="onBlurCatch">
