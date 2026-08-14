@@ -44,6 +44,12 @@ def load_material(list_key):
     return items
 
 
+@lru_cache(maxsize=None)
+def _material_index(list_key):
+    """id → item 字典，O(1) 查找，依赖 load_material 的缓存。"""
+    return {i["id"]: i for i in load_material(list_key)}
+
+
 def iter_material(list_key, lesson=None):
     for item in load_material(list_key):
         if lesson is None or item.get("lesson") == lesson:
@@ -51,17 +57,11 @@ def iter_material(list_key, lesson=None):
 
 
 def find_item(list_key, item_id):
-    for m in load_material(list_key):
-        if m["id"] == item_id:
-            return m
-    return None
+    return _material_index(list_key).get(item_id)
 
 
 def audio_url(list_key, item_id, text):
-    if list_key == "oral900":
-        fname = f"{item_id}.mp3"
-    else:
-        fname = hashlib.md5(text.encode()).hexdigest() + ".mp3"
+    fname = hashlib.md5(text.encode()).hexdigest() + ".mp3"
     if (AUDIO / list_key / fname).exists():
         return f"/audio/{list_key}/{fname}"
-    return f"/audio/lazy/{list_key}/{fname}"
+    return f"/audio/lazy/{fname}"

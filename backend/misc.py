@@ -94,7 +94,7 @@ def api_tts():
     voice = data.get("voice") or "en-US-JennyNeural"
     if not text or len(text) > 200:
         return jsonify({"error": "text 无效"}), 400
-    fname = hashlib.md5(f"{voice}:{text}".encode()).hexdigest()[:16] + ".mp3"
+    fname = hashlib.md5(text.encode()).hexdigest() + ".mp3"
     out = AUDIO / "lazy" / fname
     out.parent.mkdir(parents=True, exist_ok=True)
     if not out.exists():

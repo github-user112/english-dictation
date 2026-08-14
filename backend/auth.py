@@ -1,4 +1,5 @@
-"""用户识别：URL ?u= 优先，cookie 兜底"""
+"""用户识别：URL ?u= 优先，cookie 兜底。
+（公开站点无密码；接口限流由 nginx 负责，见 dictation.conf。）"""
 import uuid as uuid_mod
 
 from flask import g, jsonify, make_response, request

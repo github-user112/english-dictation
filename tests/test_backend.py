@@ -60,8 +60,10 @@ class TestMaterials:
 
     def test_audio_url_oral900(self):
         url = audio_url("oral900", "1", "Hello")
-        # oral900 目录默认不存在，返回 lazy 路径
-        assert url == "/audio/lazy/oral900/1.mp3"
+        # 统一按 md5(text) 命名，oral900 不再特例；缺失时返回 lazy 路径
+        assert url.startswith("/audio/lazy/")
+        assert url.endswith(".mp3")
+        assert "oral900/" not in url
 
 
 class TestUpdateWordState:
