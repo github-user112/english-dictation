@@ -80,6 +80,7 @@ def api_memorize():
         else:
             sr["memorize_count"] = 0
             sr["memorized"] = 0
+            sr["last_memorize"] = None
 
         conn.execute("""
             INSERT INTO word_state(user, list, item_id, kind, memorized, memorize_count, last_memorize)

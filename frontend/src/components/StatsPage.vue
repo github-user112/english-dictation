@@ -11,7 +11,8 @@ const last14 = computed(() => {
   const days = new Map((stats.value.days || []).map((d) => [d.day, d]));
   const out = [];
   for (let i = 13; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    const dt = new Date(Date.now() - i * 86400000);
+    const d = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
     const row = days.get(d);
     out.push({ day: d.slice(5), total: row ? row.right + row.wrong : 0 });
   }

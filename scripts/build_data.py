@@ -1,6 +1,7 @@
 """拉取并转换词库/句子素材为统一 JSON 格式"""
 import json
 import string
+import sys
 import time
 import urllib.request
 import urllib.parse
@@ -40,6 +41,26 @@ def fetch(url, retries=3):
             time.sleep(2 * (i + 1))
 
 
+def dedup_words(words):
+    seen = {}
+    dropped = 0
+    out = []
+    for w in words:
+        key = w["word"]
+        if key in seen:
+            dropped += 1
+            if w["meaning"] and w["meaning"] not in seen[key]["meaning"].split(" / "):
+                seen[key]["meaning"] += " / " + w["meaning"]
+            if w["phonetic"] and not seen[key]["phonetic"]:
+                seen[key]["phonetic"] = w["phonetic"]
+        else:
+            seen[key] = w
+            out.append(w)
+    if dropped:
+        print(f"  去重: 合并/移除 {dropped} 个重复词")
+    return out
+
+
 def fetch_wordlist(key, path):
     if key in WORD_FILES:
         url = f"{RAWDATA}/{path}/{WORD_FILES[key]}"
@@ -57,7 +78,7 @@ def fetch_wordlist(key, path):
                 "meaning": meaning,
             })
         print(f"  {key}: {len(words)} 词 (单文件)")
-        return [w for w in words if w["word"]]
+        return dedup_words([w for w in words if w["word"]])
 
     words = []
     for letter in string.ascii_uppercase:
@@ -71,8 +92,7 @@ def fetch_wordlist(key, path):
                 "meaning": (it.get("mean") or "").strip(),
             })
         print(f"  {key} {letter}: {len(items)}")
-    words = [w for w in words if w["word"]]
-    return words
+    return dedup_words([w for w in words if w["word"]])
 
 
 def fetch_oral900():
@@ -93,6 +113,7 @@ def fetch_oral900():
                 current_module = mod
             sentences.append({
                 "id": f"oral900-{m.group(1)}-{m.group(2)}",
+                "lesson": int(mod),
                 "module": int(mod),
                 "en": en.strip(),
                 "zh": zh.strip(),
@@ -103,12 +124,13 @@ def fetch_oral900():
 
 
 def main():
+    force = "--force" in sys.argv
     WORDLIST_DIR.mkdir(exist_ok=True)
     SENTENCE_DIR.mkdir(exist_ok=True)
 
     for key, path in WORD_SOURCES.items():
         out = WORDLIST_DIR / f"{key}.json"
-        if out.exists():
+        if out.exists() and not force:
             print(f"{key}: 已存在，跳过 ({out.stat().st_size} bytes)")
             continue
         print(f"拉取 {key} ...")
@@ -122,7 +144,7 @@ def main():
         print(f"  {key}: {len(words)} 词 -> {out.name}")
 
     out = SENTENCE_DIR / "oral900.json"
-    if out.exists():
+    if out.exists() and not force:
         print(f"oral900: 已存在，跳过")
     else:
         try:

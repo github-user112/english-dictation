@@ -9,12 +9,14 @@ const box = ref(null);
 const flash = ref([]);
 const mark = ref([]);
 const extraInput = ref("");
+const ignoredHint = ref("");
+let ignoredTimer = null;
 const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback || mark.value.some(Boolean));
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; ignoredHint.value = ""; clearTimeout(ignoredTimer); });
 
 function letterIdxs() {
   const out = [];
@@ -22,7 +24,12 @@ function letterIdxs() {
   return out;
 }
 function typeLetter(ch) {
-  if (!/[a-zA-Z]/.test(ch)) return;
+  if (!/[a-zA-Z]/.test(ch)) {
+    ignoredHint.value = `已忽略非字母字符「${ch}」，请输入字母`;
+    clearTimeout(ignoredTimer);
+    ignoredTimer = setTimeout(() => { ignoredHint.value = ""; }, 1500);
+    return;
+  }
   const ids = letterIdxs();
   if (wcur.value >= ids.length) {
     if (props.practiceMode === "pure") extraInput.value += ch;
@@ -99,5 +106,6 @@ defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull
             :class="[mark[i] || '', isCurrent(i) ? 'current' : '']">{{ input[i] }}</span>
     </template>
     <span v-for="(c, i) in extraInput" v-if="showSequence" :key="'extra-' + i" class="cell letter-line wrong">{{ c }}</span>
+    <span v-if="ignoredHint" class="ignored-hint" role="status">{{ ignoredHint }}</span>
   </div>
 </template>

@@ -15,3 +15,7 @@ static/
 # 素材（版权受限，不入库；由 scripts/build_data.py、build_nce.py 拉取生成）
 wordlists/*.json
 sentences/*.json
+
+# Markdown 文档不入库（README.md 除外，已在仓库中跟踪）
+*.md
+!README.md

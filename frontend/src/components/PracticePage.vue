@@ -110,6 +110,8 @@ function onDocDown(ev) {
   }
   // B10: 触屏滑动不阻止默认行为（允许页面滚动）
   if (ev.pointerType === "touch") return;
+  // 仅拦截鼠标左键，避免右键菜单、中键滚轮、拖拽/选区被误拦
+  if (ev.pointerType === "mouse" && ev.button !== 0) return;
   ev.preventDefault();
   focusCatch();
 }

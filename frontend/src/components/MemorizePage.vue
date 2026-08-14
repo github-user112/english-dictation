@@ -333,7 +333,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       </div>
       <div id="answer-line" aria-live="polite">
         <template v-if="submitted">
-          <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}</span>
+          <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}<span v-if="cur.phonetic"> · {{ cur.phonetic }}</span></span>
           <span v-if="lastRight">{{ lastNote }}</span>
         </template>
       </div>

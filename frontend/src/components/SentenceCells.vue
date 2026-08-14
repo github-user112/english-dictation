@@ -13,7 +13,7 @@ const showSequence = computed(() => props.practiceMode !== "pure" || props.feedb
 
 const words = computed(() =>
   props.tokens.text.split(/\s+/).map((w) => {
-    const m = w.match(/^([^\w]*)([\w'-]*)([^\w]*)$/) || ["", "", w, ""];
+    const m = w.match(/^([^\w]*)([\w']*)([^\w]*)$/) || ["", "", w, ""];
     return { pre: m[1], core: m[2] || m[1] || w, suf: m[3] };
   }));
 
@@ -68,7 +68,7 @@ function backspace() {
 }
 function cell(i) { return box.value?.querySelector("#sc" + i); }
 function focusWord(i) {
-  if (submitted.value || props.feedback) return;
+  if (props.submitted || props.feedback) return;
   scur.value = i;
 }
 function paint() {

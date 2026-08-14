@@ -204,7 +204,9 @@ def api_session():
             plan = conn.execute(
                 "SELECT * FROM daily_plan WHERE day=? AND user=? AND list=?", (today, user, list_key)
             ).fetchone()
-            quota = dict(plan) if plan else None
+            quota = {"new_quota": plan["new_quota"],
+                     "allocated_today": plan["allocated_new"],
+                     "remaining_today": max(0, plan["new_quota"] - plan["allocated_new"])} if plan else None
             return resp(serialize_session(conn, existing, resumed=True, quota=quota))
 
         # 确认需要写入，升级为 IMMEDIATE 并二次检查（double-check locking）
@@ -214,7 +216,9 @@ def api_session():
             plan = conn.execute(
                 "SELECT * FROM daily_plan WHERE day=? AND user=? AND list=?", (today, user, list_key)
             ).fetchone()
-            quota = dict(plan) if plan else None
+            quota = {"new_quota": plan["new_quota"],
+                     "allocated_today": plan["allocated_new"],
+                     "remaining_today": max(0, plan["new_quota"] - plan["allocated_new"])} if plan else None
             return resp(serialize_session(conn, existing, resumed=True, quota=quota))
 
         session_id = uuid.uuid4().hex
@@ -255,6 +259,7 @@ def api_session():
             random.shuffle(pool)
             review_items = [find_item(list_key, item_id) for item_id in review_ids]
             review_items = [i for i in review_items if i]
+            remaining = min(remaining, len(pool))
             fresh = pool[:remaining]
             random.shuffle(review_items)
             item_rows = [(i, "review") for i in review_items] + [(i, "new") for i in fresh]
@@ -293,6 +298,12 @@ def update_word_state(conn, user, list_key, item_id, first_right, final_right, m
     ).fetchone()
     if row:
         state = dict(row)
+        # 兼容历史 NULL 值：.get(key, 0) 在 key 存在但值为 NULL 时仍返回 None
+        for k in ("memorized", "memorize_count", "wrong_count", "right_count", "consecutive_right"):
+            if state.get(k) is None:
+                state[k] = 0
+        if state.get("last_memorize") is None:
+            state["last_memorize"] = ""
     else:
         state = {"kind": "sentence" if MATERIALS[list_key]["type"] == "sentences" else "word",
                  "status": "new", "wrong_count": 0, "right_count": 0,
@@ -427,6 +438,7 @@ def api_result():
 
 
 def update_mode_log(conn, day, user, mode, phase, first_right, final_right, skipped):
+    # 语义：daily_practice_log 记"末答对错"(final_right)，与 daily_log 的"首答对错"是刻意分离的双指标。
     values = {
         "new": 1 if phase == "new" else 0,
         "review": 1 if phase == "review" else 0,

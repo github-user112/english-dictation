@@ -209,6 +209,7 @@ main { max-width: 760px; margin: 0 auto; padding: 18px 14px 60px; }
 .cell.wrong { border-bottom-color: var(--red); color: var(--red); }
 .cell.miss { border-bottom-color: var(--yellow); color: var(--yellow); }
 .punct { align-self: flex-end; padding-bottom: 8px; font-size: 18px; }
+.ignored-hint { width: 100%; text-align: center; color: var(--yellow); font-size: 13px; min-height: 16px; }
 .cell.bad { border-bottom-color: var(--red); color: var(--red); animation: bad-shake .3s ease; }
 @keyframes caret-blink { 0%,45% { opacity: 1; } 46%,100% { opacity: 0; } }
 @keyframes bad-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
