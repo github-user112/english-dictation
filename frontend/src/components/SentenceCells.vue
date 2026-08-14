@@ -21,9 +21,18 @@ watch(() => props.tokens.id || props.tokens.text, () => { scur.value = 0; input.
 
 function typeWordChar(ch) {
   if (ch === " ") {
-    if (!(input.value[scur.value] || "")) return;
-    scur.value++;
-    return;
+    const typed = (input.value[scur.value] || "").toLowerCase();
+    const target = (words.value[scur.value]?.core || "").toLowerCase();
+    if (!typed) {
+      if (scur.value < words.value.length - 1) scur.value++;
+      return false;
+    }
+    if (typed === target) {
+      if (scur.value < words.value.length - 1) scur.value++;
+      return false;
+    }
+    if (props.practiceMode !== "pure") mark.value[scur.value] = "wrong";
+    return true;
   }
   if (!/[a-zA-Z']/.test(ch)) return;
   const i = scur.value;
@@ -58,6 +67,10 @@ function backspace() {
   }
 }
 function cell(i) { return box.value?.querySelector("#sc" + i); }
+function focusWord(i) {
+  if (submitted.value || props.feedback) return;
+  scur.value = i;
+}
 function paint() {
   const t = words.value.map((w) => w.core.toLowerCase());
   mark.value = t.map((w, i) => (input.value[i] || "").toLowerCase() === w ? "right" : "wrong");
@@ -155,7 +168,7 @@ defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, seri
       <span v-if="w.pre" class="punct">{{ w.pre }}</span>
       <span :id="'sc' + i" class="cell word-line"
             :class="[mark[i] || '', !submitted && i === scur ? 'current' : '']"
-            :style="{ '--chars': lineChars(i) }">{{ input[i] }}</span>
+            :style="{ '--chars': lineChars(i), cursor: 'text' }" @click="focusWord(i)">{{ input[i] }}</span>
       <span v-if="w.suf" class="punct">{{ w.suf }}</span>
     </template>
     <span v-for="(e, i) in extraAt(displayWords.length)" :key="'extra-end-' + i" class="cell word-line wrong"

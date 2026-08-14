@@ -22,22 +22,67 @@ const playToken = ref(0);
 const nextTimer = ref(null);
 const quizRound = ref(0);
 const stat = ref({ right: 0, wrong: 0, memorized: 0 });
+const learnIndex = ref(0);            // 学习态当前索引（用于恢复）
 let mounted = true;
 
 const prog = computed(() => "剩余 " + (queue.value.length + (cur.value && phase.value === "quiz" ? 1 : 0)));
 const learnTotal = computed(() => items.value.length);
 
+const SS_KEY = "dict_memorize";
+
+function saveState() {
+  if (!items.value.length) return;
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({
+      list: list.value, phase: phase.value, items: items.value,
+      queue: queue.value, cur: cur.value, stat: stat.value,
+      quizRound: quizRound.value, learnIndex: learnIndex.value,
+    }));
+  } catch { /* ignore quota */ }
+}
+
+function loadState() {
+  try {
+    const raw = sessionStorage.getItem(SS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function clearState() {
+  sessionStorage.removeItem(SS_KEY);
+}
+
 onMounted(async () => {
   list.value = props.params?.get("list") || "cet4";
-  const d = await api(`/memorize/session?list=${list.value}`);
-  if (!mounted) return;
-  items.value = d.items || [];
-  queue.value = [...items.value];
-  loading.value = false;
-  if (queue.value.length) {
-    cur.value = queue.value[0];
-    queue.value.shift();
-    play();
+  const saved = loadState();
+  if (saved && saved.list === list.value && saved.items?.length) {
+    // 恢复刷新前的进度
+    items.value = saved.items;
+    queue.value = saved.queue || [];
+    cur.value = saved.cur;
+    phase.value = saved.phase || "learn";
+    stat.value = saved.stat || { right: 0, wrong: 0, memorized: 0 };
+    quizRound.value = saved.quizRound || 0;
+    learnIndex.value = saved.learnIndex || 0;
+    loading.value = false;
+    if (cur.value && phase.value !== "done") {
+      await nextTick();
+      if (!mounted) return;
+      play();
+    }
+  } else {
+    const d = await api(`/memorize/session?list=${list.value}`);
+    if (!mounted) return;
+    items.value = d.items || [];
+    queue.value = [...items.value];
+    loading.value = false;
+    if (queue.value.length) {
+      cur.value = queue.value[0];
+      queue.value.shift();
+      play();
+    }
+    saveState();
   }
   forceFocus();
   document.addEventListener("pointerdown", onDocDown, true);
@@ -67,6 +112,12 @@ function forceFocus() {
   setTimeout(focusCatch, 450);
 }
 function onDocDown(ev) {
+  if (ev.target.tagName === "BUTTON" || ev.target.tagName === "A" ||
+      ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT" ||
+      ev.target.tagName === "TEXTAREA" || ev.target.closest(".btn") ||
+      ev.target.closest("a") || ev.target.closest("select")) {
+    return;
+  }
   ev.preventDefault();
   focusCatch();
 }
@@ -130,8 +181,10 @@ function learnNext() {
   flipped.value = false;
   const idx = items.value.indexOf(cur.value);
   if (idx < items.value.length - 1) {
+    learnIndex.value = idx + 1;
     cur.value = items.value[idx + 1];
     play();
+    saveState();
   } else {
     startQuiz();
   }
@@ -148,6 +201,7 @@ function startQuiz() {
     play();
     nextTick().then(() => { focusCatch(); });
   }
+  saveState();
 }
 
 /* ---- 自测态 ---- */
@@ -186,6 +240,7 @@ async function submit() {
       queue.value.push({ ...cur.value });   // 连续答对 2 次才已背，排队复测
     }
     lastRight.value = true;
+    saveState();
     clearTimeout(nextTimer.value);
     nextTimer.value = setTimeout(() => quizNext(), 900);
   } else {
@@ -193,6 +248,7 @@ async function submit() {
     stat.value.wrong++;
     lastNote.value = "✗ 再背一次，明天还会见到它";
     lastRight.value = false;
+    saveState();
   }
 }
 function quizNext() {
@@ -204,14 +260,17 @@ function quizNext() {
   lastNote.value = "";
   if (!queue.value.length) {
     phase.value = "done";
+    clearState();
     return;
   }
   cur.value = queue.value[0];
   queue.value.shift();
+  saveState();
   play();
   nextTick().then(() => { focusCatch(); });
 }
 function redo() {
+  clearState();
   location.reload();
 }
 function goDictation() {

@@ -99,6 +99,13 @@ function focusCatch() {
   }
 }
 function onDocDown(ev) {
+  // 不对按钮/链接/输入框等元素阻止默认行为，仅捕获焦点
+  if (ev.target.tagName === "BUTTON" || ev.target.tagName === "A" ||
+      ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT" ||
+      ev.target.tagName === "TEXTAREA" || ev.target.closest(".btn") ||
+      ev.target.closest("a") || ev.target.closest("select")) {
+    return;
+  }
   ev.preventDefault();
   focusCatch();
 }

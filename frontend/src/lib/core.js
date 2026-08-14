@@ -38,17 +38,29 @@ export const User = {
 };
 
 /* ---- API ---- */
+const API_TIMEOUT = 15000;  // 15 秒超时
+
 export async function api(path, opts = {}) {
   const sep = path.includes("?") ? "&" : "?";
   const url = "/api" + path + sep + "u=" + User.get();
-  const r = await fetch(url, {
-    ...opts,
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-  });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.error || `请求失败 (${r.status})`);
-  if (d.user) User.save(d.user);
-  return d;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeout || API_TIMEOUT);
+  try {
+    const r = await fetch(url, {
+      ...opts,
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `请求失败 (${r.status})`);
+    if (d.user) User.save(d.user);
+    return d;
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("请求超时，请检查网络");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ---- 音频 ---- */

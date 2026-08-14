@@ -13,4 +13,9 @@ export default defineConfig({
     outDir: "../static",
     emptyOutDir: true,
   },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    include: ["src/**/*.test.{js,ts}"],
+  },
 });

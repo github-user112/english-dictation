@@ -12,6 +12,38 @@ from .materials import audio_url, find_item, iter_material, load_material
 
 bp = Blueprint("catalog", __name__)
 
+# 缓存：素材元信息（total / lesson_count）和音频文件数，避免每次请求遍历磁盘
+_material_meta_cache = {}    # list_key -> {total, lesson_count}
+_audio_count_cache = {}      # list_key -> (mtime, count)
+
+
+def _material_meta(list_key):
+    """获取素材总数和课数（缓存，因为素材不变）"""
+    if list_key not in _material_meta_cache:
+        material = load_material(list_key)
+        _material_meta_cache[list_key] = {
+            "total": len(material),
+            "lesson_count": len({i.get("lesson") for i in material if i.get("lesson") is not None}),
+        }
+    return _material_meta_cache[list_key]
+
+
+def _audio_done(list_key):
+    """获取已生成音频数（按目录 mtime 缓存，只在变化时重新计数）"""
+    audio_dir = AUDIO / list_key
+    if not audio_dir.exists():
+        return 0
+    try:
+        mtime = audio_dir.stat().st_mtime
+    except OSError:
+        return 0
+    cached = _audio_count_cache.get(list_key)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    count = sum(1 for _ in audio_dir.glob("*.mp3"))
+    _audio_count_cache[list_key] = (mtime, count)
+    return count
+
 
 def now():
     return datetime.now().isoformat(timespec="seconds")
@@ -101,16 +133,16 @@ def api_lists():
     mem_map = {r["list"]: r["c"] for r in mem_rows}
     result = []
     for key, meta in MATERIALS.items():
-        material = load_material(key)
+        m = _material_meta(key)
         result.append({
             "key": key, "title": meta["title"], "type": meta["type"],
-            "total": len(material),
-            "audio_done": len(list((AUDIO / key).glob("*.mp3"))) if (AUDIO / key).exists() else 0,
-            "new": max(0, len(material) - sum(r["c"] for r in rows if r["list"] == key)),
+            "total": m["total"],
+            "audio_done": _audio_done(key),
+            "new": max(0, m["total"] - sum(r["c"] for r in rows if r["list"] == key)),
             "learning": stat_map.get((key, "learning"), 0),
             "known": stat_map.get((key, "known"), 0),
             "memorized": mem_map.get(key, 0),
-            "lesson_count": len({i.get("lesson") for i in material if i.get("lesson") is not None}),
+            "lesson_count": m["lesson_count"],
         })
     today_log = {k: 0 for k in ("new", "review", "right", "wrong", "memorize_right", "memorize_wrong")}
     if today_row:
