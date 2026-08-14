@@ -79,6 +79,12 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_word_state_review
             ON word_state(user, list, status, next_review);
+        CREATE INDEX IF NOT EXISTS idx_word_state_memorize
+            ON word_state(user, list, memorized, last_memorize);
+        CREATE INDEX IF NOT EXISTS idx_word_state_wrong
+            ON word_state(user, wrong_count, last_seen);
+        CREATE INDEX IF NOT EXISTS idx_study_session_user_state
+            ON study_session(user, state, created_at);
         CREATE INDEX IF NOT EXISTS idx_session_item_pending
             ON study_session_item(session_id, state, seq);
         CREATE INDEX IF NOT EXISTS idx_daily_practice_user_day

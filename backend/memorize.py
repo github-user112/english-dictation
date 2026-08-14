@@ -67,6 +67,7 @@ def api_memorize():
         return jsonify({"error": "未知素材"}), 404
 
     with db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
                            (u, list_key, item_id)).fetchone()
         sr = dict(row) if row else {"kind": "word", "memorized": 0, "memorize_count": 0,

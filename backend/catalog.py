@@ -329,7 +329,10 @@ def api_result():
     user = get_user()
     data = request.get_json(force=True)
     session_id = data.get("session_id")
-    item_id = str(data.get("id"))
+    raw_id = data.get("id")
+    if raw_id is None:
+        return jsonify({"error": "缺少 id 参数"}), 400
+    item_id = str(raw_id)
     outcome = data.get("outcome", "completed" if data.get("right") else "skipped")
     if outcome not in {"attempt", "completed", "skipped"}:
         return jsonify({"error": "outcome 无效"}), 400
