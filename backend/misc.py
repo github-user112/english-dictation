@@ -8,7 +8,7 @@ from flask import Blueprint, abort, jsonify, request, send_from_directory
 from .auth import get_user, resp
 from .config import AUDIO
 from .db import db
-from .materials import audio_url, find_item
+from .materials import audio_filename, audio_url, find_item
 
 bp = Blueprint("misc", __name__)
 
@@ -94,12 +94,21 @@ def api_tts():
     voice = data.get("voice") or "en-US-JennyNeural"
     if not text or len(text) > 200:
         return jsonify({"error": "text 无效"}), 400
-    fname = hashlib.md5(text.encode()).hexdigest() + ".mp3"
-    out = AUDIO / "lazy" / fname
-    out.parent.mkdir(parents=True, exist_ok=True)
+    import os as _os
+    fname = audio_filename(text)
+    out_dir = AUDIO / "lazy"
+    out = out_dir / fname
+    out_dir.mkdir(parents=True, exist_ok=True)
     if not out.exists():
         import asyncio
-        asyncio.run(edge_tts.Communicate(text, voice).save(str(out)))
+        tmp = out_dir / (".tmp_" + fname)
+        try:
+            asyncio.run(edge_tts.Communicate(text, voice).save(str(tmp)))
+            _os.replace(str(tmp), str(out))   # 原子替换，避免读到半写文件
+        except Exception:
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
+            raise
     return jsonify({"url": f"/audio/lazy/{fname}"})
 
 

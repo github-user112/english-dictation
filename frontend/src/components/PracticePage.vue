@@ -29,6 +29,7 @@ const audioCache = ref({});
 const playToken = ref(0);
 const replayTimer = ref(null);
 const nextTimer = ref(null);
+const focusTimers = ref([]);
 const replayCount = ref(0);
 const cells = ref(null);
 const catchEl = ref(null);
@@ -73,8 +74,7 @@ onMounted(async () => {
     focusCatch();
     play();
   }
-  setTimeout(focusCatch, 150);
-  setTimeout(focusCatch, 450);
+  focusTimers.value = [setTimeout(focusCatch, 150), setTimeout(focusCatch, 450)];
   document.addEventListener("pointerdown", onDocDown, true);
   window.addEventListener("keydown", onGlobalKey, true);
 });
@@ -85,6 +85,8 @@ onUnmounted(() => {
   clearReplay();
   audioEl.pause();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  for (const t of focusTimers.value) { clearTimeout(t); }
+  focusTimers.value = [];
   document.removeEventListener("pointerdown", onDocDown, true);
   window.removeEventListener("keydown", onGlobalKey, true);
 });
@@ -106,6 +108,8 @@ function onDocDown(ev) {
       ev.target.closest("a") || ev.target.closest("select")) {
     return;
   }
+  // B10: 触屏滑动不阻止默认行为（允许页面滚动）
+  if (ev.pointerType === "touch") return;
   ev.preventDefault();
   focusCatch();
 }
@@ -380,10 +384,10 @@ function cycleSpeed() {
       <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（错词重练）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span></span>
       <span class="badge mode-badge">{{ practiceMode === 'pure' ? '纯听写' : practiceMode === 'follow' ? '跟打' : '辅助听写' }}</span>
       <div class="scope-group" v-if="mode === 'word' && !custom">
-        <button class="btn ghost sm" :class="{ active: scope === 'all' }" @click="scope !== 'all' && toggleScope()">全部</button>
-        <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" @click="scope !== 'memorized' && toggleScope()">已背</button>
+        <button class="btn ghost sm" :class="{ active: scope === 'all' }" :aria-pressed="scope === 'all'" @click="scope !== 'all' && toggleScope()">全部</button>
+        <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" :aria-pressed="scope === 'memorized'" @click="scope !== 'memorized' && toggleScope()">已背</button>
       </div>
-      <button class="btn ghost" @click="cycleSpeed">{{ speedLabel }}</button>
+      <button class="btn ghost" aria-label="调节播放速度" @click="cycleSpeed">{{ speedLabel }}</button>
     </div>
     <div class="practice-card">
       <div class="info-line">
@@ -396,15 +400,15 @@ function cycleSpeed() {
           :practice-mode="practiceMode"></component>
       </div>
       <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
-      <div id="answer-line">
+      <div id="answer-line" aria-live="polite">
         <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
       </div>
       <div class="controls">
-        <button class="btn ghost" @click="again">↻ 再来一轮</button>
-        <button class="btn ghost" :disabled="saving" @click="skip">跳过</button>
-        <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" @click="submit">提交答案</button>
-        <button class="btn primary big" id="play-btn" @click="play">🔊</button>
+        <button class="btn ghost" aria-label="重播音频" @click="again">↻ 再来一轮</button>
+        <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @click="skip">跳过</button>
+        <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
+        <button class="btn primary big" id="play-btn" aria-label="播放音频" @click="play">🔊</button>
       </div>
       <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 自动重播间隔可在设置调整</div>
     </div>

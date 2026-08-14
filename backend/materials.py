@@ -61,7 +61,12 @@ def find_item(list_key, item_id):
 
 
 def audio_url(list_key, item_id, text):
-    fname = hashlib.md5(text.encode()).hexdigest() + ".mp3"
+    fname = audio_filename(text)
     if (AUDIO / list_key / fname).exists():
         return f"/audio/{list_key}/{fname}"
     return f"/audio/lazy/{fname}"
+
+
+def audio_filename(text):
+    """返回音频文件名：基于文本内容的 md5 hash（TTS 生成与音频 URL 共享同一算法）"""
+    return hashlib.md5(text.encode()).hexdigest() + ".mp3"

@@ -198,6 +198,16 @@ def api_session():
         return jsonify({"error": "课程不存在"}), 404
 
     with db() as conn:
+        # 先用只读事务检查是否已有活跃会话（避免在读路径上不必要的 IMMEDIATE 锁）
+        existing = active_session(conn, user, list_key, mode, scope, strategy, lesson)
+        if existing:
+            plan = conn.execute(
+                "SELECT * FROM daily_plan WHERE day=? AND user=? AND list=?", (today, user, list_key)
+            ).fetchone()
+            quota = dict(plan) if plan else None
+            return resp(serialize_session(conn, existing, resumed=True, quota=quota))
+
+        # 确认需要写入，升级为 IMMEDIATE 并二次检查（double-check locking）
         conn.execute("BEGIN IMMEDIATE")
         existing = active_session(conn, user, list_key, mode, scope, strategy, lesson)
         if existing:

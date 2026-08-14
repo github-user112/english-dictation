@@ -20,6 +20,7 @@ const catchEl = ref(null);
 const audioCache = ref({});
 const playToken = ref(0);
 const nextTimer = ref(null);
+const focusTimers = ref([]);
 const quizRound = ref(0);
 const stat = ref({ right: 0, wrong: 0, memorized: 0 });
 const learnIndex = ref(0);            // 学习态当前索引（用于恢复）
@@ -94,6 +95,8 @@ onUnmounted(() => {
   playToken.value++;
   audioEl.pause();
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
+  for (const t of focusTimers.value) { clearTimeout(t); }
+  focusTimers.value = [];
   document.removeEventListener("pointerdown", onDocDown, true);
   window.removeEventListener("keydown", onGlobalKey, true);
 });
@@ -108,8 +111,8 @@ function focusCatch() {
   }
 }
 function forceFocus() {
-  setTimeout(focusCatch, 150);
-  setTimeout(focusCatch, 450);
+  if (focusTimers.value.length) return;
+  focusTimers.value = [setTimeout(focusCatch, 150), setTimeout(focusCatch, 450)];
 }
 function onDocDown(ev) {
   if (ev.target.tagName === "BUTTON" || ev.target.tagName === "A" ||
@@ -118,6 +121,7 @@ function onDocDown(ev) {
       ev.target.closest("a") || ev.target.closest("select")) {
     return;
   }
+  if (ev.pointerType === "touch") return;
   ev.preventDefault();
   focusCatch();
 }
@@ -294,10 +298,10 @@ function goCatalog() { window.location.hash = "#/catalog"; }
   <div v-else-if="phase === 'learn'" @pointerdown="focusCatch">
     <div class="practice-top">
       <span class="progress-line">先认个脸：{{ items.indexOf(cur) + 1 }} / {{ learnTotal }}</span>
-      <button class="btn ghost" @click="startQuiz">跳过学习，直接自测</button>
+      <button class="btn ghost" aria-label="跳过学习，直接自测" @click="startQuiz">跳过学习，直接自测</button>
     </div>
     <div class="practice-card">
-      <div class="flash-card" :class="{ flipped }" @click="flip">
+      <div class="flash-card" :class="{ flipped }" role="button" aria-label="点击翻面查看释义" tabindex="0" @click="flip">
         <div class="face front">
           <div class="fw">{{ cur.text }}</div>
           <div class="fp">{{ cur.phonetic }}</div>
@@ -307,7 +311,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
         </div>
       </div>
       <div class="controls" style="margin-top:16px;">
-        <button class="btn ghost" @click="play">🔊 发音</button>
+        <button class="btn ghost" aria-label="播放发音" @click="play">🔊 发音</button>
         <button class="btn primary big" @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
       </div>
       <div class="hint">点击卡片翻面 · 记住拼写后开始自测</div>
@@ -327,7 +331,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       <div class="cells-wrap">
         <WordCells ref="cells" :key="quizRound" :tokens="cur" :submitted="submitted"></WordCells>
       </div>
-      <div id="answer-line">
+      <div id="answer-line" aria-live="polite">
         <template v-if="submitted">
           <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}</span>
           <span v-if="lastRight">{{ lastNote }}</span>
@@ -335,7 +339,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       </div>
       <div class="controls">
         <button class="btn primary big" @click="submitted ? quizNext() : submit()">{{ submitted ? '继续' : '提交' }}</button>
-        <button class="btn ghost" @click="play">🔊 听发音</button>
+        <button class="btn ghost" aria-label="播放发音" @click="play">🔊 听发音</button>
       </div>
       <div class="hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
     </div>

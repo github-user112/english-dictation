@@ -23,5 +23,5 @@ def resp(obj):
     """将 user 写入响应（cookie 记住 + JSON 返回，前端拼到 URL 后面）"""
     u = get_user()
     r = make_response(jsonify({**obj, "user": u}))
-    r.set_cookie(COOKIE, u, max_age=31536000, httponly=False, samesite="Lax")
+    r.set_cookie(COOKIE, u, max_age=31536000, httponly=True, samesite="Lax")
     return r
