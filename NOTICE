@@ -1,0 +1,21 @@
+# 第三方素材与版权声明 (NOTICE)
+
+本仓库的**代码**以 MIT 许可证发布（见 LICENSE）。
+但仓库**不包含**任何词库/句子素材的 JSON 数据文件——这些文件由
+`scripts/build_data.py` 与 `scripts/build_nce.py` 在本地按需拉取生成，
+默认被 `.gitignore` 排除，不随本仓库分发。
+
+素材的版权归各自来源所有，且**多数不授予再分发权利**。请仅用于个人学习研究。
+
+| 素材 | 来源仓库 | 许可证 / 版权状况 | 再分发建议 |
+|---|---|---|---|
+| CET-4 / CET-6 / 考研 / 托福 词库 | [vxiaozhi/vocabulary-book-by-deepseek](https://github.com/vxiaozhi/vocabulary-book-by-deepseek) | Apache-2.0 | 可再分发 |
+| 新概念英语 1-4 册 (nc1~nc4) | [iChochy/NCE](https://github.com/iChochy/NCE) | 代码 MIT；但 **教材文本版权归原出版社，上游明确声明"内容来源于互联网，我们不拥有版权，仅供个人学习研究使用"** | **不可再分发** |
+| 口语 900 句 (oral900) | [drizzletown/English900](https://github.com/drizzletown/English900) | **无 LICENSE 文件**（默认保留所有权利），源自《新时代英语900句》教材 | **不可再分发** |
+
+如需自行生成素材，请运行：
+
+    python scripts/build_data.py     # 词库 + 口语900
+    python scripts/build_nce.py      # 新概念 1-4 册
+
+并遵守上述来源的版权与许可要求。

@@ -33,8 +33,8 @@
 app.py                  Flask 入口
 backend/                后端包（config/db/auth/materials + 按功能分模块路由）
 frontend/               Vue 3 + Vite 8 前端（SFC 组件，构建输出到 static/）
-wordlists/              GitHub 开源词库（已转换 JSON）
-sentences/              句子素材（口语 900 句、新概念）
+wordlists/              词库（由 scripts/build_data.py 拉取生成，不入库，见 NOTICE）
+sentences/              句子素材（由 scripts 拉取生成，不入库，见 NOTICE）
 audio/                  edge-tts 预生成音频（gitignore）
 scripts/build_data.py   拉取素材并转换统一格式
 scripts/gen_audio.py    edge-tts 批量生成音频
@@ -91,4 +91,5 @@ npm run build    # 构建产物输出到 ../static（nginx 直接服务）
 
 ## LICENSE
 
-代码 MIT；词库/句子素材版权归各自来源。
+- **代码**：MIT（见 [LICENSE](LICENSE)）。
+- **素材**：词库/句子 JSON **不随本仓库分发**，由 `scripts/` 在本地按需拉取生成（默认被 `.gitignore` 排除）。其版权与许可限制各不相同，详见 [NOTICE](NOTICE)——新概念英语、口语 900 句等教材内容**不可再分发，仅限个人学习研究**。
