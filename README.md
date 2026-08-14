@@ -1,6 +1,6 @@
 # 英语听打系统 (English Dictation)
 
-"听 → 打字 → 判分"英语练习系统。部署于 OCI ARM（Always Free），域名通过 Cloudflare 代理，nginx 静态直出 + API 反代，双份 TLS（Cloudflare 边缘 + Let's Encrypt 源站）。
+"听 → 打字 → 判分"英语练习系统。
 
 ## 🔗 在线体验
 
