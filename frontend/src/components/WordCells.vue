@@ -14,7 +14,7 @@ const showSequence = computed(() => props.practiceMode !== "pure" || props.feedb
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => props.tokens.id || props.tokens.text, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; });
 
 function letterIdxs() {
   const out = [];

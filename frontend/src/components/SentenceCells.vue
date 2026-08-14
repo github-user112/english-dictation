@@ -17,7 +17,7 @@ const words = computed(() =>
     return { pre: m[1], core: m[2] || m[1] || w, suf: m[3] };
   }));
 
-watch(() => props.tokens.id || props.tokens.text, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
 
 function typeWordChar(ch) {
   if (ch === " ") {

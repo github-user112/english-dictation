@@ -142,6 +142,7 @@ function onKey(ev) {
     return;
   }
   if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    if (ev.isComposing) return;
     ev.preventDefault();
     typeChar(ev.key);
   }
