@@ -178,4 +178,16 @@ describe("SentenceCells", () => {
     for (const ch of "world") vm.typeWordChar(ch);
     expect(vm.isCorrect()).toBe(true);
   });
+
+  it("should ignore underscores both in input and judging", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("Chang_woo"), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    vm.typeWordChar("_");            // 输入下划线被忽略
+    for (const ch of "Chang") vm.typeWordChar(ch);
+    vm.typeWordChar("_");            // 中间的下划线也忽略
+    for (const ch of "woo") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);  // 不打/打错下划线都算对
+  });
 });

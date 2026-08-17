@@ -18,6 +18,7 @@ const words = computed(() =>
     const pre = (w.match(/^[^\w-]+/) || [""])[0];
     const suf = (w.match(/[^\w-]+$/) || [""])[0];
     let core = w.slice(pre.length, suf ? w.length - suf.length : w.length);
+    core = core.replace(/_/g, "");  // 下划线可忽略：不要求输入，判定时忽略
     if (!core) return { pre: "", core: w, suf: "" };  // 纯标点 token
     return { pre, core, suf };
   }));
@@ -39,6 +40,7 @@ function typeWordChar(ch) {
     if (props.practiceMode !== "pure") mark.value[scur.value] = "wrong";
     return true;
   }
+  if (ch === "_") return;   // 下划线可忽略：输入时跳过，判定时词核已去除下划线
   if (!/^[a-zA-Z0-9_\'\-.,/&:]+$/.test(ch)) return;
   const i = scur.value;
   const w = input.value[i] || "";
