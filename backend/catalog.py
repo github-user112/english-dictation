@@ -169,7 +169,9 @@ def api_lists():
 def api_lessons():
     user = get_user()
     list_key = request.args.get("list", "")
-    if list_key not in MATERIALS or not list_key.startswith("nc"):
+    if list_key not in MATERIALS:
+        return jsonify({"error": "未知素材"}), 400
+    if _material_meta(list_key)["lesson_count"] == 0:
         return jsonify({"error": "该素材不支持按课学习"}), 400
     groups = {}
     for item in load_material(list_key):
@@ -203,7 +205,7 @@ def api_session():
         return jsonify({"error": "未知素材"}), 404
     if mode not in PRACTICE_MODES:
         return jsonify({"error": "未知练习模式"}), 400
-    if strategy == "lesson" and (not list_key.startswith("nc") or not list(iter_material(list_key, lesson))):
+    if strategy == "lesson" and not list(iter_material(list_key, lesson)):
         return jsonify({"error": "课程不存在"}), 404
 
     with db() as conn:
