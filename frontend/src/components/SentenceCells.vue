@@ -13,31 +13,17 @@ const showSequence = computed(() => props.practiceMode !== "pure" || props.feedb
 
 // 词核字符：字母/数字/下划线/撇号/连字符；其余视为前后标点（pre/suf）。
 // 内部含 . , / & : 等字符的缩写词（B.C.、a.m.、2,400、Why/Why）整体保留在 core 中由用户输入。
-// auto：后端标记的专有名词（人名/地名等），直接显示不要求输入（skip=true 自动填充）。
-const autoSet = new Set((props.tokens.auto || []).map((s) => String(s).toLowerCase()));
 const words = computed(() =>
-  props.tokens.text.split(/\s+/).map((w, i) => {
+  props.tokens.text.split(/\s+/).map((w) => {
     const pre = (w.match(/^[^\w-]+/) || [""])[0];
     const suf = (w.match(/[^\w-]+$/) || [""])[0];
     let core = w.slice(pre.length, suf ? w.length - suf.length : w.length);
     core = core.replace(/_/g, "");  // 下划线可忽略：不要求输入，判定时忽略
-    if (!core) return { pre: "", core: w, suf: "", skip: false };  // 纯标点 token
-    return { pre, core, suf, skip: i > 0 && autoSet.has(core.toLowerCase()) };
+    if (!core) return { pre: "", core: w, suf: "" };  // 纯标点 token
+    return { pre, core, suf };
   }));
 
-watch(() => `${props.tokens.id}:${props.tokens.text}`, () => {
-  scur.value = 0;
-  input.value = words.value.map((w) => (w.skip ? w.core : ""));  // 专有名词自动填充
-  flash.value = []; mark.value = []; extras.value = [];
-}, { immediate: true });
-
-function skipAuto() {
-  // 光标越过自动填充的专有名词，停在下一个需要输入的位置
-  while (scur.value < words.value.length - 1 && words.value[scur.value].skip) scur.value++;
-}
-function backSkip() {
-  while (scur.value > 0 && words.value[scur.value].skip) scur.value--;
-}
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
 
 function typeWordChar(ch) {
   if (ch === " ") {
@@ -45,12 +31,10 @@ function typeWordChar(ch) {
     const target = (words.value[scur.value]?.core || "").toLowerCase();
     if (!typed) {
       if (scur.value < words.value.length - 1) scur.value++;
-      skipAuto();
       return false;
     }
     if (typed === target) {
       if (scur.value < words.value.length - 1) scur.value++;
-      skipAuto();
       return false;
     }
     if (props.practiceMode !== "pure") mark.value[scur.value] = "wrong";
@@ -58,7 +42,6 @@ function typeWordChar(ch) {
   }
   if (ch === "_") return;   // 下划线可忽略：输入时跳过，判定时词核已去除下划线
   if (!/^[a-zA-Z0-9_\'\-.,/&:]+$/.test(ch)) return;
-  if (words.value[scur.value]?.skip) skipAuto();  // 防御：光标不在自动填充词上输入
   const i = scur.value;
   const w = input.value[i] || "";
   if (w.length >= 30) return;
@@ -78,7 +61,6 @@ function refreshMark(i) {
   mark.value[i] = typed && !target.startsWith(typed) ? "wrong" : "";
 }
 function backspace() {
-  if (words.value[scur.value]?.skip) backSkip();  // 自动填充词内容不可删，回退到可输入词
   const w = input.value[scur.value] || "";
   if (w.length) {
     input.value[scur.value] = w.slice(0, -1);
@@ -87,7 +69,6 @@ function backspace() {
   }
   if (scur.value > 0) {
     scur.value--;
-    backSkip();  // 回退时跳过自动填充的专有名词
     input.value[scur.value] = (input.value[scur.value] || "").slice(0, -1);
     refreshMark(scur.value);
   }
@@ -95,7 +76,6 @@ function backspace() {
 function cell(i) { return box.value?.querySelector("#sc" + i); }
 function focusWord(i) {
   if (props.submitted || props.feedback) return;
-  if (words.value[i]?.skip) return;  // 自动填充的专有名词不可聚焦输入
   scur.value = i;
 }
 function paint() {
@@ -125,7 +105,7 @@ function markWrong() {
 }
 function reset() {
   scur.value = 0;
-  input.value = words.value.map((w) => (w.skip ? w.core : ""));  // 自动填充词保留
+  input.value = [];
   flash.value = [];
   mark.value = [];
   extras.value = [];
@@ -154,7 +134,7 @@ function serialize() {
 }
 function restore(s) {
   if (!s) return;
-  input.value = words.value.map((w, i) => (w.skip ? w.core : (s.input?.[i] || "")));
+  input.value = [...(s.input || [])];
   scur.value = Number(s.cursor) || 0;
   mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
   extras.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.extras || [])];
@@ -194,7 +174,7 @@ defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, seri
             :style="{ '--chars': Math.max(3, e.word.length) }">{{ e.word }}</span>
       <span v-if="w.pre" class="punct">{{ w.pre }}</span>
       <span :id="'sc' + i" class="cell word-line"
-            :class="[mark[i] || '', w.skip ? 'auto' : '', !submitted && i === scur ? 'current' : '']"
+            :class="[mark[i] || '', !submitted && i === scur ? 'current' : '']"
             :style="{ '--chars': lineChars(i), cursor: 'text' }" @click="focusWord(i)">{{ input[i] }}</span>
       <span v-if="w.suf" class="punct">{{ w.suf }}</span>
     </template>

@@ -190,32 +190,4 @@ describe("SentenceCells", () => {
     for (const ch of "woo") vm.typeWordChar(ch);
     expect(vm.isCorrect()).toBe(true);  // 不打/打错下划线都算对
   });
-
-  it("should auto-fill proper nouns and not require typing them", () => {
-    const wrapper = mount(SentenceCells, {
-      props: { tokens: makeSentence("Is Chang-woo Chinese?", { auto: ["chang-woo", "chinese"] }),
-        submitted: false, feedback: true, practiceMode: "assisted" },
-    });
-    const vm = wrapper.vm;
-    expect(wrapper.findAll(".cell.auto").length).toBe(2);  // 两个专有名词已标记
-    expect(vm.isCorrect()).toBe(false);
-    vm.typeWordChar("I");
-    vm.typeWordChar("s");
-    vm.typeWordChar(" ");   // 空格后自动越过两个自动填充词
-    expect(vm.isCorrect()).toBe(true);
-  });
-
-  it("backspace should not delete auto-filled words", () => {
-    const wrapper = mount(SentenceCells, {
-      props: { tokens: makeSentence("Is Chang-woo Chinese?", { auto: ["chang-woo", "chinese"] }),
-        submitted: false, feedback: true, practiceMode: "assisted" },
-    });
-    const vm = wrapper.vm;
-    for (const ch of "Is ") vm.typeWordChar(ch);
-    expect(vm.isCorrect()).toBe(true);
-    vm.backspace();   // 光标在尾部自动填充词上，回退应跳过它并删除 Is 的 s
-    expect(vm.isCorrect()).toBe(false);
-    vm.typeWordChar("s");
-    expect(vm.isCorrect()).toBe(true);
-  });
 });
