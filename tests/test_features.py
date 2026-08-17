@@ -118,6 +118,18 @@ class FeatureTests(unittest.TestCase):
             self.assertEqual((row["consecutive_right"], row["status"]), (consecutive, status))
             self.assertEqual(row["next_review"], (date.today() + timedelta(days=days)).isoformat())
 
+    def test_proper_nouns_are_marked_auto(self):
+        from backend.materials import load_material
+        items = load_material("nc1")
+        item = next(i for i in items if i["id"] == "nce1-3-4")  # Is Chang-woo Chinese?
+        self.assertIn("chang-woo", item.get("auto", []))
+        self.assertIn("chinese", item.get("auto", []))
+        # 句首词不标记
+        self.assertNotIn("is", item.get("auto", []))
+        # 无专有名词的句子不带 auto
+        normal = next(i for i in items if i["id"] == "nce1-1-3")
+        self.assertNotIn("auto", normal)
+
     def test_lesson_session_is_ordered_and_filtered(self):
         lessons = self.get("/api/lessons?list=nc1").json["lessons"]
         self.assertEqual(len(lessons), 72)
