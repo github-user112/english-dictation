@@ -68,14 +68,13 @@ def session_context():
 
 
 def active_session(conn, user, list_key, mode, scope, strategy, lesson):
-    # 按课学习：同一课存在未完成会话即继续（跨练习模式/范围复用，实现断点续学；
-    # 会话完成后 state=completed，再进来才会重新从第一个句子开始）
+    # 按课学习不受词汇 scope 影响，但练习模式必须一致，确保界面行为、掌握度和统计口径一致。
     if strategy == "lesson":
         return conn.execute(
-            "SELECT * FROM study_session WHERE user=? AND list=? AND strategy='lesson' "
+            "SELECT * FROM study_session WHERE user=? AND list=? AND practice_mode=? AND strategy='lesson' "
             "AND IFNULL(lesson,-1)=IFNULL(?,-1) AND state='active' "
             "ORDER BY created_at DESC LIMIT 1",
-            (user, list_key, lesson),
+            (user, list_key, mode, lesson),
         ).fetchone()
     return conn.execute(
         "SELECT * FROM study_session WHERE user=? AND list=? AND practice_mode=? AND scope=? "
@@ -99,16 +98,37 @@ def serialize_session(conn, row, resumed=False, quota=None):
     all_rows = conn.execute(
         "SELECT * FROM study_session_item WHERE session_id=? ORDER BY seq", (row["id"],)
     ).fetchall()
-    pending = [r for r in all_rows if r["state"] == "pending"]
-    items = [serialize_item(row["list"], r) for r in pending]
-    items = [i for i in items if i]
-    completed = sum(r["state"] == "completed" for r in all_rows)
-    skipped = sum(r["state"] == "skipped" for r in all_rows)
+    pending = [candidate for candidate in all_rows if candidate["state"] == "pending"]
+    serialized = [(candidate, serialize_item(row["list"], candidate)) for candidate in pending]
+    missing = [candidate for candidate, item in serialized if item is None]
+    session_state = row["state"]
+    if missing:
+        # 素材更新后题目可能被移除；不能让用户卡在不可见的 pending 项上。
+        stamp = now()
+        conn.executemany(
+            """UPDATE study_session_item SET state='skipped',answered_at=?
+               WHERE session_id=? AND item_id=? AND state='pending'""",
+            [(stamp, row["id"], candidate["item_id"]) for candidate in missing],
+        )
+        all_rows = conn.execute(
+            "SELECT * FROM study_session_item WHERE session_id=? ORDER BY seq", (row["id"],)
+        ).fetchall()
+        pending = [candidate for candidate in all_rows if candidate["state"] == "pending"]
+        serialized = [(candidate, serialize_item(row["list"], candidate)) for candidate in pending]
+        if not pending and row["state"] == "active":
+            session_state = "completed"
+            conn.execute(
+                "UPDATE study_session SET state='completed',updated_at=?,completed_at=? WHERE id=?",
+                (stamp, stamp, row["id"]),
+            )
+    items = [item for _, item in serialized if item]
+    completed = sum(candidate["state"] == "completed" for candidate in all_rows)
+    skipped = sum(candidate["state"] == "skipped" for candidate in all_rows)
     return {
         "session": {"id": row["id"], "list": row["list"],
                     "practice_mode": row["practice_mode"], "scope": row["scope"],
                     "strategy": row["strategy"], "lesson": row["lesson"],
-                    "assigned_day": row["assigned_day"], "state": row["state"],
+                    "assigned_day": row["assigned_day"], "state": session_state,
                     "resumed": resumed},
         "quota": quota,
         "progress": {"total": len(all_rows), "completed": completed,
@@ -136,7 +156,7 @@ def api_lists():
             "SELECT s.*, COUNT(i.item_id) total, "
             "SUM(CASE WHEN i.state='pending' THEN 1 ELSE 0 END) pending "
             "FROM study_session s JOIN study_session_item i ON i.session_id=s.id "
-            "WHERE s.user=? AND s.state='active' GROUP BY s.id ORDER BY s.created_at", (user,)
+            "WHERE s.user=? AND s.state='active' GROUP BY s.id ORDER BY s.updated_at DESC", (user,)
         ).fetchall()
     stat_map = {(r["list"], r["status"]): r["c"] for r in rows}
     mem_map = {r["list"]: r["c"] for r in mem_rows}
@@ -205,6 +225,10 @@ def api_session():
         return jsonify({"error": "未知素材"}), 404
     if mode not in PRACTICE_MODES:
         return jsonify({"error": "未知练习模式"}), 400
+    if scope not in {"all", "memorized"}:
+        return jsonify({"error": "未知练习范围"}), 400
+    if request.args.get("lesson") is not None and lesson is None:
+        return jsonify({"error": "lesson 必须为正整数"}), 400
     if strategy == "lesson" and not list(iter_material(list_key, lesson)):
         return jsonify({"error": "课程不存在"}), 404
 
@@ -340,7 +364,7 @@ def update_word_state(conn, user, list_key, item_id, first_right, final_right, m
             state["memorized"] = 0
             state["memorize_count"] = 0
     state["last_seen"] = today
-    state["next_review"] = (date.today() + timedelta(days=days)).isoformat()
+    state["next_review"] = (date.fromisoformat(today) + timedelta(days=days)).isoformat()
     conn.execute(
         """INSERT INTO word_state(user,list,item_id,kind,status,wrong_count,right_count,
                consecutive_right,last_seen,next_review,memorized,memorize_count,last_memorize)

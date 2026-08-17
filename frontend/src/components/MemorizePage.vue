@@ -24,6 +24,10 @@ const focusTimers = ref([]);
 const quizRound = ref(0);
 const stat = ref({ right: 0, wrong: 0, memorized: 0 });
 const learnIndex = ref(0);            // 学习态当前索引（用于恢复）
+const attemptId = ref("");
+const saveError = ref("");
+const saving = ref(false);
+const error = ref("");
 let mounted = true;
 
 const prog = computed(() => "剩余 " + (queue.value.length + (cur.value && phase.value === "quiz" ? 1 : 0)));
@@ -37,6 +41,8 @@ function saveState() {
     sessionStorage.setItem(SS_KEY, JSON.stringify({
       list: list.value, phase: phase.value, items: items.value,
       queue: queue.value, cur: cur.value, stat: stat.value,
+      submitted: submitted.value, lastRight: lastRight.value, lastNote: lastNote.value,
+      attemptId: attemptId.value, saveError: saveError.value,
       quizRound: quizRound.value, learnIndex: learnIndex.value,
     }));
   } catch { /* ignore quota */ }
@@ -54,7 +60,19 @@ function clearState() {
   sessionStorage.removeItem(SS_KEY);
 }
 
-onMounted(async () => {
+function newAttemptId() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+}
+
+onMounted(() => {
+  init().catch((err) => {
+    error.value = err.message || "背词任务加载失败";
+    loading.value = false;
+  });
+});
+
+async function init() {
   list.value = props.params?.get("list") || "cet4";
   const saved = loadState();
   if (saved && saved.list === list.value && saved.items?.length) {
@@ -64,6 +82,11 @@ onMounted(async () => {
     cur.value = saved.cur;
     phase.value = saved.phase || "learn";
     stat.value = saved.stat || { right: 0, wrong: 0, memorized: 0 };
+    submitted.value = Boolean(saved.submitted);
+    lastRight.value = Boolean(saved.lastRight);
+    lastNote.value = saved.lastNote || "";
+    attemptId.value = saved.attemptId || newAttemptId();
+    saveError.value = saved.saveError || "";
     quizRound.value = saved.quizRound || 0;
     learnIndex.value = saved.learnIndex || 0;
     loading.value = false;
@@ -81,6 +104,7 @@ onMounted(async () => {
     if (queue.value.length) {
       cur.value = queue.value[0];
       queue.value.shift();
+      attemptId.value = newAttemptId();
       play();
     }
     saveState();
@@ -88,7 +112,7 @@ onMounted(async () => {
   forceFocus();
   document.addEventListener("pointerdown", onDocDown, true);
   window.addEventListener("keydown", onGlobalKey, true);
-});
+}
 
 onUnmounted(() => {
   mounted = false;
@@ -221,28 +245,33 @@ function onInput(ev) {
   if (!ch || submitted.value || ev.isComposing) return;
   typeChar(ch);
 }
-async function submit() {
-  if (submitted.value) return;
-  const right = cells.value.isCorrect();
-  playToken.value++;
-  audioEl.pause();
-  submitted.value = true;
-  if (right) cells.value.paint(true);
-  else cells.value.markWrong();
-  const r = await api("/memorize", {
-    method: "POST",
-    body: JSON.stringify({ list: list.value, id: cur.value.id, right }),
-  });
-  if (!mounted) return;
+async function persistAnswer(right) {
+  saving.value = true;
+  saveError.value = "";
+  try {
+    return await api("/memorize", {
+      method: "POST",
+      body: JSON.stringify({ list: list.value, id: cur.value.id, right, attempt_id: attemptId.value }),
+    });
+  } catch (err) {
+    saveError.value = err.message || "保存失败";
+    saveState();
+    return null;
+  } finally {
+    saving.value = false;
+  }
+}
+
+function finishAnswer(right, result) {
   if (right) {
     sndRight();
     stat.value.right++;
-    if (r.memorized) {
+    if (result.memorized) {
       stat.value.memorized++;
       lastNote.value = "✔ 已背过！";
     } else {
       lastNote.value = "✔ 对了，待会再确认一遍";
-      queue.value.push({ ...cur.value });   // 连续答对 2 次才已背，排队复测
+      queue.value.push({ ...cur.value });
     }
     lastRight.value = true;
     saveState();
@@ -256,6 +285,28 @@ async function submit() {
     saveState();
   }
 }
+
+async function submit() {
+  if (submitted.value) return;
+  const right = cells.value.isCorrect();
+  playToken.value++;
+  audioEl.pause();
+  submitted.value = true;
+  lastRight.value = right;
+  if (right) cells.value.paint(true);
+  else cells.value.markWrong();
+  saveState();
+  const result = await persistAnswer(right);
+  if (!mounted || !result) return;
+  finishAnswer(right, result);
+}
+
+async function retrySave() {
+  if (!submitted.value || saving.value) return;
+  const result = await persistAnswer(lastRight.value);
+  if (!mounted || !result) return;
+  finishAnswer(lastRight.value, result);
+}
 function quizNext() {
   playToken.value++;
   audioEl.pause();
@@ -263,6 +314,7 @@ function quizNext() {
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   submitted.value = false;
   lastNote.value = "";
+  saveError.value = "";
   if (!queue.value.length) {
     phase.value = "done";
     clearState();
@@ -270,6 +322,7 @@ function quizNext() {
   }
   cur.value = queue.value[0];
   queue.value.shift();
+  attemptId.value = newAttemptId();
   saveState();
   play();
   nextTick().then(() => { focusCatch(); });
@@ -285,7 +338,8 @@ function goCatalog() { window.location.hash = "#/catalog"; }
 </script>
 
 <template>
-  <div v-if="loading" class="empty">加载中…</div>
+  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="redo">重试</button></div>
+  <div v-else-if="loading" class="empty">加载中…</div>
   <div v-else-if="!items.length" class="empty">
     <p>本轮没有要背的词（已背的词 7 天内会回来复习）</p>
     <div class="controls" style="margin-top:16px;">
@@ -295,7 +349,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
   </div>
 
   <!-- 学习态：英→中翻卡 -->
-  <div v-else-if="phase === 'learn'" @pointerdown="focusCatch">
+  <div v-else-if="phase === 'learn'">
     <div class="practice-top">
       <span class="progress-line">先认个脸：{{ items.indexOf(cur) + 1 }} / {{ learnTotal }}</span>
       <button class="btn ghost" aria-label="跳过学习，直接自测" @click="startQuiz">跳过学习，直接自测</button>
@@ -338,7 +392,8 @@ function goCatalog() { window.location.hash = "#/catalog"; }
         </template>
       </div>
       <div class="controls">
-        <button class="btn primary big" @click="submitted ? quizNext() : submit()">{{ submitted ? '继续' : '提交' }}</button>
+        <div v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</div>
+        <button class="btn primary big" :disabled="saving" @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
         <button class="btn ghost" aria-label="播放发音" @click="play">🔊 听发音</button>
       </div>
       <div class="hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>

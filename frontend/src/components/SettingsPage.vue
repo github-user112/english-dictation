@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import { Settings } from "../lib/core";
+import { Account } from "../lib/account";
 
 const s = ref(Settings.get());
 
@@ -8,15 +9,11 @@ function set(key, val) {
   Settings.set({ [key]: val });
   s.value = Settings.get();
 }
-function copyLink() {
-  navigator.clipboard.writeText(location.href).then(
-    () => alert("链接已复制"),
-    () => alert("复制失败"));
-}
 </script>
 
 <template>
-  <div>
+  <div class="settings-page">
+    <div class="page-heading"><span class="eyebrow">PERSONALIZE</span><h1>按你的节奏学习</h1><p>调整提示、主题和每日练习量。</p></div>
     <div class="section-title">听写显示</div>
     <div class="setting-row">
       <div><div class="lab">默认练习模式</div><div class="desc">纯听写不显示提示；辅助听写即时纠错；跟打显示原文且不计入掌握</div></div>
@@ -59,10 +56,11 @@ function copyLink() {
       <input type="number" min="0" max="10" style="width:70px;"
         :value="s.replayTimes" @change="set('replayTimes', Number($event.target.value))">
     </div>
-    <div class="section-title">我的</div>
+    <div class="section-title">账户</div>
     <div class="setting-row">
-      <div><div class="lab">我的学习链接</div><div class="desc" style="word-break:break-all;">当前地址已含你的 uuid，分享这个链接即可同步你的进度</div></div>
-      <button class="btn ghost" @click="copyLink">复制</button>
+      <div v-if="Account.authenticated"><div class="lab">已登录：{{ Account.username }}</div><div class="desc">学习进度已受到账号保护，可在账户页修改密码。</div></div>
+      <div v-else><div class="lab">游客模式</div><div class="desc">注册后可保护当前学习进度，并在其他设备继续学习。</div></div>
+      <a class="btn ghost" href="#/account">{{ Account.authenticated ? '管理账户' : '登录 / 注册' }}</a>
     </div>
   </div>
 </template>

@@ -17,7 +17,7 @@ class TestMaterials:
     def test_load_words(self, app):
         with app.app_context():
             material = load_material("test_words")
-            assert len(material) == 3
+            assert len(material) == 5
             assert material[0]["text"] == "hello"
             assert material[0]["kind"] == "word"
             assert material[0]["phonetic"] == "/həˈloʊ/"
@@ -25,7 +25,7 @@ class TestMaterials:
     def test_load_sentences(self, app):
         with app.app_context():
             material = load_material("test_sents")
-            assert len(material) == 2
+            assert len(material) == 4
             assert material[0]["kind"] == "sentence"
             assert material[0]["text"] == "Hello world"
 
@@ -47,7 +47,7 @@ class TestMaterials:
     def test_iter_material_without_lesson(self, app):
         with app.app_context():
             items = list(iter_material("test_words"))
-            assert len(items) == 3
+            assert len(items) == 5
 
     def test_audio_url_existing(self, app):
         with app.app_context():
@@ -198,6 +198,25 @@ class TestAPI:
         assert rv.status_code == 200
         data = rv.get_json()
         assert data["ok"] is True
+
+    def test_memorize_rejects_non_word_unknown_item_and_non_boolean_result(self, client):
+        invalid_requests = (
+            {"list": "test_sents", "id": "1", "right": True},
+            {"list": "test_words", "id": "missing", "right": True},
+            {"list": "test_words", "id": "hello", "right": "false"},
+        )
+        for payload in invalid_requests:
+            rv = client.post("/api/memorize", json=payload)
+            assert rv.status_code in {400, 404}
+
+    def test_memorize_attempt_id_is_idempotent(self, client):
+        payload = {"list": "test_words", "id": "hello", "right": True, "attempt_id": "a" * 32}
+        first = client.post("/api/memorize", json=payload)
+        second = client.post("/api/memorize", json=payload)
+        assert first.status_code == second.status_code == 200
+        assert first.json["duplicate"] is False
+        assert second.json["duplicate"] is True
+        assert first.json["memorize_count"] == second.json["memorize_count"] == 1
 
     def test_wrong_endpoint(self, client):
         rv = client.get("/api/wrong")

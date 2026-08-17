@@ -24,6 +24,8 @@ const attemptCount = ref(0);
 const saving = ref(false);
 const firstAttemptSent = ref(false);
 const loading = ref(true);
+const error = ref("");
+const saveError = ref("");
 const custom = ref(false);
 const audioCache = ref({});
 const playToken = ref(0);
@@ -61,7 +63,13 @@ onMounted(async () => {
     sessionStorage.removeItem("dict_custom");
     custom.value = true;
   } else {
-    await loadSession();
+    try {
+      await loadSession();
+    } catch (err) {
+      error.value = err.message || "练习任务加载失败";
+      loading.value = false;
+      return;
+    }
     if (!mounted) return;
   }
   loading.value = false;
@@ -215,6 +223,7 @@ async function play() {
 }
 async function submit() {
   if (saving.value || submitted.value) return;
+  saveError.value = "";
   const right = cells.value.isCorrect();
   attemptCount.value++;
   playToken.value++;
@@ -235,6 +244,9 @@ async function submit() {
       await saveResult("completed", true);
       if (!mounted || playToken.value !== completedToken || item.value !== completedItem ||
           cur.value !== completedIndex || !submitted.value) return;
+    } catch (err) {
+      saveError.value = err.message || "答案保存失败";
+      return;
     } finally {
       saving.value = false;
     }
@@ -251,8 +263,11 @@ async function submit() {
     if (attemptCount.value === 1 && sessionId.value && !firstAttemptSent.value) {
       firstAttemptSent.value = true;
       saving.value = true;
-      try { await saveResult("attempt", false); }
-      finally { saving.value = false; }
+      try {
+        await saveResult("attempt", false);
+      } catch (err) {
+        saveError.value = err.message || "首答保存失败，会在完成本题时重试";
+      } finally { saving.value = false; }
     }
   }
 }
@@ -265,6 +280,28 @@ async function saveResult(outcome, finalRight) {
     right: finalRight, retried: firstRight.value === false,
   }) });
 }
+async function retrySave() {
+  if (!submitted.value || saving.value) return;
+  const completedItem = item.value;
+  const completedIndex = cur.value;
+  const completedToken = playToken.value;
+  saving.value = true;
+  saveError.value = "";
+  try {
+    await saveResult("completed", true);
+    if (!mounted || playToken.value !== completedToken || item.value !== completedItem ||
+        cur.value !== completedIndex || !submitted.value) return;
+  } catch (err) {
+    saveError.value = err.message || "答案保存失败";
+    return;
+  } finally {
+    saving.value = false;
+  }
+  failed.value = false;
+  clearTimeout(nextTimer.value);
+  nextTimer.value = setTimeout(() => next(), 2000);
+}
+
 async function loadSession() {
   const p = new URLSearchParams({ list: list.value, new: Settings.get().newPerDay,
     scope: scope.value, mode: practiceMode.value });
@@ -292,6 +329,8 @@ function toggleScope() {
       focusCatch();
       play();
     }
+  }).catch((err) => {
+    if (mounted) error.value = err.message || "练习任务加载失败";
   });
 }
 function next() {
@@ -324,6 +363,7 @@ function resetAttempt() {
   attemptCount.value = 0;
   saving.value = false;
   firstAttemptSent.value = false;
+  saveError.value = "";
 }
 async function skip() {
   if (saving.value) return;
@@ -379,7 +419,8 @@ function cycleSpeed() {
 </script>
 
 <template>
-  <div v-if="loading" class="empty">加载中…</div>
+  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="again">重试</button></div>
+  <div v-else-if="loading" class="empty">加载中…</div>
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
   <div v-else @pointerdown="focusCatch">
     <div class="practice-top">
@@ -405,10 +446,12 @@ function cycleSpeed() {
       <div id="answer-line" aria-live="polite">
         <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
+        <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
       </div>
       <div class="controls">
         <button class="btn ghost" aria-label="重播音频" @click="again">↻ 再来一轮</button>
         <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @click="skip">跳过</button>
+        <button v-if="saveError && submitted" class="btn primary" :disabled="saving" @click="retrySave">重试保存</button>
         <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
         <button class="btn primary big" id="play-btn" aria-label="播放音频" @click="play">🔊</button>
       </div>

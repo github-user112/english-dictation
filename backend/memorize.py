@@ -56,31 +56,56 @@ def api_memorize_session():
 
 @bp.post("/api/memorize")
 def api_memorize():
-    """记录背诵结果：连续答对 memorize_threshold 次 → 已背"""
+    """记录背诵结果；带 attempt_id 的新客户端请求可安全重试。"""
     u = get_user()
     data = request.get_json(force=True)
     list_key = data.get("list")
-    item_id = str(data.get("id"))
-    right = bool(data.get("right"))
+    raw_id = data.get("id")
+    right = data.get("right")
+    attempt_id = data.get("attempt_id")
     today = date.today().isoformat()
+
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
+    if MATERIALS[list_key]["type"] != "words":
+        return jsonify({"error": "句子素材不支持背诵"}), 400
+    if raw_id is None:
+        return jsonify({"error": "缺少 id 参数"}), 400
+    item_id = str(raw_id)
+    item = find_item(list_key, item_id)
+    if not item or item["kind"] != "word":
+        return jsonify({"error": "词条不存在"}), 404
+    if type(right) is not bool:
+        return jsonify({"error": "right 必须为布尔值"}), 400
+    if attempt_id is not None:
+        if not isinstance(attempt_id, str) or not 1 <= len(attempt_id) <= 64 or not attempt_id.isalnum():
+            return jsonify({"error": "attempt_id 无效"}), 400
 
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        if attempt_id:
+            previous = conn.execute(
+                "SELECT memorized,memorize_count FROM memorize_attempt WHERE user=? AND attempt_id=?",
+                (u, attempt_id),
+            ).fetchone()
+            if previous:
+                return resp({"ok": True, "duplicate": True,
+                             "memorized": bool(previous["memorized"]),
+                             "memorize_count": previous["memorize_count"]})
+
         row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
                            (u, list_key, item_id)).fetchone()
-        sr = dict(row) if row else {"kind": "word", "memorized": 0, "memorize_count": 0,
-                                    "last_memorize": ""}
+        state = dict(row) if row else {"kind": "word", "memorized": 0, "memorize_count": 0,
+                                       "last_memorize": ""}
         if right:
-            sr["memorize_count"] += 1
-            if sr["memorize_count"] >= CONFIG["memorize_threshold"]:
-                sr["memorized"] = 1
-                sr["last_memorize"] = today
+            state["memorize_count"] += 1
+            if state["memorize_count"] >= CONFIG["memorize_threshold"]:
+                state["memorized"] = 1
+                state["last_memorize"] = today
         else:
-            sr["memorize_count"] = 0
-            sr["memorized"] = 0
-            sr["last_memorize"] = None
+            state["memorize_count"] = 0
+            state["memorized"] = 0
+            state["last_memorize"] = None
 
         conn.execute("""
             INSERT INTO word_state(user, list, item_id, kind, memorized, memorize_count, last_memorize)
@@ -88,14 +113,20 @@ def api_memorize():
             ON CONFLICT(user, list, item_id) DO UPDATE SET
                 memorized=excluded.memorized, memorize_count=excluded.memorize_count,
                 last_memorize=excluded.last_memorize
-        """, (u, list_key, item_id, sr["kind"], sr["memorized"], sr["memorize_count"],
-              sr["last_memorize"]))
+        """, (u, list_key, item_id, state["kind"], state["memorized"], state["memorize_count"],
+              state["last_memorize"]))
 
         conn.execute("""
             INSERT INTO daily_log(day, user, memorize_right, memorize_wrong)
-            VALUES(?,?,?,?)
-            ON CONFLICT(day, user) DO UPDATE SET
+            VALUES(?,?,?,?) ON CONFLICT(day, user) DO UPDATE SET
                 memorize_right=memorize_right+excluded.memorize_right,
                 memorize_wrong=memorize_wrong+excluded.memorize_wrong
         """, (today, u, 1 if right else 0, 0 if right else 1))
-    return resp({"ok": True, "memorized": sr["memorized"], "memorize_count": sr["memorize_count"]})
+        if attempt_id:
+            conn.execute("""
+                INSERT INTO memorize_attempt(user,attempt_id,list,item_id,right,memorized,memorize_count,created_at)
+                VALUES(?,?,?,?,?,?,?,?)
+            """, (u, attempt_id, list_key, item_id, 1 if right else 0, state["memorized"],
+                  state["memorize_count"], today))
+    return resp({"ok": True, "duplicate": False,
+                 "memorized": state["memorized"], "memorize_count": state["memorize_count"]})

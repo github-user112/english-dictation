@@ -6,36 +6,44 @@ from functools import lru_cache
 from .config import AUDIO, BASE, MATERIALS
 
 
+class MaterialUnavailable(RuntimeError):
+    """素材文件缺失、损坏或结构不符合预期。"""
+
+
 @lru_cache(maxsize=None)
 def load_material(list_key):
     meta = MATERIALS.get(list_key)
     if not meta:
         return []
-    items = []
-    if meta["type"] == "words":
-        p = BASE / "wordlists" / f"{list_key}.json"
-        data = json.loads(p.read_text("utf-8"))
-        for w in data["words"]:
-            items.append({
-                "id": w["word"],
-                "text": w["word"],
-                "phonetic": w.get("phonetic") or "",
-                "meaning": w.get("meaning") or "",
-                "kind": "word",
-            })
-    else:
-        p = BASE / "sentences" / f"{list_key}.json"
-        data = json.loads(p.read_text("utf-8"))
-        for s in data["items"]:
-            items.append({
-                "id": str(s["id"]),
-                "text": s["en"],
-                "phonetic": "",
-                "meaning": s.get("zh") or "",
-                "kind": "sentence",
-                "lesson": s.get("lesson"),
-                "module": s.get("module"),
-            })
+    try:
+        items = []
+        if meta["type"] == "words":
+            path = BASE / "wordlists" / f"{list_key}.json"
+            data = json.loads(path.read_text("utf-8"))
+            for word in data["words"]:
+                items.append({
+                    "id": word["word"],
+                    "text": word["word"],
+                    "phonetic": word.get("phonetic") or "",
+                    "meaning": word.get("meaning") or "",
+                    "kind": "word",
+                })
+        else:
+            path = BASE / "sentences" / f"{list_key}.json"
+            data = json.loads(path.read_text("utf-8"))
+            for sentence in data["items"]:
+                items.append({
+                    "id": str(sentence["id"]),
+                    "text": sentence["en"],
+                    "phonetic": "",
+                    "meaning": sentence.get("zh") or "",
+                    "kind": "sentence",
+                    "lesson": sentence.get("lesson"),
+                    "module": sentence.get("module"),
+                })
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise MaterialUnavailable(f"{list_key} 素材不可用") from exc
+
     counts = {}
     for item in items:
         base_id = item["id"]

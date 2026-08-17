@@ -77,6 +77,39 @@ def init_db():
             skipped_count INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY(day, user, practice_mode)
         );
+        CREATE TABLE IF NOT EXISTS account (
+            user_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            last_login_at TEXT,
+            disabled_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS auth_session (
+            token_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            csrf_token TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES account(user_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS auth_rate_limit (
+            scope TEXT NOT NULL,
+            key TEXT NOT NULL,
+            window_started_at INTEGER NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(scope, key)
+        );
+        CREATE TABLE IF NOT EXISTS memorize_attempt (
+            user TEXT NOT NULL, attempt_id TEXT NOT NULL,
+            list TEXT NOT NULL, item_id TEXT NOT NULL, right INTEGER NOT NULL,
+            memorized INTEGER NOT NULL, memorize_count INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY(user, attempt_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_auth_session_user_expiry
+            ON auth_session(user_id, expires_at);
         CREATE INDEX IF NOT EXISTS idx_word_state_review
             ON word_state(user, list, status, next_review);
         CREATE INDEX IF NOT EXISTS idx_word_state_memorize
@@ -85,6 +118,8 @@ def init_db():
             ON word_state(user, wrong_count, last_seen);
         CREATE INDEX IF NOT EXISTS idx_study_session_user_state
             ON study_session(user, state, created_at);
+        CREATE INDEX IF NOT EXISTS idx_study_session_active_lookup
+            ON study_session(user, list, practice_mode, scope, strategy, lesson, state, updated_at);
         CREATE INDEX IF NOT EXISTS idx_session_item_pending
             ON study_session_item(session_id, state, seq);
         CREATE INDEX IF NOT EXISTS idx_daily_practice_user_day

@@ -3,8 +3,18 @@ import { computed, onMounted, ref } from "vue";
 import { api } from "../lib/core";
 
 const stats = ref(null);
+const error = ref("");
 
-onMounted(async () => { stats.value = await api("/stats"); });
+onMounted(load);
+
+async function load() {
+  error.value = "";
+  try {
+    stats.value = await api("/stats");
+  } catch (err) {
+    error.value = err.message || "统计加载失败";
+  }
+}
 
 const last14 = computed(() => {
   if (!stats.value) return [];
@@ -23,8 +33,10 @@ const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打
 </script>
 
 <template>
-  <div v-if="!stats" class="empty">加载中…</div>
-  <div v-else>
+  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
+  <div v-else-if="!stats" class="empty">加载中…</div>
+  <div v-else class="stats-page">
+    <div class="page-heading"><span class="eyebrow">LEARNING PULSE</span><h1>你的学习节奏</h1><p>每一次听懂，都在累积。</p></div>
     <div class="stat-cards">
       <div class="stat-card"><div class="num">{{ stats.streak }}</div><div class="lab">连续打卡(天)</div></div>
       <div class="stat-card"><div class="num">{{ stats.total_memorize_right }}</div><div class="lab">累计背诵对</div></div>

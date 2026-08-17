@@ -83,9 +83,9 @@ describe("User", () => {
     expect(User.get()).toBe("testuser1234567890123456789012345678");
   });
 
-  it("should save uuid to localStorage", () => {
-    User.save("saveduser12345678901234567890123456");
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("dict_u", "saveduser12345678901234567890123456");
+  it("should not persist uuid in localStorage", () => {
+    expect(User.save).toBeUndefined();
+    expect(localStorageMock.getItem("dict_u")).toBeNull();
   });
 });
 
@@ -103,9 +103,30 @@ describe("es (escape)", () => {
   });
 });
 
+
 describe("Audio functions", () => {
   it("sndRight and sndWrong should not throw", () => {
     expect(() => { sndRight(); }).not.toThrow();
     expect(() => { sndWrong(); }).not.toThrow();
+  });
+});
+
+describe("API failures", () => {
+
+  it("should attach the browser CSRF token to API calls", async () => {
+    Object.defineProperty(document, "cookie", { configurable: true, value: "dict_csrf=token-123" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "{}" }));
+    await api("/stats");
+    expect(fetch).toHaveBeenCalledWith("/api/stats", expect.objectContaining({
+      credentials: "same-origin",
+      headers: expect.objectContaining({ "X-CSRF-Token": "token-123" }),
+    }));
+    vi.unstubAllGlobals();
+  });
+
+  it("should expose a useful message when an upstream response is not JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 502, text: async () => "<html>bad gateway</html>" }));
+    await expect(api("/lists")).rejects.toThrow("请求失败 (502)");
+    vi.unstubAllGlobals();
   });
 });

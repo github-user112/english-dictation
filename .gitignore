@@ -7,7 +7,6 @@ audio/
 .DS_Store
 *.log
 frontend/node_modules/
-frontend/package-lock.json
 *.tar.gz
 # 前端构建产物（vite outDir: ../static），本地构建生成，不入库
 static/

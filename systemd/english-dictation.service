@@ -1,15 +1,21 @@
 [Unit]
-Description=English Dictation API (Flask)
+Description=English Dictation API
 After=network.target
 
 [Service]
-Type=simple
+Type=exec
 User=dictation
 WorkingDirectory=/opt/english-dictation
-ExecStart=/opt/english-dictation/.venv/bin/python app.py
+ExecStartPre=/opt/english-dictation/.venv/bin/python scripts/check_runtime.py
+ExecStart=/opt/english-dictation/.venv/bin/gunicorn --bind 127.0.0.1:8200 --workers 2 --threads 4 --access-logfile - --error-logfile - app:app
 Restart=always
 RestartSec=3
+TimeoutStopSec=30
+UMask=027
+NoNewPrivileges=true
+PrivateTmp=true
 Environment=PYTHONUNBUFFERED=1
+Environment=ENGLISH_DICTATION_COOKIE_SECURE=1
 
 [Install]
 WantedBy=multi-user.target

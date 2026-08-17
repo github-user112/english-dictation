@@ -9,6 +9,12 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  server: {
+    proxy: {
+      "/api": "http://127.0.0.1:8200",
+      "/audio": "http://127.0.0.1:8200",
+    },
+  },
   build: {
     outDir: "../static",
     emptyOutDir: true,

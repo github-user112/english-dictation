@@ -22,38 +22,56 @@ export const Settings = {
   },
 };
 
-/* ---- URL uuid ---- */
+/* ---- 旧链接迁移 ---- */
 export const User = {
   get() {
-    const u = new URLSearchParams(location.search).get("u");
-    return u || localStorage.getItem("dict_u") || "";
+    return new URLSearchParams(location.search).get("u") || "";
   },
-  save(u) {
-    localStorage.setItem("dict_u", u);
-    if (!new URLSearchParams(location.search).get("u") && u) {
-      const url = location.pathname + "?u=" + u + location.hash;
-      history.replaceState(null, "", url);
-    }
+  clearLegacyLink() {
+    if (!this.get()) return;
+    history.replaceState(null, "", location.pathname + location.hash);
   },
 };
+
+function cookie(name) {
+  const prefix = name + "=";
+  return document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix))?.slice(prefix.length) || "";
+}
 
 /* ---- API ---- */
 const API_TIMEOUT = 15000;  // 15 秒超时
 
 export async function api(path, opts = {}) {
+  const legacyUser = User.get();
   const sep = path.includes("?") ? "&" : "?";
-  const url = "/api" + path + sep + "u=" + User.get();
+  const url = "/api" + path + (legacyUser ? sep + "u=" + encodeURIComponent(legacyUser) : "");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeout || API_TIMEOUT);
   try {
     const r = await fetch(url, {
       ...opts,
+      credentials: "same-origin",
       signal: controller.signal,
-      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": cookie("dict_csrf"),
+        ...(opts.headers || {}),
+      },
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || `请求失败 (${r.status})`);
-    if (d.user) User.save(d.user);
+    const text = await r.text();
+    let d = {};
+    if (text) {
+      try { d = JSON.parse(text); }
+      catch {
+        throw new Error(r.ok ? "服务返回了无效响应" : `请求失败 (${r.status})`);
+      }
+    }
+    if (legacyUser) User.clearLegacyLink();
+    if (!r.ok) {
+      const error = new Error(d.error || `请求失败 (${r.status})`);
+      error.accountProtected = Boolean(d.account_protected);
+      throw error;
+    }
     return d;
   } catch (e) {
     if (e.name === "AbortError") throw new Error("请求超时，请检查网络");

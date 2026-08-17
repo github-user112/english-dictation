@@ -1,16 +1,73 @@
 """错词本 / 统计 / TTS 懒生成 / 音频服务"""
+import asyncio
 import hashlib
+import os
+import threading
+import time
+import uuid
+from collections import defaultdict, deque
 from datetime import date, timedelta
 
 import edge_tts
 from flask import Blueprint, abort, jsonify, request, send_from_directory
 
 from .auth import get_user, resp
-from .config import AUDIO
+from .config import AUDIO, CONFIG
 from .db import db
 from .materials import audio_filename, audio_url, find_item
 
 bp = Blueprint("misc", __name__)
+
+_tts_rate_lock = threading.Lock()
+_tts_requests = defaultdict(deque)
+_tts_file_locks = {}
+_tts_file_locks_lock = threading.Lock()
+_tts_slots = threading.BoundedSemaphore(CONFIG["tts_max_concurrency"])
+
+
+def _lazy_audio_filename(text, voice):
+    """默认音色保持旧文件名；其他音色进入独立缓存键。"""
+    if voice == CONFIG["tts_default_voice"]:
+        return audio_filename(text)
+    return hashlib.md5(f"{voice}\0{text}".encode()).hexdigest() + ".mp3"
+
+
+def _allow_tts_request(user):
+    limit = CONFIG["tts_rate_limit_per_hour"]
+    if limit <= 0:
+        return True
+    now = time.monotonic()
+    cutoff = now - 3600
+    with _tts_rate_lock:
+        recent = _tts_requests[user]
+        while recent and recent[0] <= cutoff:
+            recent.popleft()
+        if len(recent) >= limit:
+            return False
+        recent.append(now)
+    return True
+
+
+def _tts_file_lock(filename):
+    with _tts_file_locks_lock:
+        return _tts_file_locks.setdefault(filename, threading.Lock())
+
+
+def _prune_lazy_audio(directory, reserve=1):
+    """写入新文件前腾出空间；缓存文件本身可再生成。"""
+    limit = CONFIG["tts_lazy_max_files"]
+    if limit <= 0:
+        return False
+    files = list(directory.glob("*.mp3"))
+    overflow = len(files) + reserve - limit
+    if overflow <= 0:
+        return True
+    for path in sorted(files, key=lambda item: item.stat().st_mtime)[:overflow]:
+        try:
+            path.unlink()
+        except OSError:
+            continue
+    return len(list(directory.glob("*.mp3"))) + reserve <= limit
 
 
 @bp.get("/api/wrong")
@@ -89,27 +146,43 @@ def api_stats():
 
 @bp.post("/api/tts")
 def api_tts():
+    """受限的按需 TTS：同音频串行生成、缓存有上限、请求可限流。"""
+    user = get_user()
     data = request.get_json(force=True)
     text = (data.get("text") or "").strip()
-    voice = data.get("voice") or "en-US-JennyNeural"
+    voice = data.get("voice") or CONFIG["tts_default_voice"]
     if not text or len(text) > 200:
         return jsonify({"error": "text 无效"}), 400
-    import os as _os
-    fname = audio_filename(text)
+    if voice not in CONFIG["tts_allowed_voices"]:
+        return jsonify({"error": "voice 不受支持"}), 400
+
+    filename = _lazy_audio_filename(text, voice)
     out_dir = AUDIO / "lazy"
-    out = out_dir / fname
+    out = out_dir / filename
     out_dir.mkdir(parents=True, exist_ok=True)
-    if not out.exists():
-        import asyncio
-        tmp = out_dir / (".tmp_" + fname)
+    if out.exists():
+        return jsonify({"url": f"/audio/lazy/{filename}", "cached": True})
+    if not _allow_tts_request(user):
+        return jsonify({"error": "TTS 请求过于频繁，请稍后再试"}), 429
+
+    lock = _tts_file_lock(filename)
+    with lock:
+        if out.exists():
+            return jsonify({"url": f"/audio/lazy/{filename}", "cached": True})
+        if not _prune_lazy_audio(out_dir):
+            return jsonify({"error": "TTS 缓存空间已满"}), 503
+        if not _tts_slots.acquire(blocking=False):
+            return jsonify({"error": "TTS 正在忙，请稍后重试"}), 429
+        temp = out_dir / f".tmp_{uuid.uuid4().hex}_{filename}"
         try:
-            asyncio.run(edge_tts.Communicate(text, voice).save(str(tmp)))
-            _os.replace(str(tmp), str(out))   # 原子替换，避免读到半写文件
+            asyncio.run(edge_tts.Communicate(text, voice).save(str(temp)))
+            os.replace(temp, out)
         except Exception:
-            if tmp.exists():
-                tmp.unlink(missing_ok=True)
+            temp.unlink(missing_ok=True)
             raise
-    return jsonify({"url": f"/audio/lazy/{fname}"})
+        finally:
+            _tts_slots.release()
+    return jsonify({"url": f"/audio/lazy/{filename}", "cached": False})
 
 
 @bp.get("/audio/<path:subpath>")

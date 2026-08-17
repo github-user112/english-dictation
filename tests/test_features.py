@@ -1,309 +1,298 @@
-import json
-import os
-import tempfile
-import unittest
 from datetime import date, timedelta
-from pathlib import Path
 
 
-class FeatureTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        os.environ["ENGLISH_DICTATION_DB"] = str(Path(cls.tmp.name) / "test.db")
-        from backend import create_app
-        cls.app = create_app()
-        cls.app.testing = True
+def get(client, path, user="a" * 32):
+    sep = "&" if "?" in path else "?"
+    return client.get(f"{path}{sep}u={user}")
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
-    def setUp(self):
-        from backend.config import DB
-        from backend.db import init_db
-        if DB.exists():
-            DB.unlink()
-        init_db()
-        self.client = self.app.test_client()
-        self.user = "a" * 32
+def post(client, path, data, user="a" * 32):
+    sep = "&" if "?" in path else "?"
+    return client.post(f"{path}{sep}u={user}", json=data)
 
-    def get(self, path):
-        sep = "&" if "?" in path else "?"
-        return self.client.get(f"{path}{sep}u={self.user}")
 
-    def post(self, path, data):
-        sep = "&" if "?" in path else "?"
-        return self.client.post(f"{path}{sep}u={self.user}", json=data)
+def test_user_is_stable_inside_first_request(client):
+    response = client.get("/api/lists")
+    assert response.status_code == 200
+    assert len(response.json["user"]) == 32
+    assert response.json["user"] in response.headers["Set-Cookie"]
 
-    def test_user_is_stable_inside_first_request(self):
-        r = self.client.get("/api/lists")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.json["user"]), 32)
-        self.assertIn(r.json["user"], r.headers["Set-Cookie"])
 
-    def test_daily_quota_and_resume(self):
-        first = self.get("/api/session?list=cet4&mode=assisted&new=3").json
-        second = self.get("/api/session?list=cet4&mode=assisted&new=50").json
-        self.assertEqual(first["session"]["id"], second["session"]["id"])
-        self.assertEqual([i["id"] for i in first["items"]], [i["id"] for i in second["items"]])
-        self.assertEqual(first["quota"]["new_quota"], 3)
-        self.assertEqual(first["quota"]["allocated_today"], 3)
+def test_daily_quota_and_resume(client):
+    first = get(client, "/api/session?list=test_words&mode=assisted&new=3").json
+    second = get(client, "/api/session?list=test_words&mode=assisted&new=50").json
+    assert first["session"]["id"] == second["session"]["id"]
+    assert [item["id"] for item in first["items"]] == [item["id"] for item in second["items"]]
+    assert first["quota"]["new_quota"] == 3
+    assert first["quota"]["allocated_today"] == 3
 
-    def test_modes_have_independent_sessions(self):
-        ids = {mode: self.get(f"/api/session?list=cet4&mode={mode}&new=1").json["session"]["id"]
-               for mode in ("pure", "assisted", "follow")}
-        self.assertEqual(len(set(ids.values())), 3)
 
-    def test_reviews_do_not_reduce_new_quota(self):
-        from backend.db import db
-        tomorrow = date.today().isoformat()
-        with db() as conn:
-            conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,next_review)
-                          VALUES(?,?,?,?,?,?)""",
-                         (self.user, "cet4", "abandon", "word", "learning", tomorrow))
-        session = self.get("/api/session?list=cet4&mode=pure&new=2").json
-        phases = [i["phase"] for i in session["items"]]
-        self.assertEqual(phases.count("review"), 1)
-        self.assertEqual(phases.count("new"), 2)
+def test_modes_have_independent_sessions(client):
+    ids = {
+        mode: get(client, f"/api/session?list=test_words&mode={mode}&new=1").json["session"]["id"]
+        for mode in ("pure", "assisted", "follow")
+    }
+    assert len(set(ids.values())) == 3
 
-    def test_first_answer_and_idempotent_completion(self):
-        s = self.get("/api/session?list=cet4&mode=pure&new=1").json
-        sid, item = s["session"]["id"], s["items"][0]
-        a = self.post("/api/result", {"session_id": sid, "id": item["id"],
-            "first_right": False, "final_right": False, "attempt_count": 1,
-            "outcome": "attempt"})
-        self.assertEqual(a.status_code, 200)
-        done = {"session_id": sid, "id": item["id"], "first_right": False,
-                "final_right": True, "attempt_count": 2, "outcome": "completed"}
-        self.assertFalse(self.post("/api/result", done).json["duplicate"])
-        self.assertTrue(self.post("/api/result", done).json["duplicate"])
-        stats = self.get("/api/stats").json["practice_modes"]["pure"]
-        self.assertEqual((stats["first_right"], stats["first_wrong"], stats["final_right"]), (0, 1, 1))
 
-    def test_follow_does_not_advance_mastery(self):
-        s = self.get("/api/session?list=cet4&mode=follow&new=1").json
-        item = s["items"][0]
-        self.post("/api/result", {"session_id": s["session"]["id"], "id": item["id"],
-            "first_right": True, "final_right": True, "attempt_count": 1,
-            "outcome": "completed"})
-        from backend.db import db
-        with db() as conn:
-            row = conn.execute("SELECT * FROM word_state WHERE user=? AND item_id=?",
-                               (self.user, item["id"])).fetchone()
-        self.assertIsNone(row)
+def test_reviews_do_not_reduce_new_quota(client):
+    from backend.db import db
 
-    def test_completed_results_schedule_reviews_after_1_3_7_days(self):
-        from backend.catalog import now
-        from backend.db import db
-        expected = ((1, "learning"), (3, "learning"), (7, "known"))
-        item_id = "abandon"
-        for consecutive, (days, status) in enumerate(expected, 1):
-            session_id = f"schedule-{consecutive}"
-            stamp = now()
-            with db() as conn:
-                conn.execute("INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                             (session_id, self.user, "cet4", "pure", "all", "daily", None,
-                              date.today().isoformat(), 0, "active", stamp, stamp, None))
-                conn.execute("""INSERT INTO study_session_item(session_id,seq,item_id,kind,phase)
-                              VALUES(?,?,?,?,?)""",
-                             (session_id, 0, item_id, "word", "review" if consecutive > 1 else "new"))
-            r = self.post("/api/result", {"session_id": session_id, "id": item_id,
-                "first_right": True, "final_right": True, "attempt_count": 1,
-                "outcome": "completed"})
-            self.assertEqual(r.status_code, 200)
-            with db() as conn:
-                row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
-                                   (self.user, "cet4", item_id)).fetchone()
-            self.assertEqual((row["consecutive_right"], row["status"]), (consecutive, status))
-            self.assertEqual(row["next_review"], (date.today() + timedelta(days=days)).isoformat())
+    with db() as conn:
+        conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,next_review)
+                      VALUES(?,?,?,?,?,?)""",
+                     ("a" * 32, "test_words", "abandon", "word", "learning", date.today().isoformat()))
+    session = get(client, "/api/session?list=test_words&mode=pure&new=2").json
+    phases = [item["phase"] for item in session["items"]]
+    assert phases.count("review") == 1
+    assert phases.count("new") == 2
 
-    def test_lesson_session_is_ordered_and_filtered(self):
-        lessons = self.get("/api/lessons?list=nc1").json["lessons"]
-        self.assertEqual(len(lessons), 72)
-        session = self.get("/api/session?list=nc1&mode=pure&lesson=2").json
-        self.assertTrue(session["items"])
-        self.assertTrue(all(i["lesson"] == 2 for i in session["items"]))
-        seq = [i["seq"] for i in session["items"]]
-        self.assertEqual(seq, sorted(seq))
 
-    def test_lesson_session_resumes_across_modes(self):
-        # 同一课未完成时，换练习模式/范围也继续原会话（断点续学）
-        s1 = self.get("/api/session?list=nc1&mode=pure&lesson=2").json
-        s2 = self.get("/api/session?list=nc1&mode=assisted&lesson=2").json
-        self.assertEqual(s1["session"]["id"], s2["session"]["id"])
-        self.assertEqual([i["id"] for i in s1["items"]], [i["id"] for i in s2["items"]])
-        # 完成第一个句子后，换模式再进来仍续原会话，且从剩余句子继续
-        sid, item = s1["session"]["id"], s1["items"][0]
-        r = self.post("/api/result", {"session_id": sid, "id": item["id"],
-            "first_right": True, "final_right": True, "attempt_count": 1,
-            "outcome": "completed"})
-        self.assertEqual(r.status_code, 200)
-        s3 = self.get("/api/session?list=nc1&mode=follow&lesson=2").json
-        self.assertEqual(s3["session"]["id"], sid)
-        self.assertTrue(s3["items"])
-        self.assertTrue(all(i["id"] != item["id"] for i in s3["items"]))
-        # 做完整个 session 后，新会话从头开始
-        for it in list(s3["items"]):
-            self.post("/api/result", {"session_id": sid, "id": it["id"],
-                "first_right": True, "final_right": True, "attempt_count": 1,
-                "outcome": "completed"})
-        s4 = self.get("/api/session?list=nc1&mode=pure&lesson=2").json
-        self.assertNotEqual(s4["session"]["id"], sid)
-        self.assertEqual(s4["items"][0]["id"], s1["items"][0]["id"])
+def test_first_answer_and_idempotent_completion(client):
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    session_id, item = session["session"]["id"], session["items"][0]
+    attempt = post(client, "/api/result", {
+        "session_id": session_id, "id": item["id"], "first_right": False,
+        "final_right": False, "attempt_count": 1, "outcome": "attempt",
+    })
+    assert attempt.status_code == 200
+    done = {"session_id": session_id, "id": item["id"], "first_right": False,
+            "final_right": True, "attempt_count": 2, "outcome": "completed"}
+    assert post(client, "/api/result", done).json["duplicate"] is False
+    assert post(client, "/api/result", done).json["duplicate"] is True
+    stats = get(client, "/api/stats").json["practice_modes"]["pure"]
+    assert (stats["first_right"], stats["first_wrong"], stats["final_right"]) == (0, 1, 1)
 
-    def test_duplicate_words_get_unique_ids_and_independent_state(self):
-        from backend.catalog import now
-        from backend.db import db
-        from backend.materials import load_material
+
+def test_follow_does_not_advance_mastery(client):
+    session = get(client, "/api/session?list=test_words&mode=follow&new=1").json
+    item = session["items"][0]
+    post(client, "/api/result", {
+        "session_id": session["session"]["id"], "id": item["id"],
+        "first_right": True, "final_right": True, "attempt_count": 1, "outcome": "completed",
+    })
+    from backend.db import db
+    with db() as conn:
+        row = conn.execute("SELECT * FROM word_state WHERE user=? AND item_id=?",
+                           ("a" * 32, item["id"])).fetchone()
+    assert row is None
+
+
+def test_completed_results_schedule_reviews_after_one_three_seven_days(client):
+    from backend.catalog import now
+    from backend.db import db
+
+    expected = ((1, "learning"), (3, "learning"), (7, "known"))
+    for consecutive, (days, status) in enumerate(expected, 1):
+        session_id = f"schedule-{consecutive}"
         stamp = now()
-        quota = len(load_material("cet4"))
         with db() as conn:
-            conn.execute("INSERT INTO daily_plan VALUES(?,?,?,?,?,?,?)",
-                         (date.today().isoformat(), self.user, "cet4", quota, 0, stamp, stamp))
-        s = self.get("/api/session?list=cet4&mode=pure&new=50")
-        self.assertEqual(s.status_code, 200)
-        ids = [item["id"] for item in s.json["items"]]
-        self.assertEqual(len(ids), len(set(ids)))
-        by_text = {}
-        for item in s.json["items"]:
-            by_text.setdefault(item["text"], []).append(item)
-        pair = next(items for items in by_text.values()
-                    if len(items) > 1 and any("~2" in item["id"] for item in items))[:2]
-        self.assertTrue(any("~2" in item["id"] for item in pair))
-        session_id = s.json["session"]["id"]
-        for item in pair:
-            r = self.post("/api/result", {"session_id": session_id, "id": item["id"],
-                "first_right": True, "final_right": True, "attempt_count": 1,
-                "outcome": "completed"})
-            self.assertEqual(r.status_code, 200)
+            conn.execute("INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                         (session_id, "a" * 32, "test_words", "pure", "all", "daily", None,
+                          date.today().isoformat(), 0, "active", stamp, stamp, None))
+            conn.execute("""INSERT INTO study_session_item(session_id,seq,item_id,kind,phase)
+                          VALUES(?,?,?,?,?)""",
+                         (session_id, 0, "abandon", "word", "review" if consecutive > 1 else "new"))
+        response = post(client, "/api/result", {
+            "session_id": session_id, "id": "abandon", "first_right": True,
+            "final_right": True, "attempt_count": 1, "outcome": "completed",
+        })
+        assert response.status_code == 200
         with db() as conn:
-            rows = conn.execute(
-                "SELECT item_id,right_count FROM word_state WHERE user=? AND list=? AND item_id IN (?,?)",
-                (self.user, "cet4", pair[0]["id"], pair[1]["id"])).fetchall()
-            self.assertEqual(len(rows), 2)
-            self.assertTrue(all(r["right_count"] == 1 for r in rows))
-            conn.execute("UPDATE word_state SET next_review=? WHERE user=? AND list=? AND item_id IN (?,?)",
-                         (date.today().isoformat(), self.user, "cet4", pair[0]["id"], pair[1]["id"]))
-        review = self.get("/api/session?list=cet4&mode=assisted&new=0").json
-        review_ids = {item["id"] for item in review["items"]}
-        self.assertIn(pair[0]["id"], review_ids)
-        self.assertIn(pair[1]["id"], review_ids)
-
-    def test_review_is_not_returned_before_due_day(self):
-        from backend.db import db
-        tomorrow = (date.today() + timedelta(days=1)).isoformat()
-        with db() as conn:
-            conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,next_review)
-                          VALUES(?,?,?,?,?,?)""",
-                         (self.user, "cet4", "abandon", "word", "learning", tomorrow))
-        session = self.get("/api/session?list=cet4&mode=pure&new=0").json
-        self.assertFalse(any(i["id"] == "abandon" for i in session["items"]))
-
-    def test_skipped_does_not_count_wrong_or_reset_memorized(self):
-        from backend.db import db
-        item_id = "abandon"
-        with db() as conn:
-            conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,wrong_count,
-                          right_count,consecutive_right,last_seen,next_review,memorized,
-                          memorize_count,last_memorize) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                         (self.user, "cet4", item_id, "word", "known", 2, 5, 3,
-                          date.today().isoformat(), date.today().isoformat(), 1, 2,
-                          date.today().isoformat()))
-        s = self.get("/api/session?list=cet4&mode=assisted&new=0").json
-        item = next(i for i in s["items"] if i["id"] == item_id)
-        r = self.post("/api/result", {"session_id": s["session"]["id"], "id": item["id"],
-            "first_right": False, "final_right": False, "attempt_count": 1,
-            "outcome": "skipped"})
-        self.assertEqual(r.status_code, 200)
-        with db() as conn:
-            state = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
-                                 (self.user, "cet4", item_id)).fetchone()
-            daily = conn.execute("SELECT * FROM daily_log WHERE day=? AND user=?",
-                                 (date.today().isoformat(), self.user)).fetchone()
-            mode = conn.execute("SELECT * FROM daily_practice_log WHERE day=? AND user=? "
-                                "AND practice_mode='assisted'",
-                                (date.today().isoformat(), self.user)).fetchone()
-        self.assertEqual((state["wrong_count"], state["status"], state["consecutive_right"]),
-                         (2, "known", 3))
-        self.assertEqual((state["memorized"], state["memorize_count"]), (1, 2))
-        self.assertEqual((daily["review_count"], daily["wrong_count"]), (1, 0))
-        self.assertEqual((mode["review_count"], mode["first_wrong_count"], mode["skipped_count"]),
-                         (1, 0, 1))
-
-    def test_skipped_new_and_legacy_item_have_no_learning_side_effects(self):
-        from backend.db import db
-        s = self.get("/api/session?list=cet4&mode=pure&new=1").json
-        item = s["items"][0]
-        r = self.post("/api/result", {"session_id": s["session"]["id"], "id": item["id"],
-            "first_right": False, "final_right": False, "attempt_count": 1,
-            "outcome": "skipped"})
-        self.assertEqual(r.status_code, 200)
-        late_attempt = self.post("/api/result", {"session_id": s["session"]["id"],
-            "id": item["id"], "first_right": False, "attempt_count": 1,
-            "outcome": "attempt"})
-        self.assertTrue(late_attempt.json["duplicate"])
-        legacy = self.post("/api/result", {"list": "cet4", "id": "abandon",
-            "right": False, "attempt_count": 1, "outcome": "skipped", "mode": "pure"})
-        self.assertEqual(legacy.status_code, 200)
-        with db() as conn:
-            skipped_row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
-                                       (self.user, "cet4", item["id"])).fetchone()
-            legacy_row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
-                                      (self.user, "cet4", "abandon")).fetchone()
-            session_item = conn.execute("""SELECT first_right,state FROM study_session_item
-                                          WHERE session_id=? AND item_id=?""",
-                                        (s["session"]["id"], item["id"])).fetchone()
-            daily = conn.execute("SELECT * FROM daily_log WHERE day=? AND user=?",
-                                 (date.today().isoformat(), self.user)).fetchone()
-            mode = conn.execute("SELECT * FROM daily_practice_log WHERE day=? AND user=? "
-                                "AND practice_mode='pure'",
-                                (date.today().isoformat(), self.user)).fetchone()
-        self.assertIsNone(skipped_row)
-        self.assertIsNone(legacy_row)
-        self.assertEqual((session_item["state"], session_item["first_right"]), ("skipped", None))
-        self.assertEqual((daily["new_count"], daily["wrong_count"]), (1, 0))
-        self.assertEqual((mode["new_count"], mode["review_count"], mode["first_wrong_count"],
-                          mode["skipped_count"]), (1, 1, 0, 2))
-
-    def test_invalid_numeric_inputs_return_400(self):
-        for n in ("bad", "0", "101"):
-            r = self.get(f"/api/memorize/session?list=cet4&n={n}")
-            self.assertEqual(r.status_code, 400)
-            self.assertIn("error", r.json)
-        for n in ("1", "100"):
-            r = self.get(f"/api/memorize/session?list=cet4&n={n}")
-            self.assertEqual(r.status_code, 200)
-        s = self.get("/api/session?list=cet4&mode=pure&new=1").json
-        for attempt_count in ("bad", 0, -1):
-            r = self.post("/api/result", {"session_id": s["session"]["id"],
-                "id": s["items"][0]["id"], "attempt_count": attempt_count, "outcome": "attempt"})
-            self.assertEqual(r.status_code, 400)
-            self.assertIn("error", r.json)
-        r = self.post("/api/result", {"session_id": s["session"]["id"],
-            "id": s["items"][0]["id"], "attempt_count": 1, "outcome": "skip"})
-        self.assertEqual(r.status_code, 400)
-        self.assertIn("error", r.json)
-
-    def test_wrong_page_persists_anonymous_user_cookie(self):
-        first = self.client.get("/api/wrong")
-        self.assertEqual(first.status_code, 200)
-        self.assertEqual(len(first.json["user"]), 32)
-        self.assertIn(first.json["user"], first.headers["Set-Cookie"])
-        second = self.client.get("/api/wrong")
-        self.assertEqual(second.json["user"], first.json["user"])
-
-    def test_assets_are_served_from_vite_output(self):
-        index = self.client.get("/")
-        self.assertEqual(index.status_code, 200)
-        html = index.get_data(as_text=True)
-        index.close()
-        asset = html.split('src="/assets/', 1)[1].split('"', 1)[0]
-        response = self.client.get(f"/assets/{asset}")
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.get_data())
-        response.close()
+            row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                               ("a" * 32, "test_words", "abandon")).fetchone()
+        assert (row["consecutive_right"], row["status"]) == (consecutive, status)
+        assert row["next_review"] == (date.today() + timedelta(days=days)).isoformat()
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_lesson_session_is_ordered_and_filtered(client):
+    lessons = get(client, "/api/lessons?list=test_sents").json["lessons"]
+    assert len(lessons) == 2
+    session = get(client, "/api/session?list=test_sents&mode=pure&lesson=2").json
+    assert session["items"]
+    assert all(item["lesson"] == 2 for item in session["items"])
+    seq = [item["seq"] for item in session["items"]]
+    assert seq == sorted(seq)
+
+
+def test_lesson_sessions_resume_only_in_the_same_mode(client):
+    first = get(client, "/api/session?list=test_sents&mode=pure&lesson=2").json
+    same_mode = get(client, "/api/session?list=test_sents&mode=pure&lesson=2").json
+    assert first["session"]["id"] == same_mode["session"]["id"]
+    assert [item["id"] for item in first["items"]] == [item["id"] for item in same_mode["items"]]
+
+    assisted = get(client, "/api/session?list=test_sents&mode=assisted&lesson=2").json
+    follow = get(client, "/api/session?list=test_sents&mode=follow&lesson=2").json
+    assert len({first["session"]["id"], assisted["session"]["id"], follow["session"]["id"]}) == 3
+    assert assisted["session"]["practice_mode"] == "assisted"
+    assert follow["session"]["practice_mode"] == "follow"
+
+    session_id, item = first["session"]["id"], first["items"][0]
+    assert post(client, "/api/result", {
+        "session_id": session_id, "id": item["id"], "first_right": True,
+        "final_right": True, "attempt_count": 1, "outcome": "completed",
+    }).status_code == 200
+    resumed = get(client, "/api/session?list=test_sents&mode=pure&lesson=2").json
+    assert resumed["session"]["id"] == session_id
+    assert all(candidate["id"] != item["id"] for candidate in resumed["items"])
+
+    for candidate in list(resumed["items"]):
+        post(client, "/api/result", {
+            "session_id": session_id, "id": candidate["id"], "first_right": True,
+            "final_right": True, "attempt_count": 1, "outcome": "completed",
+        })
+    restarted = get(client, "/api/session?list=test_sents&mode=pure&lesson=2").json
+    assert restarted["session"]["id"] != session_id
+    assert restarted["items"][0]["id"] == first["items"][0]["id"]
+
+
+def test_duplicate_words_get_unique_ids_and_independent_state(client):
+    session = get(client, "/api/session?list=test_words&mode=pure&new=50").json
+    ids = [item["id"] for item in session["items"]]
+    assert len(ids) == len(set(ids))
+    by_text = {}
+    for item in session["items"]:
+        by_text.setdefault(item["text"], []).append(item)
+    pair = next(items for items in by_text.values() if len(items) > 1)[:2]
+    assert any("~2" in item["id"] for item in pair)
+
+    session_id = session["session"]["id"]
+    for item in pair:
+        assert post(client, "/api/result", {
+            "session_id": session_id, "id": item["id"], "first_right": True,
+            "final_right": True, "attempt_count": 1, "outcome": "completed",
+        }).status_code == 200
+
+    from backend.db import db
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT item_id,right_count FROM word_state WHERE user=? AND list=? AND item_id IN (?,?)",
+            ("a" * 32, "test_words", pair[0]["id"], pair[1]["id"]),
+        ).fetchall()
+        assert len(rows) == 2
+        assert all(row["right_count"] == 1 for row in rows)
+        conn.execute("UPDATE word_state SET next_review=? WHERE user=? AND list=? AND item_id IN (?,?)",
+                     (date.today().isoformat(), "a" * 32, "test_words", pair[0]["id"], pair[1]["id"]))
+    review = get(client, "/api/session?list=test_words&mode=assisted&new=0").json
+    review_ids = {item["id"] for item in review["items"]}
+    assert pair[0]["id"] in review_ids
+    assert pair[1]["id"] in review_ids
+
+
+def test_review_is_not_returned_before_due_day(client):
+    from backend.db import db
+
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    with db() as conn:
+        conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,next_review)
+                      VALUES(?,?,?,?,?,?)""",
+                     ("a" * 32, "test_words", "abandon", "word", "learning", tomorrow))
+    session = get(client, "/api/session?list=test_words&mode=pure&new=0").json
+    assert not any(item["id"] == "abandon" for item in session["items"])
+
+
+def test_skipped_does_not_count_wrong_or_reset_memorized(client):
+    from backend.db import db
+
+    with db() as conn:
+        conn.execute("""INSERT INTO word_state(user,list,item_id,kind,status,wrong_count,
+                      right_count,consecutive_right,last_seen,next_review,memorized,
+                      memorize_count,last_memorize) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                     ("a" * 32, "test_words", "abandon", "word", "known", 2, 5, 3,
+                      date.today().isoformat(), date.today().isoformat(), 1, 2, date.today().isoformat()))
+    session = get(client, "/api/session?list=test_words&mode=assisted&new=0").json
+    item = next(item for item in session["items"] if item["id"] == "abandon")
+    response = post(client, "/api/result", {
+        "session_id": session["session"]["id"], "id": item["id"], "first_right": False,
+        "final_right": False, "attempt_count": 1, "outcome": "skipped",
+    })
+    assert response.status_code == 200
+    with db() as conn:
+        state = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                             ("a" * 32, "test_words", "abandon")).fetchone()
+        daily = conn.execute("SELECT * FROM daily_log WHERE day=? AND user=?",
+                             (date.today().isoformat(), "a" * 32)).fetchone()
+        mode = conn.execute("SELECT * FROM daily_practice_log WHERE day=? AND user=? AND practice_mode='assisted'",
+                            (date.today().isoformat(), "a" * 32)).fetchone()
+    assert (state["wrong_count"], state["status"], state["consecutive_right"]) == (2, "known", 3)
+    assert (state["memorized"], state["memorize_count"]) == (1, 2)
+    assert (daily["review_count"], daily["wrong_count"]) == (1, 0)
+    assert (mode["review_count"], mode["first_wrong_count"], mode["skipped_count"]) == (1, 0, 1)
+
+
+def test_skipped_new_and_legacy_item_have_no_learning_side_effects(client):
+    from backend.db import db
+
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    item = session["items"][0]
+    assert post(client, "/api/result", {
+        "session_id": session["session"]["id"], "id": item["id"], "first_right": False,
+        "final_right": False, "attempt_count": 1, "outcome": "skipped",
+    }).status_code == 200
+    late_attempt = post(client, "/api/result", {
+        "session_id": session["session"]["id"], "id": item["id"], "first_right": False,
+        "attempt_count": 1, "outcome": "attempt",
+    })
+    assert late_attempt.json["duplicate"] is True
+    legacy = post(client, "/api/result", {
+        "list": "test_words", "id": "abandon", "right": False, "attempt_count": 1,
+        "outcome": "skipped", "mode": "pure",
+    })
+    assert legacy.status_code == 200
+    with db() as conn:
+        skipped_row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                                   ("a" * 32, "test_words", item["id"])).fetchone()
+        legacy_row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                                  ("a" * 32, "test_words", "abandon")).fetchone()
+        session_item = conn.execute("""SELECT first_right,state FROM study_session_item
+                                      WHERE session_id=? AND item_id=?""",
+                                    (session["session"]["id"], item["id"])).fetchone()
+        daily = conn.execute("SELECT * FROM daily_log WHERE day=? AND user=?",
+                             (date.today().isoformat(), "a" * 32)).fetchone()
+        mode = conn.execute("SELECT * FROM daily_practice_log WHERE day=? AND user=? AND practice_mode='pure'",
+                            (date.today().isoformat(), "a" * 32)).fetchone()
+    assert skipped_row is None
+    assert legacy_row is None
+    assert (session_item["state"], session_item["first_right"]) == ("skipped", None)
+    assert (daily["new_count"], daily["wrong_count"]) == (1, 0)
+    assert (mode["new_count"], mode["review_count"], mode["first_wrong_count"], mode["skipped_count"]) == (1, 1, 0, 2)
+
+
+def test_invalid_numeric_inputs_return_400(client):
+    for number in ("bad", "0", "101"):
+        response = get(client, f"/api/memorize/session?list=test_words&n={number}")
+        assert response.status_code == 400
+        assert "error" in response.json
+    for number in ("1", "100"):
+        assert get(client, f"/api/memorize/session?list=test_words&n={number}").status_code == 200
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    for attempt_count in ("bad", 0, -1):
+        response = post(client, "/api/result", {
+            "session_id": session["session"]["id"], "id": session["items"][0]["id"],
+            "attempt_count": attempt_count, "outcome": "attempt",
+        })
+        assert response.status_code == 400
+        assert "error" in response.json
+    response = post(client, "/api/result", {
+        "session_id": session["session"]["id"], "id": session["items"][0]["id"],
+        "attempt_count": 1, "outcome": "skip",
+    })
+    assert response.status_code == 400
+
+
+def test_wrong_page_persists_anonymous_user_cookie(client):
+    first = client.get("/api/wrong")
+    assert first.status_code == 200
+    assert len(first.json["user"]) == 32
+    assert first.json["user"] in first.headers["Set-Cookie"]
+    second = client.get("/api/wrong")
+    assert second.json["user"] == first.json["user"]
+
+
+def test_assets_are_served_from_test_static_output(client):
+    index = client.get("/")
+    assert index.status_code == 200
+    asset = index.get_data(as_text=True).split('src="/assets/', 1)[1].split('"', 1)[0]
+    response = client.get(f"/assets/{asset}")
+    assert response.status_code == 200
+    assert response.get_data()
