@@ -11,10 +11,15 @@ const mark = ref([]);
 const extras = ref([]);
 const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback);
 
+// 词核字符：字母/数字/下划线/撇号/连字符；其余视为前后标点（pre/suf）。
+// 内部含 . , / & : 等字符的缩写词（B.C.、a.m.、2,400、Why/Why）整体保留在 core 中由用户输入。
 const words = computed(() =>
   props.tokens.text.split(/\s+/).map((w) => {
-    const m = w.match(/^([^\w]*)([\w']*)([^\w]*)$/) || ["", "", w, ""];
-    return { pre: m[1], core: m[2] || m[1] || w, suf: m[3] };
+    const pre = (w.match(/^[^\w-]+/) || [""])[0];
+    const suf = (w.match(/[^\w-]+$/) || [""])[0];
+    let core = w.slice(pre.length, suf ? w.length - suf.length : w.length);
+    if (!core) return { pre: "", core: w, suf: "" };  // 纯标点 token
+    return { pre, core, suf };
   }));
 
 watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { scur.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
@@ -34,7 +39,7 @@ function typeWordChar(ch) {
     if (props.practiceMode !== "pure") mark.value[scur.value] = "wrong";
     return true;
   }
-  if (!/[a-zA-Z']/.test(ch)) return;
+  if (!/^[a-zA-Z0-9_\'\-.,/&:]+$/.test(ch)) return;
   const i = scur.value;
   const w = input.value[i] || "";
   if (w.length >= 30) return;

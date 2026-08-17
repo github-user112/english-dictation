@@ -118,4 +118,64 @@ describe("SentenceCells", () => {
     wrapper2.vm.typeWordChar("d");
     expect(wrapper2.vm.isCorrect()).toBe(true);
   });
+
+  it("should let hyphenated words be typed with the hyphen", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("forty-one."), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    const cells = wrapper.findAll(".cell.word-line");
+    expect(cells.length).toBe(1);          // 一个词核 cells，句号是独立标点
+    expect(wrapper.findAll(".punct").length).toBe(1);
+    for (const ch of "forty-one") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+  });
+
+  it("should accept digits inside words (e.g. 000-volt)", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("000-volt"), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "000-volt") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+  });
+
+  it("should accept abbrevations with inner periods (e.g. B.C.)", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("B.C."), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "B.C") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+  });
+
+  it("should accept numbers with commas (e.g. 2,400)", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("2,400"), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "2,400") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+  });
+
+  it("should keep leading quotes as punctuation not part of the word", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("'No,'"), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "No") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+    expect(wrapper.findAll(".punct").length).toBe(2);  // 前导引号 + 尾随引号逗号
+  });
+
+  it("should keep regression: normal words with trailing comma still work", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("Hello, world!"), submitted: false, feedback: true, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "Hello") vm.typeWordChar(ch);
+    vm.typeWordChar(" ");
+    for (const ch of "world") vm.typeWordChar(ch);
+    expect(vm.isCorrect()).toBe(true);
+  });
 });
