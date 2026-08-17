@@ -15,15 +15,13 @@ onMounted(async () => {
   lists.value = d.lists || [];
   today.value = d.today;
   active.value = d.active_sessions || [];
-  await Promise.allSettled(lists.value.filter((l) => l.lesson_count).map(async (l) => {
-    try {
-      const r = await api(`/lessons?list=${l.key}`);
-      lessons.value[l.key] = r.lessons || [];
-      // 记住上次选的课（localStorage），没有则默认第一课
-      const saved = Number(localStorage.getItem(`dict_lesson_${l.key}`)) || 0;
-      selectedLesson.value[l.key] = r.lessons?.find((x) => x.lesson === saved)?.lesson
-        || r.lessons?.[0]?.lesson || 1;
-    } catch { /* 单个素材课程列表加载失败不阻塞页面 */ }
+  await Promise.all(lists.value.filter((l) => l.lesson_count).map(async (l) => {
+    const r = await api(`/lessons?list=${l.key}`);
+    lessons.value[l.key] = r.lessons || [];
+    // 记住上次选的课（localStorage），没有则默认第一课
+    const saved = Number(localStorage.getItem(`dict_lesson_${l.key}`)) || 0;
+    selectedLesson.value[l.key] = r.lessons?.find((x) => x.lesson === saved)?.lesson
+      || r.lessons?.[0]?.lesson || 1;
   }));
 });
 
