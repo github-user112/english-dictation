@@ -68,6 +68,15 @@ def session_context():
 
 
 def active_session(conn, user, list_key, mode, scope, strategy, lesson):
+    # 按课学习：同一课存在未完成会话即继续（跨练习模式/范围复用，实现断点续学；
+    # 会话完成后 state=completed，再进来才会重新从第一个句子开始）
+    if strategy == "lesson":
+        return conn.execute(
+            "SELECT * FROM study_session WHERE user=? AND list=? AND strategy='lesson' "
+            "AND IFNULL(lesson,-1)=IFNULL(?,-1) AND state='active' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (user, list_key, lesson),
+        ).fetchone()
     return conn.execute(
         "SELECT * FROM study_session WHERE user=? AND list=? AND practice_mode=? AND scope=? "
         "AND strategy=? AND IFNULL(lesson,-1)=IFNULL(?,-1) AND state='active' "

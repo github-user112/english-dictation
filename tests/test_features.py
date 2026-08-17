@@ -127,6 +127,31 @@ class FeatureTests(unittest.TestCase):
         seq = [i["seq"] for i in session["items"]]
         self.assertEqual(seq, sorted(seq))
 
+    def test_lesson_session_resumes_across_modes(self):
+        # 同一课未完成时，换练习模式/范围也继续原会话（断点续学）
+        s1 = self.get("/api/session?list=nc1&mode=pure&lesson=2").json
+        s2 = self.get("/api/session?list=nc1&mode=assisted&lesson=2").json
+        self.assertEqual(s1["session"]["id"], s2["session"]["id"])
+        self.assertEqual([i["id"] for i in s1["items"]], [i["id"] for i in s2["items"]])
+        # 完成第一个句子后，换模式再进来仍续原会话，且从剩余句子继续
+        sid, item = s1["session"]["id"], s1["items"][0]
+        r = self.post("/api/result", {"session_id": sid, "id": item["id"],
+            "first_right": True, "final_right": True, "attempt_count": 1,
+            "outcome": "completed"})
+        self.assertEqual(r.status_code, 200)
+        s3 = self.get("/api/session?list=nc1&mode=follow&lesson=2").json
+        self.assertEqual(s3["session"]["id"], sid)
+        self.assertTrue(s3["items"])
+        self.assertTrue(all(i["id"] != item["id"] for i in s3["items"]))
+        # 做完整个 session 后，新会话从头开始
+        for it in list(s3["items"]):
+            self.post("/api/result", {"session_id": sid, "id": it["id"],
+                "first_right": True, "final_right": True, "attempt_count": 1,
+                "outcome": "completed"})
+        s4 = self.get("/api/session?list=nc1&mode=pure&lesson=2").json
+        self.assertNotEqual(s4["session"]["id"], sid)
+        self.assertEqual(s4["items"][0]["id"], s1["items"][0]["id"])
+
     def test_duplicate_words_get_unique_ids_and_independent_state(self):
         from backend.catalog import now
         from backend.db import db

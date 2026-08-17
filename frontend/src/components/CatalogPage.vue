@@ -18,9 +18,26 @@ onMounted(async () => {
   await Promise.all(lists.value.filter((l) => l.lesson_count).map(async (l) => {
     const r = await api(`/lessons?list=${l.key}`);
     lessons.value[l.key] = r.lessons || [];
-    selectedLesson.value[l.key] = r.lessons?.[0]?.lesson || 1;
+    // 记住上次选的课（localStorage），没有则默认第一课
+    const saved = Number(localStorage.getItem(`dict_lesson_${l.key}`)) || 0;
+    selectedLesson.value[l.key] = r.lessons?.find((x) => x.lesson === saved)?.lesson
+      || r.lessons?.[0]?.lesson || 1;
   }));
 });
+
+function pickLesson(key, ev) {
+  selectedLesson.value[key] = Number(ev.target.value);
+  localStorage.setItem(`dict_lesson_${key}`, String(ev.target.value));
+}
+function activeLesson(l) {
+  const sel = selectedLesson.value[l.key];
+  return active.value.find((s) => s.list === l.key && s.lesson === sel);
+}
+function lessonLabel(l, x) {
+  const done = x.known + x.learning;
+  const active = active.value.find((s) => s.list === l.key && s.lesson === x.lesson);
+  return `第 ${x.lesson} 课 · ${x.total} 句 · ${done ? `打过 ${done}` : "未开始"}${active ? " · 继续→" : ""}`;
+}
 
 function start(l) {
   const p = new URLSearchParams({ list: l.key, mode: Settings.get().practiceMode });
@@ -67,10 +84,13 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">句子</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
         <div class="meta">共 {{ l.total }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
         <div class="progress" role="progressbar" :aria-valuenow="l.known" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
-        <select v-if="l.lesson_count" v-model.number="selectedLesson[l.key]" class="lesson-select">
-          <option v-for="x in lessons[l.key]" :key="x.lesson" :value="x.lesson">第 {{ x.lesson }} 课 · {{ x.total }} 句 · 掌握 {{ x.known }}</option>
+        <select v-if="l.lesson_count" v-model.number="selectedLesson[l.key]" class="lesson-select"
+                aria-label="选择课程" @change="pickLesson(l.key, $event)">
+          <option v-for="x in lessons[l.key]" :key="x.lesson" :value="x.lesson">{{ lessonLabel(l.key, x) }}</option>
         </select>
-        <div class="card-actions"><button class="btn primary sm" aria-label="开始听写" @click="start(l)">👂 {{ l.lesson_count ? '按课学习' : '开始听写' }}</button></div>
+        <div class="card-actions">
+          <button class="btn primary sm" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听写')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听写' }}</button>
+        </div>
       </div>
     </div>
     <div v-if="today" class="section-title today-summary">今日：新词 {{ today.new }} · 复习 {{ today.review }} · 背单词对 {{ today.memorize_right }} / 错 {{ today.memorize_wrong }} · 听打首答对 {{ today.right }} / 错 {{ today.wrong }}</div>
