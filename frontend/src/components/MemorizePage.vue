@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, audioEl, ensureAudio, playUrl, sndRight, sndWrong } from "../lib/core";
+import { api, audioEl, ensureAudio, playUrl, preloadAudio, sndRight, sndWrong } from "../lib/core";
 import WordCells from "./WordCells.vue";
 
 const props = defineProps({ params: { type: Object, default: null } });
@@ -187,6 +187,7 @@ async function play() {
   if (!cur.value) return;
   const token = ++playToken.value;
   const playingItem = cur.value;
+  preloadNext();
   let url = audioCache.value[playingItem.text];
   if (!url) {
     url = await ensureAudio(playingItem);
@@ -195,6 +196,23 @@ async function play() {
   }
   if (token !== playToken.value || cur.value !== playingItem) return;
   playUrl(url);
+}
+
+// 播放当前的同时，预加载下一个（学习态下一句 / 自测队列第一题）
+function preloadNext() {
+  if (!mounted) return;
+  let ni = null;
+  if (phase.value === "learn") {
+    ni = items.value[learnIndex.value + 1];
+  } else if (phase.value === "quiz") {
+    ni = queue.value[0] || null;
+  }
+  if (!ni || audioCache.value[ni.text]) return;
+  ensureAudio(ni).then((u) => {
+    if (!mounted) return;
+    audioCache.value[ni.text] = u;
+    preloadAudio(u);
+  }).catch(() => { /* 预拉取失败不影响，使用时再按需加载 */ });
 }
 
 /* ---- 学习态 ---- */

@@ -18,3 +18,8 @@ sentences/*.json
 # Markdown 文档不入库（README.md 除外，已在仓库中跟踪）
 *.md
 !README.md
+
+# 音频切分/抓取本地工具（依赖本地数据 /tmp/opencode/nce_files.json，不入库）
+scripts/ingest_nce_audio.py
+scripts/split_nce_audio.py
+scripts/fix_nce_last_sentences.py

@@ -177,6 +177,7 @@ def api_tts():
         try:
             asyncio.run(edge_tts.Communicate(text, voice).save(str(temp)))
             os.replace(temp, out)
+            out.chmod(0o644)
         except Exception:
             temp.unlink(missing_ok=True)
             raise

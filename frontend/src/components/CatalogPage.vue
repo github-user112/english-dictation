@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, Settings } from "../lib/core";
 
 const lists = ref([]);
@@ -7,44 +7,59 @@ const today = ref(null);
 const active = ref([]);
 const lessons = ref({});
 const lessonErrors = ref({});
+const lessonLoading = ref({});
 const selectedLesson = ref({});
 const loading = ref(true);
 const error = ref("");
+let mounted = true;
 const words = computed(() => lists.value.filter((l) => l.type === "words"));
 const sents = computed(() => lists.value.filter((l) => l.type === "sentences"));
 
 onMounted(load);
+onUnmounted(() => { mounted = false; });
 
 async function load() {
   loading.value = true;
   error.value = "";
   lessons.value = {};
   lessonErrors.value = {};
+  lessonLoading.value = {};
   try {
     const d = await api("/lists");
     lists.value = d.lists || [];
     today.value = d.today;
     active.value = d.active_sessions || [];
-    const lessonLists = lists.value.filter((l) => l.lesson_count);
-    const results = await Promise.allSettled(lessonLists.map((l) => api(`/lessons?list=${l.key}`)));
-    results.forEach((result, index) => {
-      const l = lessonLists[index];
-      if (result.status === "fulfilled" && result.value?.lessons?.length) {
-        lessons.value[l.key] = result.value.lessons;
-        const saved = Number(localStorage.getItem(`dict_lesson_${l.key}`)) || 0;
-        selectedLesson.value[l.key] = result.value.lessons.find((x) => x.lesson === saved)?.lesson
-          || result.value.lessons[0].lesson;
-      } else {
-        lessonErrors.value[l.key] = result.status === "rejected"
-          ? "课程加载失败，请刷新重试" : "暂无可用课程";
-      }
-    });
   } catch (err) {
     lists.value = [];
     active.value = [];
     error.value = err.message || "素材库加载失败";
-  } finally {
     loading.value = false;
+    return;
+  }
+  // 先渲染页面（词汇/句子卡片立即可见），课程数据异步加载，不阻塞首屏
+  loading.value = false;
+  loadLessons();
+}
+
+async function loadLessons() {
+  const lessonLists = lists.value.filter((l) => l.lesson_count);
+  for (const l of lessonLists) {
+    lessonLoading.value[l.key] = true;
+    api(`/lessons?list=${l.key}`).then((res) => {
+      if (!mounted) return;
+      if (res?.lessons?.length) {
+        lessons.value[l.key] = res.lessons;
+        const saved = Number(localStorage.getItem(`dict_lesson_${l.key}`)) || 0;
+        selectedLesson.value[l.key] = res.lessons.find((x) => x.lesson === saved)?.lesson
+          || res.lessons[0].lesson;
+      } else {
+        lessonErrors.value[l.key] = "暂无可用课程";
+      }
+    }).catch(() => {
+      if (mounted) lessonErrors.value[l.key] = "课程加载失败，请刷新重试";
+    }).finally(() => {
+      if (mounted) lessonLoading.value[l.key] = false;
+    });
   }
 }
 
@@ -127,11 +142,12 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">句子</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
         <div class="meta">共 {{ l.total }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
         <div class="progress" role="progressbar" :aria-valuenow="l.known" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
-        <select v-if="l.lesson_count && !lessonErrors[l.key]" v-model.number="selectedLesson[l.key]" class="lesson-select"
+        <select v-if="l.lesson_count && lessons[l.key]" v-model.number="selectedLesson[l.key]" class="lesson-select"
                 aria-label="选择课程" @change="pickLesson(l.key, $event)">
           <option v-for="x in lessons[l.key]" :key="x.lesson" :value="x.lesson">{{ lessonLabel(l, x) }}</option>
         </select>
         <div v-else-if="lessonErrors[l.key]" class="meta" role="alert">{{ lessonErrors[l.key] }}</div>
+        <div v-else-if="lessonLoading[l.key]" class="meta">课程加载中…</div>
         <div class="card-actions">
           <button class="btn primary sm" :disabled="Boolean(l.lesson_count && !selectedLesson[l.key])" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听写')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听写' }}</button>
         </div>

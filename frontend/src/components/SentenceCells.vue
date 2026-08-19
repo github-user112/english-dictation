@@ -83,23 +83,17 @@ function paint() {
   mark.value = t.map((w, i) => (input.value[i] || "").toLowerCase() === w ? "right" : "wrong");
 }
 function markWrong() {
+  // 逐词按位比对，错误的词留在原位标红，不移动到其他横线
   const target = words.value.map((w) => w.core.toLowerCase());
-  const mine = input.value.filter(Boolean).map((w) => w.toLowerCase());
-  const ops = alignWords(target, mine);
-  const aligned = Array(target.length).fill("");
-  const marks = Array(target.length).fill("miss");
+  const marks = target.map((w, i) => {
+    const typed = (input.value[i] || "").toLowerCase();
+    if (!typed) return "miss";
+    return typed === w ? "right" : "wrong";
+  });
   const extra = [];
-  let targetPos = 0;
-  for (const op of ops) {
-    if (op.type === "insert") extra.push({ word: op.word, at: targetPos });
-    else if (op.type === "delete") { marks[op.target] = "miss"; targetPos = op.target + 1; }
-    else {
-      aligned[op.target] = op.word;
-      marks[op.target] = op.type === "match" ? "right" : "wrong";
-      targetPos = op.target + 1;
-    }
+  for (let i = target.length; i < input.value.length; i++) {
+    if (input.value[i]) extra.push({ word: input.value[i], at: target.length });
   }
-  input.value = aligned;
   mark.value = marks;
   extras.value = extra;
 }
@@ -138,29 +132,6 @@ function restore(s) {
   scur.value = Number(s.cursor) || 0;
   mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
   extras.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.extras || [])];
-}
-function alignWords(target, mine) {
-  const rows = target.length + 1, cols = mine.length + 1;
-  const dp = Array.from({ length: rows }, () => Array(cols).fill(0));
-  for (let i = 0; i < rows; i++) dp[i][0] = i;
-  for (let j = 0; j < cols; j++) dp[0][j] = j;
-  for (let i = 1; i < rows; i++) for (let j = 1; j < cols; j++) {
-    dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1,
-      dp[i - 1][j - 1] + (target[i - 1] === mine[j - 1] ? 0 : 1));
-  }
-  const ops = [];
-  let i = target.length, j = mine.length;
-  while (i || j) {
-    if (i && j && dp[i][j] === dp[i - 1][j - 1] + (target[i - 1] === mine[j - 1] ? 0 : 1)) {
-      ops.push({ type: target[i - 1] === mine[j - 1] ? "match" : "replace",
-        target: i - 1, word: mine[j - 1] }); i--; j--;
-    } else if (i && dp[i][j] === dp[i - 1][j] + 1) {
-      ops.push({ type: "delete", target: i - 1 }); i--;
-    } else {
-      ops.push({ type: "insert", word: mine[j - 1] }); j--;
-    }
-  }
-  return ops.reverse();
 }
 defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, serialize, restore });
 </script>

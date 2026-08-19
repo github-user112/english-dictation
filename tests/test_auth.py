@@ -5,11 +5,11 @@ from flask.testing import FlaskClient
 from backend.db import db
 
 
-def register(client, username="alice", password="correct horse battery staple"):
+def register(client, username="alice_1", password="correct horse battery staple"):
     return client.post("/api/auth/register", json={"username": username, "password": password})
 
 
-def login(client, username="alice", password="correct horse battery staple"):
+def login(client, username="alice_1", password="correct horse battery staple"):
     return client.post("/api/auth/login", json={"username": username, "password": password})
 
 
@@ -21,10 +21,10 @@ def test_registration_claims_guest_progress_without_migration(client):
     response = register(client)
 
     assert response.status_code == 200
-    assert response.json == {"authenticated": True, "guest": False, "username": "alice"}
+    assert response.json == {"authenticated": True, "guest": False, "username": "alice_1"}
     assert any("dict_session=" in value for value in response.headers.getlist("Set-Cookie"))
     with db() as conn:
-        account = conn.execute("SELECT user_id, password_hash FROM account WHERE username='alice'").fetchone()
+        account = conn.execute("SELECT user_id, password_hash FROM account WHERE username='alice_1'").fetchone()
         progress = conn.execute("SELECT status FROM word_state WHERE user=? AND item_id='hello'", (guest,)).fetchone()
     assert account["user_id"] == guest
     assert account["password_hash"] != "correct horse battery staple"
@@ -58,7 +58,10 @@ def test_login_uses_generic_failure_and_session(client):
 
 def test_account_validation_and_duplicate_username(client):
     assert register(client, "bad name").status_code == 400
-    assert register(client, "short", "too short").status_code == 400
+    assert register(client, "short_", "short").status_code == 400
+    assert register(client, "short", "password").status_code == 400
+    assert register(client, "learner@example.com", "secret").status_code == 200
+    assert client.post("/api/auth/logout").status_code == 200
     assert register(client, "alice_2").status_code == 200
     assert client.post("/api/auth/logout").status_code == 200
     assert register(client, "alice_2").status_code == 409

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <!-- headphone band -->
+  <path d="M68 138 v-8 a60 60 0 0 1 120 0 v8"
+        fill="none" stroke="#ffffff" stroke-width="18"
+        stroke-linecap="round"/>
+  <!-- ear cups -->
+  <rect x="54" y="128" width="34" height="62" rx="16" fill="#ffffff"/>
+  <rect x="168" y="128" width="34" height="62" rx="16" fill="#ffffff"/>
+  <!-- sound wave accent -->
+  <g stroke="#34d399" stroke-width="12" stroke-linecap="round">
+    <line x1="128" y1="150" x2="128" y2="190"/>
+    <line x1="110" y1="162" x2="110" y2="178"/>
+    <line x1="146" y1="162" x2="146" y2="178"/>
+  </g>
+</svg>

@@ -9,6 +9,7 @@ import StatsPage from "./components/StatsPage.vue";
 import SettingsPage from "./components/SettingsPage.vue";
 import AccountPage from "./components/AccountPage.vue";
 import { refreshAccount } from "./lib/account";
+import { stopAudio } from "./lib/core";
 
 const ROUTES = {
   catalog: CatalogPage, word: PracticePage, sentence: PracticePage,
@@ -30,6 +31,7 @@ onMounted(async () => {
 });
 
 function route() {
+  stopAudio();
   const h = location.hash.replace(/^#\/?/, "") || "catalog";
   const [page, qs] = h.split("?");
   params.value = new URLSearchParams(qs || "");

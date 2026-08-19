@@ -21,7 +21,13 @@ from .db import db
 
 bp = Blueprint("auth_routes", __name__, url_prefix="/api/auth")
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,32}$")
-_PASSWORD_MIN_LENGTH = 12
+_NEW_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{6,32}$")
+_EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$"
+)
+_PASSWORD_MIN_LENGTH = 6
 _PASSWORD_MAX_LENGTH = 128
 
 
@@ -31,9 +37,20 @@ def _body():
 
 
 def _username(value):
-    if not isinstance(value, str) or not _USERNAME_RE.fullmatch(value):
+    if not isinstance(value, str):
         return None
-    return value.lower()
+    value = value.strip().lower()
+    if not (_USERNAME_RE.fullmatch(value) or (len(value) <= 254 and _EMAIL_RE.fullmatch(value))):
+        return None
+    return value
+
+
+def _new_username(value):
+    """新账户可用 6 位用户名或邮箱；登录兼容原有 3–5 位用户名。"""
+    value = _username(value)
+    if not value:
+        return None
+    return value if _EMAIL_RE.fullmatch(value) or _NEW_USERNAME_RE.fullmatch(value) else None
 
 
 def _password(value):
@@ -103,12 +120,12 @@ def register():
     if legacy_account_protected():
         return jsonify({"error": "该学习档案已受账户保护，请登录", "account_protected": True}), 401
     data = _body()
-    username = _username(data.get("username"))
+    username = _new_username(data.get("username"))
     password = _password(data.get("password"))
     if not username:
-        return jsonify({"error": "用户名应为 3–32 位字母、数字或下划线"}), 400
+        return jsonify({"error": "请输入 6–32 位用户名（字母、数字或下划线），或有效邮箱"}), 400
     if not password:
-        return jsonify({"error": "密码长度应为 12–128 位"}), 400
+        return jsonify({"error": "密码至少需要 6 位，最多 128 位"}), 400
 
     user_id = get_identity()["user_id"]
     ip_key = _client_ip()
@@ -176,7 +193,7 @@ def change_password():
     current_password = data.get("current_password")
     new_password = _password(data.get("new_password"))
     if not new_password:
-        return jsonify({"error": "新密码长度应为 12–128 位"}), 400
+        return jsonify({"error": "新密码至少需要 6 位，最多 128 位"}), 400
 
     identity = get_identity()
     with db() as conn:

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, Settings, audioEl, ensureAudio, playUrl, sndRight, sndWrong } from "../lib/core";
+import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, sndRight, sndWrong } from "../lib/core";
 import WordCells from "./WordCells.vue";
 import SentenceCells from "./SentenceCells.vue";
 
@@ -202,6 +202,7 @@ async function play() {
   clearReplay();
   const token = ++playToken.value;
   const playingItem = item.value;
+  preloadNext();   // 当前音频加载的同时，提前拉取下一题音频
   let url = audioCache.value[playingItem.text];
   if (!url) {
     url = await ensureAudio(playingItem);
@@ -220,6 +221,15 @@ async function play() {
       }, Math.max(1, s.replayInterval || 5) * 1000);
     }
   };
+}
+async function preloadNext() {
+  if (!mounted) return;
+  const ni = items.value[cur.value + 1];
+  if (!ni || audioCache.value[ni.text]) return;
+  ensureAudio(ni).then((u) => {
+    if (mounted) audioCache.value[ni.text] = u;
+    preloadAudio(u);
+  }).catch(() => { /* 预拉取失败不影响，使用时再按需加载 */ });
 }
 async function submit() {
   if (saving.value || submitted.value) return;

@@ -1,4 +1,5 @@
 """后端 misc 模块测试：错词本、统计、TTS、音频服务"""
+import os
 from unittest.mock import patch
 
 
@@ -46,6 +47,26 @@ class TestMiscAPI:
         assert default.json["cached"] is False
         assert alternate.json["cached"] is False
         assert default.json["url"] != alternate.json["url"]
+
+    def test_tts_generated_audio_is_web_readable(self, client):
+        class FakeCommunicate:
+            def __init__(self, text, voice):
+                pass
+
+            async def save(self, path):
+                from pathlib import Path
+                Path(path).write_bytes(b"fake-mp3")
+
+        previous_umask = os.umask(0o027)
+        try:
+            with patch("backend.misc.edge_tts.Communicate", FakeCommunicate):
+                response = client.post("/api/tts", json={"text": "web-readable"})
+        finally:
+            os.umask(previous_umask)
+
+        from backend.misc import AUDIO
+        generated = AUDIO / response.json["url"].removeprefix("/audio/")
+        assert generated.stat().st_mode & 0o777 == 0o644
 
     def test_audio_serve_not_found(self, client):
         rv = client.get("/audio/nonexistent/file.mp3")

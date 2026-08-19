@@ -8,6 +8,7 @@ const TITLES = {
   wrong: "错词本", stats: "统计", settings: "设置", account: "账户",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");
+const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
 
 function sync() {
   const h = location.hash.replace(/^#\/?/, "") || "catalog";
@@ -31,6 +32,16 @@ onUnmounted(() => window.removeEventListener("hashchange", sync));
         <span class="brand-copy"><b>Dictation</b><small>听见，然后写下</small></span>
       </a>
       <span id="title">/ {{ title }}</span>
+    </div>
+    <div class="mobile-session">
+      <a v-if="!Account.loading && !Account.authenticated" class="mobile-login" href="#/account">登录</a>
+      <template v-else-if="Account.authenticated">
+        <a class="mobile-user" href="#/account" :aria-label="`账户：${Account.username}`">
+          <span class="mobile-avatar" aria-hidden="true">{{ accountInitial }}</span>
+          <span class="mobile-username">{{ Account.username }}</span>
+        </a>
+        <button class="mobile-logout" aria-label="退出登录" @click="signOut">退出</button>
+      </template>
     </div>
     <nav id="nav">
       <a class="nav-link" :class="{active: page==='catalog'}" href="#/catalog">素材</a>

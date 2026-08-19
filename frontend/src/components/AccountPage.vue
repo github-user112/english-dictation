@@ -77,11 +77,11 @@ refreshAccount().catch(() => {});
       </div>
       <p v-if="mode === 'register'" class="account-hint">会直接认领当前游客学习进度；无需导入或重新开始。</p>
       <form class="account-form" @submit.prevent="submitCredentials">
-        <label>用户名
-          <input v-model.trim="form.username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" required placeholder="3–32 位字母、数字或下划线">
+        <label>用户名或邮箱
+          <input v-model.trim="form.username" autocomplete="username" :minlength="mode === 'register' ? 6 : 3" maxlength="254" required placeholder="用户名（6–32 位）或常用邮箱">
         </label>
         <label>密码
-          <input v-model="form.password" type="password" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" minlength="12" maxlength="128" required placeholder="12–128 位密码">
+          <input v-model="form.password" type="password" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :minlength="mode === 'register' ? 6 : undefined" maxlength="128" required :placeholder="mode === 'register' ? '至少 6 位，建议使用不易猜测的组合' : '输入密码'">
         </label>
         <p v-if="error" class="account-message error" role="alert">{{ error }}</p>
         <p v-if="notice" class="account-message success">{{ notice }}</p>
@@ -97,7 +97,7 @@ refreshAccount().catch(() => {});
           <input v-model="form.currentPassword" type="password" autocomplete="current-password" required>
         </label>
         <label>新密码
-          <input v-model="form.newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required placeholder="12–128 位密码">
+          <input v-model="form.newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required placeholder="至少 6 位，建议使用不易猜测的组合">
         </label>
         <p v-if="error" class="account-message error" role="alert">{{ error }}</p>
         <p v-if="notice" class="account-message success">{{ notice }}</p>

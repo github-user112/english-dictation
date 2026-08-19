@@ -22,7 +22,7 @@ delete window.location;
 window.location = { href: "", hash: "", search: "", pathname: "/", replaceState: vi.fn() };
 
 // 现在导入要测试的模块
-import { Settings, User, api, es, sndRight, sndWrong } from "../lib/core";
+import { Settings, User, api, es, sndRight, sndWrong, audioEl, stopAudio } from "../lib/core";
 
 describe("Settings", () => {
   beforeEach(() => {
@@ -108,6 +108,17 @@ describe("Audio functions", () => {
   it("sndRight and sndWrong should not throw", () => {
     expect(() => { sndRight(); }).not.toThrow();
     expect(() => { sndWrong(); }).not.toThrow();
+  });
+
+  it("stops and clears active audio", () => {
+    const pause = vi.spyOn(audioEl, "pause").mockImplementation(() => {});
+    const load = vi.spyOn(audioEl, "load").mockImplementation(() => {});
+    audioEl.src = "/audio/example.mp3";
+    stopAudio();
+    expect(pause).toHaveBeenCalled();
+    expect(audioEl.getAttribute("src")).toBeNull();
+    pause.mockRestore();
+    load.mockRestore();
   });
 });
 

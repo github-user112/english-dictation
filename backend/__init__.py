@@ -47,6 +47,11 @@ def create_app(*, static_dir=None):
     def static_files(filename):
         return send_from_directory(app.static_folder, filename)
 
+    @app.get("/favicon.ico")
+    @app.get("/favicon.png")
+    def favicon():
+        return send_from_directory(app.static_folder, request.path.lstrip("/"))
+
     @app.get("/assets/<path:filename>")
     def asset_files(filename):
         return send_from_directory(asset_root / "assets", filename)

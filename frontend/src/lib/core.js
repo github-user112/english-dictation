@@ -119,6 +119,33 @@ export function playUrl(url) {
   audioEl.playbackRate = Settings.get().speed;
   audioEl.play().catch(() => {});
 }
+
+// 预加载音频字节：用隐藏 Audio 提前拉取，播放时命中 HTTP 缓存，秒开
+let preloadEl = null;
+export function preloadAudio(url) {
+  if (!url) return;
+  try {
+    if (!preloadEl) {
+      preloadEl = new Audio();
+      preloadEl.preload = "auto";
+      preloadEl.muted = true;
+    }
+    if (preloadEl.src !== url) {
+      preloadEl.src = url;
+      preloadEl.load();
+    }
+  } catch { /* 预加载失败不影响正常播放 */ }
+}
+
+// 路由切换时取消当前语音。清空 src 也会中止尚在加载中的媒体请求，
+// 防止离开练习页后仍继续播放。
+export function stopAudio() {
+  audioEl.onended = null;
+  audioEl.pause();
+  try { audioEl.currentTime = 0; } catch { /* 尚未加载元数据时可忽略 */ }
+  audioEl.removeAttribute?.("src");
+  audioEl.load?.();
+}
 export async function ensureAudio(item) {
   try {
     const r = await fetch(item.audio, { method: "HEAD" });

@@ -1,6 +1,7 @@
 """素材加载：词库/句子 JSON → 统一条目；音频 URL"""
 import hashlib
 import json
+import urllib.parse
 from functools import lru_cache
 
 from .config import AUDIO, BASE, MATERIALS
@@ -69,10 +70,28 @@ def find_item(list_key, item_id):
 
 
 def audio_url(list_key, item_id, text):
+    mp = _load_nce_map(list_key).get(item_id)
+    if mp:
+        # 优先返回切分后的单句小文件；未切分时回落到整课 #t= 片段
+        fname = f"{item_id}.mp3"
+        if (AUDIO / list_key / fname).exists():
+            return f"/audio/{list_key}/{urllib.parse.quote(fname)}"
+        return f"/audio/{list_key}/{urllib.parse.quote(mp['file'])}#t={mp['start']:.2f},{mp['end']:.2f}"
     fname = audio_filename(text)
     if (AUDIO / list_key / fname).exists():
         return f"/audio/{list_key}/{fname}"
     return f"/audio/lazy/{fname}"
+
+
+_NCE_MAP_CACHE = {}
+
+
+def _load_nce_map(list_key):
+    """新概念原生音频片段映射：item_id -> {file, start, end}。命中即返回 #t= 片段 URL。"""
+    if list_key not in _NCE_MAP_CACHE:
+        p = AUDIO / list_key / "nce_audio_map.json"
+        _NCE_MAP_CACHE[list_key] = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    return _NCE_MAP_CACHE[list_key]
 
 
 def audio_filename(text):

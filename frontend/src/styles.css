@@ -96,6 +96,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .top-left, .brand, #nav { display: flex; align-items: center; }
 .top-left { gap: 18px; }
+.mobile-session { display: none; }
 .brand { gap: 10px; color: var(--text); text-decoration: none; }
 .brand-mark {
   display: grid;
@@ -424,14 +425,54 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 }
 
 @media (max-width: 620px) {
-  #topbar { min-height: 60px; padding: 8px 14px; }
+  #topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand account" "nav nav";
+    align-items: center;
+    gap: 8px 10px;
+    min-height: 0;
+    padding: 9px 14px 7px;
+  }
+  .top-left { grid-area: brand; min-width: 0; }
   .brand-mark { width: 34px; height: 34px; font-size: 19px; }
   .brand-copy small, #title { display: none; }
   .brand-copy b { font-size: 16px; }
-  #nav { gap: 0; }
-  .account-nav { gap: 0; }
-  .account-nav .btn { min-height: 30px; padding: 4px 7px; font-size: 10px; }
-  .nav-link { padding: 7px 8px; font-size: 11px; }
+  .mobile-session { grid-area: account; display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-width: 0; }
+  .mobile-login, .mobile-user, .mobile-logout {
+    min-height: 32px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .mobile-login {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    color: var(--accent-strong);
+    background: color-mix(in srgb, var(--accent), transparent 90%);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 72%);
+    text-decoration: none;
+  }
+  .mobile-user { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); text-decoration: none; }
+  .mobile-avatar {
+    display: grid;
+    flex: none;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    color: var(--accent-text);
+    background: var(--accent);
+    border-radius: 8px 8px 8px 3px;
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .mobile-username { max-width: min(27vw, 112px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-logout { padding: 5px 7px; color: var(--dim); background: transparent; border: 1px solid var(--border); cursor: pointer; }
+  #nav { grid-area: nav; justify-content: stretch; width: 100%; gap: 3px; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--border), transparent 30%); }
+  #nav .account-link, #nav .account-nav { display: none; }
+  .nav-link { flex: 1; padding: 8px 4px; font-size: 11px; text-align: center; }
   main { padding: 22px 13px 58px; }
   .catalog-hero { min-height: 0; padding: 28px 22px; border-radius: 19px 19px 19px 6px; }
   .catalog-hero::after { top: -20px; right: -5px; font-size: 110px; }
