@@ -67,6 +67,20 @@ npm run dev      # 开发预览
 npm run build    # 构建产物输出到 ../static（nginx 直接服务）
 ```
 
+## 部署
+
+本机即生产环境：nginx 直接服务仓库 `static/`，后端由系统服务 `english-dictation.service` 运行（gunicorn 127.0.0.1:8200，WorkingDirectory 即本仓库，单元文件见 `systemd/`，与已安装版本保持一致）。
+
+- **前端**：`cd frontend && npm run build`，产物落到 `static/`，nginx 即时生效，无需重启
+- **后端**：改了 Python 代码后需重载进程：
+
+```bash
+sudo systemctl restart english-dictation     # 或无 sudo 时优雅重载（不中断监听）：
+kill -HUP $(pgrep -of "gunicorn.*app:app")
+```
+
+部署后验证：`curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8200/api/auth/me` 应为 200。
+
 ### API
 
 | 接口 | 说明 |
@@ -77,6 +91,8 @@ npm run build    # 构建产物输出到 ../static（nginx 直接服务）
 | GET /api/memorize/session?list= | 背单词任务（待背新词 + 到期复习） |
 | POST /api/memorize | 背诵结果记录（连续答对 2 次标记已背） |
 | GET /api/wrong | 错词本 |
+| POST /api/wrong/remove | 从错词本移除（重置为未学） |
+| GET /api/lessons | 课程目录（新概念按课学习） |
 | GET /api/stats | 统计 |
 | GET /api/auth/me | 当前游客或账户状态 |
 | POST /api/auth/register | 注册并认领当前游客进度 |

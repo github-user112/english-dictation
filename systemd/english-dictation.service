@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=exec
-User=dictation
-WorkingDirectory=/opt/english-dictation
-ExecStartPre=/opt/english-dictation/.venv/bin/python scripts/check_runtime.py
-ExecStart=/opt/english-dictation/.venv/bin/gunicorn --bind 127.0.0.1:8200 --workers 2 --threads 4 --access-logfile - --error-logfile - app:app
+User=opc
+WorkingDirectory=/home/opc/workspace/english-dictation
+ExecStartPre=/home/opc/workspace/english-dictation/.venv/bin/python scripts/check_runtime.py
+ExecStart=/home/opc/workspace/english-dictation/.venv/bin/gunicorn --bind 127.0.0.1:8200 --workers 2 --threads 4 --access-logfile - --error-logfile - app:app
 Restart=always
 RestartSec=3
 TimeoutStopSec=30
