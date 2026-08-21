@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, sndRight, sndWrong } from "../lib/core";
+import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong } from "../lib/core";
 import WordCells from "./WordCells.vue";
 import SentenceCells from "./SentenceCells.vue";
 
@@ -203,6 +203,21 @@ async function play() {
   const token = ++playToken.value;
   const playingItem = item.value;
   preloadNext();   // 当前音频加载的同时，提前拉取下一题音频
+  if (token !== playToken.value || item.value !== playingItem) return;
+  if (playingItem.kind === "word") {
+    // 单词：前端直连有道真人音，失败回落后端音频
+    playWord(playingItem, () => {
+      if (token !== playToken.value || item.value !== playingItem || submitted.value) return;
+      const s = Settings.get();
+      if (replayCount.value < (s.replayTimes ?? 2)) {
+        replayCount.value++;
+        replayTimer.value = setTimeout(() => {
+          if (token === playToken.value && item.value === playingItem) play();
+        }, Math.max(1, s.replayInterval || 5) * 1000);
+      }
+    });
+    return;
+  }
   let url = audioCache.value[playingItem.text];
   if (!url) {
     url = await ensureAudio(playingItem);
@@ -225,7 +240,12 @@ async function play() {
 async function preloadNext() {
   if (!mounted) return;
   const ni = items.value[cur.value + 1];
-  if (!ni || audioCache.value[ni.text]) return;
+  if (!ni) return;
+  if (ni.kind === "word") {
+    preloadWord(ni);   // 单词：预拉取有道真人音
+    return;
+  }
+  if (audioCache.value[ni.text]) return;
   ensureAudio(ni).then((u) => {
     if (mounted) audioCache.value[ni.text] = u;
     preloadAudio(u);

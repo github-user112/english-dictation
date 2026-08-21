@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, audioEl, ensureAudio, playUrl, preloadAudio, sndRight, sndWrong } from "../lib/core";
+import { api, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong } from "../lib/core";
 import WordCells from "./WordCells.vue";
 
 const props = defineProps({ params: { type: Object, default: null } });
@@ -188,6 +188,12 @@ async function play() {
   const token = ++playToken.value;
   const playingItem = cur.value;
   preloadNext();
+  if (token !== playToken.value || cur.value !== playingItem) return;
+  if (playingItem.kind === "word") {
+    // 单词：前端直连有道真人音，失败回落后端音频
+    playWord(playingItem);
+    return;
+  }
   let url = audioCache.value[playingItem.text];
   if (!url) {
     url = await ensureAudio(playingItem);
@@ -207,7 +213,12 @@ function preloadNext() {
   } else if (phase.value === "quiz") {
     ni = queue.value[0] || null;
   }
-  if (!ni || audioCache.value[ni.text]) return;
+  if (!ni) return;
+  if (ni.kind === "word") {
+    preloadWord(ni);   // 单词：预拉取有道真人音
+    return;
+  }
+  if (audioCache.value[ni.text]) return;
   ensureAudio(ni).then((u) => {
     if (!mounted) return;
     audioCache.value[ni.text] = u;

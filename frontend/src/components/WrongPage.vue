@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { api, playUrl } from "../lib/core";
+import { api, playUrl, playWord } from "../lib/core";
 
 const items = ref([]);
 const loading = ref(true);
@@ -22,7 +22,10 @@ async function load() {
   }
 }
 
-function play(item) { playUrl(item.audio); }
+function play(item) {
+  if (item.kind === "word") playWord(item);
+  else playUrl(item.audio);
+}
 function redo() {
   const practice = items.value.map((i) => ({ ...i, phase: "review" }));
   sessionStorage.setItem("dict_custom", JSON.stringify(practice));

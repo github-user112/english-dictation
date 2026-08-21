@@ -141,6 +141,7 @@ export function preloadAudio(url) {
 // 防止离开练习页后仍继续播放。
 export function stopAudio() {
   audioEl.onended = null;
+  audioEl.onerror = null;
   audioEl.pause();
   try { audioEl.currentTime = 0; } catch { /* 尚未加载元数据时可忽略 */ }
   audioEl.removeAttribute?.("src");
@@ -152,6 +153,40 @@ export async function ensureAudio(item) {
     if (r.ok) return item.audio;
   } catch (e) { /* 懒生成 */ }
   return (await api("/tts", { method: "POST", body: JSON.stringify({ text: item.text }) })).url;
+}
+
+/* ---- 有道真人读音：前端直连，失败回落后端音频 ---- */
+export const YOUDAO_BASE = "https://dict.youdao.com/dictvoice";
+const youdaoFailed = new Set();  // 本次会话内已确认有道不可用的单词，后续直接走后端
+
+export function wordAudioUrl(text, type = 2) {
+  return `${YOUDAO_BASE}?audio=${encodeURIComponent(text)}&type=${type}`;
+}
+
+// 播放单词真人音：优先有道，加载/解码失败则回落 item.audio（后端音频）
+export function playWord(item, onended = null) {
+  if (!item) return;
+  audioEl.playbackRate = Settings.get().speed;
+  audioEl.onended = onended;
+  if (youdaoFailed.has(item.text)) {
+    audioEl.src = item.audio;
+    audioEl.play().catch(() => {});
+    return;
+  }
+  audioEl.onerror = () => {
+    audioEl.onerror = null;
+    youdaoFailed.add(item.text);
+    audioEl.src = item.audio;
+    audioEl.play().catch(() => {});
+  };
+  audioEl.src = wordAudioUrl(item.text);
+  audioEl.play().catch(() => {});
+}
+
+// 预加载单词真人音（失败回落后端音频）
+export function preloadWord(item) {
+  if (!item) return;
+  preloadAudio(youdaoFailed.has(item.text) ? item.audio : wordAudioUrl(item.text));
 }
 
 /* ---- 工具 ---- */
