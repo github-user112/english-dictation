@@ -32,6 +32,10 @@ def _lazy_audio_filename(text, voice):
     return hashlib.md5(f"{voice}\0{text}".encode()).hexdigest() + ".mp3"
 
 
+_TTS_LOCKS_MAX = 4096      # 文件锁表上限：超出时回收空闲锁，防止随文件名无限增长
+_TTS_USERS_MAX = 1024      # 限流表上限：超出时清掉已整批过期的用户（游客 UUID 会不断新增）
+
+
 def _allow_tts_request(user):
     limit = CONFIG["tts_rate_limit_per_hour"]
     if limit <= 0:
@@ -39,6 +43,11 @@ def _allow_tts_request(user):
     now = time.monotonic()
     cutoff = now - 3600
     with _tts_rate_lock:
+        if len(_tts_requests) >= _TTS_USERS_MAX:
+            expired_users = [key for key, recent in _tts_requests.items()
+                             if not recent or recent[-1] <= cutoff]
+            for key in expired_users:
+                del _tts_requests[key]
         recent = _tts_requests[user]
         while recent and recent[0] <= cutoff:
             recent.popleft()
@@ -50,7 +59,16 @@ def _allow_tts_request(user):
 
 def _tts_file_lock(filename):
     with _tts_file_locks_lock:
-        return _tts_file_locks.setdefault(filename, threading.Lock())
+        lock = _tts_file_locks.get(filename)
+        if lock is None:
+            if len(_tts_file_locks) >= _TTS_LOCKS_MAX:
+                # 只回收当前无人持有的锁；极端并发下同文件可能重复生成，
+                # 但写入是原子替换且内容确定，无一致性风险。
+                for key, value in list(_tts_file_locks.items()):
+                    if not value.locked():
+                        _tts_file_locks.pop(key, None)
+            lock = _tts_file_locks.setdefault(filename, threading.Lock())
+        return lock
 
 
 def _prune_lazy_audio(directory, reserve=1):

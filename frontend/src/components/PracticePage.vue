@@ -434,7 +434,7 @@ function restoreAttempt() {
   firstAttemptSent.value = first !== null && first !== undefined;
   if (retrying.value) setTimeout(() => { if (mounted) cells.value?.markWrong(); }, 0);
 }
-function again() { location.reload(); }
+function retryLoad() { location.reload(); }
 function cycleSpeed() {
   const s = Settings.get();
   const next = s.speed === 0.75 ? 1.0 : s.speed === 1.0 ? 1.25 : 0.75;
@@ -449,7 +449,7 @@ function cycleSpeed() {
 </script>
 
 <template>
-  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="again">重试</button></div>
+  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="retryLoad">重试</button></div>
   <div v-else-if="loading" class="empty">加载中…</div>
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
   <div v-else @pointerdown="focusCatch">
@@ -479,7 +479,7 @@ function cycleSpeed() {
         <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
       </div>
       <div class="controls">
-        <button class="btn ghost" aria-label="重播音频" @click="again">↻ 再来一轮</button>
+        <button class="btn ghost" aria-label="重播音频" @click="play">↻ 重播</button>
         <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @click="skip">跳过</button>
         <button v-if="saveError && submitted" class="btn primary" :disabled="saving" @click="retrySave">重试保存</button>
         <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>

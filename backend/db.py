@@ -1,16 +1,27 @@
 """数据库：连接 / 建表 / 迁移"""
 import sqlite3
+from contextlib import contextmanager
 
 from .config import DB
 
 
+@contextmanager
 def db():
+    """连接上下文：成功提交、异常回滚、退出关闭。
+
+    sqlite3 连接自身的 with 只提交不关闭，长期运行会依赖 GC 兜底回收 fd；
+    这里显式 close，事务语义与原先 `with sqlite3.connect(...)` 完全一致。
+    """
     conn = sqlite3.connect(str(DB))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=5000")
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA busy_timeout=5000")
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def init_db():

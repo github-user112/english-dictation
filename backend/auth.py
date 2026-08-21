@@ -44,26 +44,45 @@ def _account_exists(user_id):
         return conn.execute("SELECT 1 FROM account WHERE user_id=?", (user_id,)).fetchone() is not None
 
 
+# last_seen_at 写入节流：同一会话至多每 90 秒落盘一次，避免每个请求一次写放大
+_LAST_SEEN_INTERVAL = 90
+
+
 def _session_identity():
+    """请求内缓存 + 节流落盘。before_request 与路由各查一次的历史已消除。"""
+    if hasattr(g, "dict_session_identity"):
+        return g.dict_session_identity
+    g.dict_session_identity = _load_session_identity()
+    return g.dict_session_identity
+
+
+def _load_session_identity():
     raw_token = request.cookies.get(SESSION_COOKIE)
     if not raw_token:
         return None
+    token = token_hash(raw_token)
     with db() as conn:
         row = conn.execute("""
-            SELECT s.user_id, s.csrf_token, s.expires_at, a.username
+            SELECT s.user_id, s.csrf_token, s.expires_at, s.last_seen_at, a.username
             FROM auth_session s JOIN account a ON a.user_id=s.user_id
             WHERE s.token_hash=? AND a.disabled_at IS NULL
-        """, (token_hash(raw_token),)).fetchone()
+        """, (token,)).fetchone()
         if not row:
             return None
-        if row["expires_at"] <= now_iso():
-            conn.execute("DELETE FROM auth_session WHERE token_hash=?", (token_hash(raw_token),))
+        now = now_iso()
+        if row["expires_at"] <= now:
+            conn.execute("DELETE FROM auth_session WHERE token_hash=?", (token,))
             return None
-        conn.execute("UPDATE auth_session SET last_seen_at=? WHERE token_hash=?", (now_iso(), token_hash(raw_token)))
+        if (row["last_seen_at"] or "") <= _past_iso(_LAST_SEEN_INTERVAL):
+            conn.execute("UPDATE auth_session SET last_seen_at=? WHERE token_hash=?", (now, token))
     return {
         "user_id": row["user_id"], "username": row["username"],
         "csrf_token": row["csrf_token"], "authenticated": True,
     }
+
+
+def _past_iso(seconds):
+    return (datetime.now(timezone.utc) - timedelta(seconds=seconds)).isoformat()
 
 
 def legacy_account_protected():

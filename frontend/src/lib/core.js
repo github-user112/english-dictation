@@ -66,12 +66,13 @@ export async function api(path, opts = {}) {
         throw new Error(r.ok ? "服务返回了无效响应" : `请求失败 (${r.status})`);
       }
     }
-    if (legacyUser) User.clearLegacyLink();
     if (!r.ok) {
+      // 失败时保留 URL 上的旧链接参数，重试时游客身份不丢
       const error = new Error(d.error || `请求失败 (${r.status})`);
       error.accountProtected = Boolean(d.account_protected);
       throw error;
     }
+    if (legacyUser) User.clearLegacyLink();
     return d;
   } catch (e) {
     if (e.name === "AbortError") throw new Error("请求超时，请检查网络");
@@ -92,11 +93,35 @@ function unlockActx() {
   }
   if (actx.state === "suspended") actx.resume().catch(() => {});
 }
-document.addEventListener("pointerdown", () => {
-  audioEl.play().catch(() => {});
-  unlockActx();
-}, { passive: true, once: false });
-document.addEventListener("keydown", unlockActx, { passive: true, once: false });
+
+// 静音音频元素：首次用户手势里播放一次以解锁自动播放策略。
+// 不复用主播放元素，避免把用户刚暂停的音频"复活"。
+let mediaUnlocked = false;
+let blockedOnce = false;   // 当前音频的自动播放被浏览器拦截，等首次手势补播
+const UNLOCK_WAV = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAACAgICA";
+
+function markBlocked(error) {
+  if (error && error.name === "NotAllowedError") blockedOnce = true;
+}
+
+function unlockMedia() {
+  if (!mediaUnlocked) {
+    mediaUnlocked = true;
+    try {
+      const el = new Audio(UNLOCK_WAV);
+      el.muted = true;
+      const p = el.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch { /* 解锁失败不影响正常播放 */ }
+  }
+  // 页面加载后的首次自动播放可能被策略拦截；首次手势时补播当前音频
+  if (blockedOnce && audioEl.src) {
+    blockedOnce = false;
+    audioEl.play().catch(() => {});
+  }
+}
+document.addEventListener("pointerdown", () => { unlockActx(); unlockMedia(); }, { passive: true });
+document.addEventListener("keydown", () => { unlockActx(); unlockMedia(); }, { passive: true });
 
 function beep(freq, dur, delay = 0) {
   if (!actx) return;
@@ -115,9 +140,10 @@ export const sndWrong = () => { beep(250, 0.13); beep(150, 0.3, 0.13); };
 
 export function playUrl(url) {
   if (!url) return;
+  blockedOnce = false;
   audioEl.src = url;
   audioEl.playbackRate = Settings.get().speed;
-  audioEl.play().catch(() => {});
+  audioEl.play().catch(markBlocked);
 }
 
 // 预加载音频字节：用隐藏 Audio 提前拉取，播放时命中 HTTP 缓存，秒开
@@ -142,6 +168,7 @@ export function preloadAudio(url) {
 export function stopAudio() {
   audioEl.onended = null;
   audioEl.onerror = null;
+  blockedOnce = false;
   audioEl.pause();
   try { audioEl.currentTime = 0; } catch { /* 尚未加载元数据时可忽略 */ }
   audioEl.removeAttribute?.("src");
@@ -166,21 +193,22 @@ export function wordAudioUrl(text, type = 2) {
 // 播放单词真人音：优先有道，加载/解码失败则回落 item.audio（后端音频）
 export function playWord(item, onended = null) {
   if (!item) return;
+  blockedOnce = false;
   audioEl.playbackRate = Settings.get().speed;
   audioEl.onended = onended;
   if (youdaoFailed.has(item.text)) {
     audioEl.src = item.audio;
-    audioEl.play().catch(() => {});
+    audioEl.play().catch(markBlocked);
     return;
   }
   audioEl.onerror = () => {
     audioEl.onerror = null;
     youdaoFailed.add(item.text);
     audioEl.src = item.audio;
-    audioEl.play().catch(() => {});
+    audioEl.play().catch(markBlocked);
   };
   audioEl.src = wordAudioUrl(item.text);
-  audioEl.play().catch(() => {});
+  audioEl.play().catch(markBlocked);
 }
 
 // 预加载单词真人音（失败回落后端音频）
@@ -188,6 +216,3 @@ export function preloadWord(item) {
   if (!item) return;
   preloadAudio(youdaoFailed.has(item.text) ? item.audio : wordAudioUrl(item.text));
 }
-
-/* ---- 工具 ---- */
-export function es(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }

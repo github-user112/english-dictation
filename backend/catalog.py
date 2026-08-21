@@ -229,7 +229,10 @@ def api_session():
         return jsonify({"error": "未知练习范围"}), 400
     if request.args.get("lesson") is not None and lesson is None:
         return jsonify({"error": "lesson 必须为正整数"}), 400
-    if strategy == "lesson" and not list(iter_material(list_key, lesson)):
+    # 素材在进程内不可变（lru_cache）：lesson 列表只具体化一次，校验与建会话复用，
+    # 避免把重复的全量扫描压进写事务。
+    lesson_material = list(iter_material(list_key, lesson)) if strategy == "lesson" else None
+    if strategy == "lesson" and not lesson_material:
         return jsonify({"error": "课程不存在"}), 404
 
     with db() as conn:
@@ -258,9 +261,12 @@ def api_session():
 
         session_id = uuid.uuid4().hex
         if strategy == "lesson":
-            material = list(iter_material(list_key, lesson))
-            item_rows = [(item, "review" if find_state(conn, user, list_key, item["id"]) else "new")
-                         for item in material]
+            # 一次批量查询代替逐题 SELECT（NCE 每课几十句，逐题查会在写锁里放大事务）
+            seen = {r["item_id"] for r in conn.execute(
+                "SELECT item_id FROM word_state WHERE user=? AND list=? AND status!='new'",
+                (user, list_key)).fetchall()}
+            item_rows = [(item, "review" if item["id"] in seen else "new")
+                         for item in lesson_material]
             quota = None
         else:
             plan = conn.execute(
@@ -291,11 +297,10 @@ def api_session():
                 pool = [i for i in load_material(list_key) if i["id"] in candidates]
             else:
                 pool = [i for i in load_material(list_key) if i["id"] not in introduced]
-            random.shuffle(pool)
             review_items = [find_item(list_key, item_id) for item_id in review_ids]
             review_items = [i for i in review_items if i]
             remaining = min(remaining, len(pool))
-            fresh = pool[:remaining]
+            fresh = random.sample(pool, remaining)  # 无放回均匀抽样，替代全量洗牌
             random.shuffle(review_items)
             item_rows = [(i, "review") for i in review_items] + [(i, "new") for i in fresh]
             conn.execute(
@@ -309,20 +314,14 @@ def api_session():
             "INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (session_id, user, list_key, mode, scope, strategy, lesson, today,
              new_quota if strategy == "daily" else 0, "active", stamp, stamp, None))
-        for seq, (item, phase) in enumerate(item_rows):
-            conn.execute(
-                "INSERT INTO study_session_item(session_id,seq,item_id,kind,phase) VALUES(?,?,?,?,?)",
-                (session_id, seq, item["id"], item["kind"], phase))
+        conn.executemany(
+            "INSERT INTO study_session_item(session_id,seq,item_id,kind,phase) VALUES(?,?,?,?,?)",
+            [(session_id, seq, item["id"], item["kind"], phase)
+             for seq, (item, phase) in enumerate(item_rows)])
         if not item_rows:
             conn.execute("UPDATE study_session SET state='completed',completed_at=? WHERE id=?", (stamp, session_id))
         row = conn.execute("SELECT * FROM study_session WHERE id=?", (session_id,)).fetchone()
         return resp(serialize_session(conn, row, resumed=False, quota=quota))
-
-
-def find_state(conn, user, list_key, item_id):
-    return conn.execute(
-        "SELECT status FROM word_state WHERE user=? AND list=? AND item_id=? AND status!='new'",
-        (user, list_key, item_id)).fetchone()
 
 
 def update_word_state(conn, user, list_key, item_id, first_right, final_right, mode, today):

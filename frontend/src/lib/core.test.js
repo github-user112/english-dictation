@@ -22,7 +22,7 @@ delete window.location;
 window.location = { href: "", hash: "", search: "", pathname: "/", replaceState: vi.fn() };
 
 // 现在导入要测试的模块
-import { Settings, User, api, es, sndRight, sndWrong, audioEl, stopAudio } from "../lib/core";
+import { Settings, User, api, sndRight, sndWrong, audioEl, stopAudio } from "../lib/core";
 
 describe("Settings", () => {
   beforeEach(() => {
@@ -88,21 +88,6 @@ describe("User", () => {
     expect(localStorageMock.getItem("dict_u")).toBeNull();
   });
 });
-
-describe("es (escape)", () => {
-  it("should escape HTML special characters", () => {
-    expect(es('<script>alert("xss")</script>')).toBe("&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;");
-  });
-
-  it("should escape ampersand", () => {
-    expect(es("a & b")).toBe("a &amp; b");
-  });
-
-  it("should return empty string for empty input", () => {
-    expect(es("")).toBe("");
-  });
-});
-
 
 describe("Audio functions", () => {
   it("sndRight and sndWrong should not throw", () => {
