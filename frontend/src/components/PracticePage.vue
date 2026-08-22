@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong } from "../lib/core";
 import WordCells from "./WordCells.vue";
 import SentenceCells from "./SentenceCells.vue";
+import SpeechDrill from "./SpeechDrill.vue";
 
 const props = defineProps({ params: { type: Object, default: null } });
 
@@ -478,6 +479,7 @@ function cycleSpeed() {
         <span v-if="submitted && lastRight">✔ 正确，继续！</span>
         <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
       </div>
+      <SpeechDrill v-if="mode === 'word' && (submitted || retrying)" :text="item.text"></SpeechDrill>
       <div class="controls">
         <button class="btn ghost" aria-label="重播音频" @click="play">↻ 重播</button>
         <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @click="skip">跳过</button>

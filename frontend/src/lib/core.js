@@ -137,6 +137,12 @@ function beep(freq, dur, delay = 0) {
 }
 export const sndRight = () => { beep(660, 0.09); beep(880, 0.12, 0.09); };
 export const sndWrong = () => { beep(250, 0.13); beep(150, 0.3, 0.13); };
+// 连击音：连击数越高音调越高，封顶避免刺耳
+export const sndCombo = (combo) => {
+  const step = Math.min(combo, 12);
+  beep(520 + step * 45, 0.07);
+  beep(780 + step * 45, 0.1, 0.07);
+};
 
 export function playUrl(url) {
   if (!url) return;

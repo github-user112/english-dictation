@@ -119,6 +119,13 @@ def init_db():
             created_at TEXT NOT NULL,
             PRIMARY KEY(user, attempt_id)
         );
+        CREATE TABLE IF NOT EXISTS sprint_best (
+            user TEXT PRIMARY KEY,
+            score INTEGER NOT NULL DEFAULT 0,
+            combo INTEGER NOT NULL DEFAULT 0,
+            total INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        );
         CREATE INDEX IF NOT EXISTS idx_auth_session_user_expiry
             ON auth_session(user_id, expires_at);
         CREATE INDEX IF NOT EXISTS idx_word_state_review

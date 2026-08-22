@@ -29,7 +29,7 @@ const last14 = computed(() => {
   return out;
 });
 const maxDay = computed(() => Math.max(1, ...last14.value.map((d) => d.total)));
-const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打" };
+const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打", quiz: "听音选词", sprint: "限时冲刺" };
 </script>
 
 <template>

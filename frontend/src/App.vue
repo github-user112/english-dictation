@@ -4,6 +4,8 @@ import TopBar from "./components/TopBar.vue";
 import CatalogPage from "./components/CatalogPage.vue";
 import PracticePage from "./components/PracticePage.vue";
 import MemorizePage from "./components/MemorizePage.vue";
+import QuizPage from "./components/QuizPage.vue";
+import SprintPage from "./components/SprintPage.vue";
 import WrongPage from "./components/WrongPage.vue";
 import StatsPage from "./components/StatsPage.vue";
 import SettingsPage from "./components/SettingsPage.vue";
@@ -13,7 +15,7 @@ import { stopAudio } from "./lib/core";
 
 const ROUTES = {
   catalog: CatalogPage, word: PracticePage, sentence: PracticePage,
-  memorize: MemorizePage,
+  memorize: MemorizePage, quiz: QuizPage, sprint: SprintPage,
   wrong: WrongPage, stats: StatsPage, settings: SettingsPage, account: AccountPage,
 };
 const view = ref(CatalogPage);

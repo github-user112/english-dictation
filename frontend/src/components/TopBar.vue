@@ -5,6 +5,7 @@ import { Account, logout } from "../lib/account";
 const page = ref("catalog");
 const TITLES = {
   catalog: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
+  quiz: "听音选词", sprint: "限时冲刺",
   wrong: "错词本", stats: "统计", settings: "设置", account: "账户",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");

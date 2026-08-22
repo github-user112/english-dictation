@@ -508,3 +508,39 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---- 3.0 挑战玩法：听音选词 / 限时冲刺 / 跟读打分 ---- */
+.card-actions { flex-wrap: wrap; }
+
+.quiz-play { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 6px 0 14px; }
+.quiz-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quiz-option {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 10px; border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--text); cursor: pointer;
+  font-family: var(--sans); text-align: center; transition: border-color .12s, background .12s;
+}
+.quiz-option b { font-size: 17px; letter-spacing: .02em; }
+.quiz-option small { color: var(--dim); font-size: 11px; }
+.quiz-option:hover:not(:disabled) { border-color: var(--green); }
+.quiz-option.right { border-color: var(--green); background: color-mix(in srgb, var(--green), transparent 86%); }
+.quiz-option.wrong { border-color: var(--red); background: color-mix(in srgb, var(--red), transparent 86%); }
+
+.sprint-timer { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; padding: 4px 10px; border-radius: 8px; background: var(--type-bg); vertical-align: middle; }
+.sprint-timer.urgent { color: var(--red); animation: sprint-blink 1s steps(2) infinite; }
+@keyframes sprint-blink { 50% { opacity: .45; } }
+.combo-num { color: var(--yellow); }
+
+.speech-drill { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 2px 0 10px; min-height: 30px; }
+.speech-drill .listening { color: var(--green); }
+.mic-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: mic-pulse 1s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { opacity: .25; transform: scale(.8); } }
+.speech-verdict { font-size: 13px; }
+.speech-verdict.good { color: var(--green); }
+.speech-verdict.close { color: var(--yellow); }
+.speech-verdict.bad { color: var(--red); }
+.speech-verdict small { color: var(--dim); }
+
+@media (max-width: 640px) {
+  .quiz-options { grid-template-columns: 1fr; }
+}

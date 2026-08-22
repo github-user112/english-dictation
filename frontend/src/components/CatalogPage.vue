@@ -91,6 +91,8 @@ function resume(s) {
   location.hash = `#/${lists.value.find((l) => l.key === s.list)?.type === "words" ? "word" : "sentence"}?${p}`;
 }
 function memorize(key) { window.location.hash = `#/memorize?list=${key}`; }
+function startQuiz(l) { window.location.hash = `#/quiz?list=${l.key}`; }
+function startSprint(l) { window.location.hash = `#/sprint?list=${l.key}`; }
 function title(key) { return lists.value.find((l) => l.key === key)?.title || key; }
 </script>
 
@@ -131,6 +133,8 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="progress" role="progressbar" :aria-valuenow="(l.total ? l.known : 0)" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
         <div class="card-actions">
           <button class="btn ghost sm" aria-label="背单词" @click="memorize(l.key)">📖 背单词</button>
+          <button class="btn ghost sm" aria-label="听音选词" @click="startQuiz(l)">🎧 选词</button>
+          <button class="btn ghost sm" aria-label="限时冲刺" @click="startSprint(l)">⚡ 冲刺</button>
           <button class="btn primary sm" aria-label="开始听打" @click="start(l)">👂 开始听打</button>
         </div>
       </div>

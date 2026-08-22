@@ -1,0 +1,238 @@
+<script setup>
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { api, playWord, sndWrong, sndCombo, stopAudio } from "../lib/core";
+import WordCells from "./WordCells.vue";
+
+const props = defineProps({ params: { type: Object, default: null } });
+
+const DURATION = 60;   // 冲刺时长（秒）
+
+const list = ref("cet4");
+const phase = ref("start");    // start | run | done
+const items = ref([]);
+const idx = ref(0);
+const score = ref(0);
+const combo = ref(0);
+const maxCombo = ref(0);
+const answered = ref(0);
+const remain = ref(DURATION);
+const best = ref(null);        // { score, combo, total }
+const isRecord = ref(false);
+const loadError = ref("");
+const revealing = ref(false);  // 答错展示答案的短暂锁定
+const advanceTimer = ref(null);
+const tickTimer = ref(null);
+const cells = ref(null);
+const catchEl = ref(null);
+const focusTimers = ref([]);
+let mounted = true;
+
+const item = computed(() => items.value[idx.value] || null);
+
+onMounted(async () => {
+  list.value = props.params?.get("list") || "cet4";
+  try {
+    const [d, b] = await Promise.all([
+      api(`/sprint/session?list=${encodeURIComponent(list.value)}`),
+      api("/sprint/best"),
+    ]);
+    if (!mounted) return;
+    items.value = d.items || [];
+    best.value = b.best || null;
+  } catch (err) {
+    if (mounted) loadError.value = err.message || "题目加载失败";
+  }
+  window.addEventListener("keydown", onGlobalKey, true);
+});
+
+onUnmounted(() => {
+  mounted = false;
+  stopTimers();
+  stopAudio();
+  window.removeEventListener("keydown", onGlobalKey, true);
+});
+
+function stopTimers() {
+  if (tickTimer.value) { clearInterval(tickTimer.value); tickTimer.value = null; }
+  if (advanceTimer.value) { clearTimeout(advanceTimer.value); advanceTimer.value = null; }
+  for (const t of focusTimers.value) clearTimeout(t);
+  focusTimers.value = [];
+}
+
+function focusCatch() {
+  const el = catchEl.value;
+  if (el) {
+    el.removeAttribute("readonly");
+    try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+  }
+}
+
+async function start() {
+  if (!items.value.length) return;
+  phase.value = "run";
+  score.value = 0; combo.value = 0; maxCombo.value = 0; answered.value = 0;
+  idx.value = 0; remain.value = DURATION; revealing.value = false;
+  tickTimer.value = setInterval(() => {
+    remain.value--;
+    if (remain.value <= 0) finish();
+  }, 1000);
+  await nextFrame();
+  if (!mounted) return;
+  focusCatch();
+  focusTimers.value = [setTimeout(focusCatch, 200)];
+  play();
+}
+
+function nextWord() {
+  combo.value = 0;
+  revealing.value = false;
+  cells.value?.reset();
+  if (idx.value + 1 >= items.value.length) idx.value = 0;   // 词流循环
+  else idx.value++;
+  play();
+  focusCatch();
+}
+
+function play() {
+  if (item.value) playWord(item.value);
+}
+
+function onGlobalKey(ev) {
+  if (phase.value !== "run" || revealing.value) return;
+  const t = ev.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
+  if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
+  if (ev.key === "Escape") { ev.preventDefault(); play(); return; }
+  if (ev.key === "Backspace") { ev.preventDefault(); cells.value?.backspace(); return; }
+  if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    if (ev.isComposing) return;
+    ev.preventDefault();
+    typeChar(ev.key);
+  }
+}
+
+function onInput(ev) {
+  const ch = ev.data || ev.target.value;
+  ev.target.value = "";
+  if (!ch || phase.value !== "run" || revealing.value || ev.isComposing) return;
+  typeChar(ch);
+}
+
+function typeChar(ch) {
+  if (!cells.value || revealing.value) return;
+  for (const c of ch) cells.value.typeLetter(c);
+  if (cells.value.isFull()) submit();
+}
+
+function submit() {
+  if (!cells.value || revealing.value) return;
+  const right = cells.value.isCorrect();
+  answered.value++;
+  saveResult(right);
+  if (right) {
+    score.value++;
+    combo.value++;
+    maxCombo.value = Math.max(maxCombo.value, combo.value);
+    cells.value.paint(true);
+    sndCombo(combo.value);
+    lockAdvance(320, nextWord);
+  } else {
+    combo.value = 0;
+    cells.value.markWrong();
+    sndWrong();
+    revealing.value = true;
+    lockAdvance(750, nextWord);
+  }
+}
+
+function skip() {
+  if (phase.value !== "run" || revealing.value) return;
+  saveResult(null);
+  nextWord();
+}
+
+/* 结果异步上报，不阻塞冲刺节奏；失败静默丢弃 */
+function saveResult(right) {
+  api("/result", { method: "POST", body: JSON.stringify({
+    list: list.value, id: item.value.id, mode: "sprint",
+    first_right: right, final_right: right, right,
+    outcome: right === null ? "skipped" : "completed",
+  }) }).catch(() => {});
+}
+
+function lockAdvance(ms, fn) {
+  if (advanceTimer.value) clearTimeout(advanceTimer.value);
+  advanceTimer.value = setTimeout(() => { if (mounted && phase.value === "run") fn(); }, ms);
+}
+
+function finish() {
+  stopTimers();
+  stopAudio();
+  phase.value = "done";
+  api("/sprint/best", { method: "POST", body: JSON.stringify({
+    score: score.value, combo: maxCombo.value, total: answered.value,
+  }) }).then((d) => {
+    isRecord.value = Boolean(d.record);
+    best.value = d.best || best.value;
+  }).catch(() => {});
+}
+
+function restart() { location.reload(); }
+function goCatalog() { location.hash = "#/catalog"; }
+
+async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
+</script>
+
+<template>
+  <div class="sprint-page">
+    <!-- 开始页 -->
+    <div v-if="phase === 'start'" class="empty">
+      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚡ 限时冲刺</div>
+      <p v-if="loadError" role="alert" style="color:var(--red);">{{ loadError }}</p>
+      <p v-else>{{ DURATION }} 秒内听音打词，答对越多连击越高，音调随连击上升。</p>
+      <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+      <div class="controls" style="margin-top:16px;">
+        <button class="btn primary big" :disabled="!items.length" @click="start">开始冲刺</button>
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
+    </div>
+
+    <!-- 冲刺中 -->
+    <div v-else-if="phase === 'run'" @pointerdown="focusCatch">
+      <div class="practice-top">
+        <span class="progress-line">得分 {{ score }} · 连击 <b class="combo-num">×{{ combo }}</b></span>
+        <span class="badge sprint-timer" :class="{ urgent: remain <= 10 }" aria-label="剩余时间">⏱ {{ remain }}s</span>
+      </div>
+      <div class="practice-card">
+        <div class="info-line"><span id="meaning"></span></div>
+        <div class="cells-wrap">
+          <WordCells ref="cells" :key="idx" :tokens="item" :submitted="false"
+            :feedback="revealing" practice-mode="assisted"></WordCells>
+        </div>
+        <div id="answer-line" aria-live="polite">
+          <span v-if="revealing" style="color:var(--red);">✗ 答案：<span class="show-word">{{ item.text }}</span></span>
+        </div>
+        <div class="controls">
+          <button class="btn ghost" aria-label="重播发音" @click="play">🔊</button>
+          <button class="btn ghost" :disabled="revealing" aria-label="跳过当前词" @click="skip">跳过</button>
+        </div>
+        <div class="hint">听音打词 · 打对自动下一个 · 打错看一眼答案继续 · Esc 重听</div>
+      </div>
+      <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
+             autocapitalize="off" spellcheck="false" enterkeyhint="done"
+             style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
+             @input="onInput">
+    </div>
+
+    <!-- 结算 -->
+    <div v-else class="empty">
+      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</div>
+      <p>答对 {{ score }} 题 · 最高连击 ×{{ maxCombo }} · 作答 {{ answered }} 次</p>
+      <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+      <div class="controls" style="margin-top:16px;">
+        <button class="btn primary big" @click="restart">再来一轮</button>
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
+    </div>
+  </div>
+</template>
