@@ -24,6 +24,8 @@ const accuracy = computed(() =>
   questions.value.length ? Math.round((score.value / questions.value.length) * 100) : 0);
 
 onMounted(async () => {
+  // 同步段先挂监听：请求失败/卸载时序都不会留下僵尸监听器
+  window.addEventListener("keydown", onKey);
   list.value = props.params?.get("list") || "cet4";
   try {
     const d = await api(`/quiz/session?list=${encodeURIComponent(list.value)}`);
@@ -35,7 +37,6 @@ onMounted(async () => {
     error.value = err.message || "题目加载失败";
     loading.value = false;
   }
-  window.addEventListener("keydown", onKey);
 });
 
 onUnmounted(() => {

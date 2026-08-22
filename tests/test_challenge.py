@@ -27,6 +27,15 @@ def test_quiz_session_caps_at_material_size(client):
     assert d["total"] == 5  # 测试素材共 5 个词条（含重名去重后的 hello~2）
 
 
+def test_quiz_options_have_distinct_texts(client):
+    # 回归：hello 与 hello~2 文本相同，干扰项不能与目标同文，选项间也不能重复
+    d = get(client, "/api/quiz/session?list=test_words&n=30").get_json()
+    for q in d["questions"]:
+        texts = [o["text"] for o in q["options"]]
+        assert len(set(texts)) == len(texts)
+        assert texts.count(q["text"]) == 1
+
+
 def test_quiz_session_prioritizes_due_reviews(client):
     with db() as conn:
         conn.execute(
@@ -71,3 +80,6 @@ def test_sprint_best_validates_score(client):
     assert client.post(f"/api/sprint/best?u={USER}", json={"score": -5}).status_code == 400
     assert client.post(f"/api/sprint/best?u={USER}", json={}).status_code == 400
     assert client.post(f"/api/sprint/best?u={USER}", json={"score": "abc"}).status_code == 400
+    # bool/float 不是合法成绩（int(True)==1、int(3.9)==3 的隐式转换必须拒绝）
+    assert client.post(f"/api/sprint/best?u={USER}", json={"score": True}).status_code == 400
+    assert client.post(f"/api/sprint/best?u={USER}", json={"score": 3.9}).status_code == 400

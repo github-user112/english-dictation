@@ -76,6 +76,7 @@ export function listenOnce({ lang = "en-US", onResult, onError, onEnd } = {}) {
   };
   rec.onerror = (e) => onError && onError(e.error);
   rec.onend = () => onEnd && onEnd();
-  try { rec.start(); } catch { /* 已在运行中 */ }
+  // start 失败必须上报并返回 null，否则调用方会卡在"正在听…"状态
+  try { rec.start(); } catch { onError && onError("start-failed"); return null; }
   return rec;
 }

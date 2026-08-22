@@ -26,10 +26,14 @@ const cells = ref(null);
 const catchEl = ref(null);
 const focusTimers = ref([]);
 let mounted = true;
+let deadline = 0;                 // 基于时间戳计时，后台标签页节流也不会变相暂停
+let locked = false;               // 提交→切词之间的硬锁：防长按 Enter 重复计分/双跳词
 
 const item = computed(() => items.value[idx.value] || null);
 
 onMounted(async () => {
+  // 同步段先挂监听：无论请求成败/卸载时序，onUnmounted 都能成对移除
+  window.addEventListener("keydown", onGlobalKey, true);
   list.value = props.params?.get("list") || "cet4";
   try {
     const [d, b] = await Promise.all([
@@ -42,7 +46,6 @@ onMounted(async () => {
   } catch (err) {
     if (mounted) loadError.value = err.message || "题目加载失败";
   }
-  window.addEventListener("keydown", onGlobalKey, true);
 });
 
 onUnmounted(() => {
@@ -71,14 +74,15 @@ async function start() {
   if (!items.value.length) return;
   phase.value = "run";
   score.value = 0; combo.value = 0; maxCombo.value = 0; answered.value = 0;
-  idx.value = 0; remain.value = DURATION; revealing.value = false;
+  idx.value = 0; remain.value = DURATION; revealing.value = false; locked = false;
+  deadline = Date.now() + DURATION * 1000;
   tickTimer.value = setInterval(() => {
-    remain.value--;
+    remain.value = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     if (remain.value <= 0) finish();
-  }, 1000);
+  }, 250);
+  focusCatch();   // 手势调用栈内同步聚焦，iOS 才会弹出软键盘
   await nextFrame();
   if (!mounted) return;
-  focusCatch();
   focusTimers.value = [setTimeout(focusCatch, 200)];
   play();
 }
@@ -86,6 +90,8 @@ async function start() {
 function nextWord() {
   combo.value = 0;
   revealing.value = false;
+  locked = false;
+  if (advanceTimer.value) { clearTimeout(advanceTimer.value); advanceTimer.value = null; }
   cells.value?.reset();
   if (idx.value + 1 >= items.value.length) idx.value = 0;   // 词流循环
   else idx.value++;
@@ -108,7 +114,7 @@ function play() {
 }
 
 function onGlobalKey(ev) {
-  if (phase.value !== "run" || revealing.value) return;
+  if (phase.value !== "run" || revealing.value || locked) return;
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
   if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
@@ -124,18 +130,19 @@ function onGlobalKey(ev) {
 function onInput(ev) {
   const ch = ev.data || ev.target.value;
   ev.target.value = "";
-  if (!ch || phase.value !== "run" || revealing.value || ev.isComposing) return;
+  if (!ch || phase.value !== "run" || revealing.value || locked || ev.isComposing) return;
   typeChar(ch);
 }
 
 function typeChar(ch) {
-  if (!cells.value || revealing.value) return;
+  if (!cells.value || revealing.value || locked) return;
   for (const c of ch) cells.value.typeLetter(c);
   if (cells.value.isFull()) submit();
 }
 
 function submit() {
-  if (!cells.value || revealing.value) return;
+  if (!cells.value || revealing.value || locked) return;
+  locked = true;   // 从提交到切词之间封死重复入口（长按 Enter / 满格续敲）
   const right = cells.value.isCorrect();
   answered.value++;
   saveResult(right);
@@ -156,7 +163,8 @@ function submit() {
 }
 
 function skip() {
-  if (phase.value !== "run" || revealing.value) return;
+  // locked 期间 advanceTimer 已在排队，再 skip 会双跳吞词
+  if (phase.value !== "run" || revealing.value || locked) return;
   saveResult(null);
   nextWord();
 }

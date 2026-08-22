@@ -21,6 +21,9 @@ def _clamp_int(raw, default, lo, hi):
 
 
 def _int_or_none(raw):
+    # 显式拒绝 bool/float：int(True)==1、int(3.9)==3 都不是合法成绩
+    if isinstance(raw, bool) or not isinstance(raw, (int, str)):
+        return None
     try:
         return int(raw)
     except (TypeError, ValueError):
@@ -65,12 +68,17 @@ def api_quiz_session():
         targets.append(item)
         chosen.add(item["id"])
 
-    all_ids = [i["id"] for i in material]
+    # 干扰项按"去重后的文本"抽样：重复单词（如 hello / hello~2）文本相同，
+    # 若同时出现在选项里，用户点视觉正确的词也会因 id 不同被判错
+    by_text = {}
+    for i in material:
+        by_text.setdefault(i["text"], i)
     questions = []
     for target in targets:
-        k = min(3, len(all_ids) - 1)
-        distractors = random.sample([i for i in all_ids if i != target["id"]], k)
-        options = [target] + [index[d] for d in distractors]
+        pool = [i for t, i in by_text.items() if t != target["text"]]
+        k = min(3, len(pool))
+        distractors = random.sample(pool, k)
+        options = [target] + distractors
         random.shuffle(options)
         questions.append({
             "id": target["id"],

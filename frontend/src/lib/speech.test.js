@@ -90,4 +90,12 @@ describe("listenOnce", () => {
     expect(listenOnce({ onError })).toBeNull();
     expect(onError).toHaveBeenCalledWith("unsupported");
   });
+
+  it("should surface start failures and return null", () => {
+    class BoomSR { start() { throw new Error("busy"); } }
+    window.SpeechRecognition = BoomSR;
+    const onError = vi.fn();
+    expect(listenOnce({ onError })).toBeNull();
+    expect(onError).toHaveBeenCalledWith("start-failed");
+  });
 });
