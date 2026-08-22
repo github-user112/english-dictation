@@ -20,6 +20,7 @@ const lastRight = ref(false);
 const retrying = ref(false);   // 本题答错，等待重输
 const failed = ref(false);     // 本题是否错过（最终提交时告知后端）
 const inputError = ref(false); // 当前尝试已播放过即时错误音
+const peeking = ref(false);    // 正按住 Alt 查看答案（记为答错）
 const firstRight = ref(null);
 const attemptCount = ref(0);
 const saving = ref(false);
@@ -86,6 +87,9 @@ onMounted(async () => {
   focusTimers.value = [setTimeout(focusCatch, 150), setTimeout(focusCatch, 450)];
   document.addEventListener("pointerdown", onDocDown, true);
   window.addEventListener("keydown", onGlobalKey, true);
+  window.addEventListener("keydown", onAltDown, true);
+  window.addEventListener("keyup", onAltUp, true);
+  window.addEventListener("blur", stopPeek);
 });
 
 onUnmounted(() => {
@@ -98,6 +102,9 @@ onUnmounted(() => {
   focusTimers.value = [];
   document.removeEventListener("pointerdown", onDocDown, true);
   window.removeEventListener("keydown", onGlobalKey, true);
+  window.removeEventListener("keydown", onAltDown, true);
+  window.removeEventListener("keyup", onAltUp, true);
+  window.removeEventListener("blur", stopPeek);
 });
 
 async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
@@ -132,6 +139,36 @@ function onGlobalKey(ev) {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
   onKey(ev);
 }
+function onAltDown(ev) {
+  if (ev.key !== "Alt") return;
+  // Alt+Shift/AltGr 等组合键（如输入法切换）不当作偷看，也不拦截默认行为
+  if (ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.getModifierState?.("AltGraph")) return;
+  ev.preventDefault();   // 防止松开 Alt 时触发浏览器菜单栏
+  if (ev.repeat || peeking.value) return;
+  startPeek();
+}
+function onAltUp(ev) {
+  if (ev.key !== "Alt") return;
+  ev.preventDefault();   // Firefox 的菜单栏激活挂在 Alt 松开时，需一并拦截
+  peeking.value = false;
+}
+function stopPeek() { peeking.value = false; }
+function startPeek() {
+  if (!item.value || submitted.value || saving.value) return;
+  peeking.value = true;
+  // 偷看答案按答错计：首答记为错，与打错字母的判定一致
+  if (!failed.value) {
+    failed.value = true;
+    if (firstRight.value === null) {
+      firstRight.value = false;
+      attemptCount.value = 1;
+      if (sessionId.value && !firstAttemptSent.value) {
+        firstAttemptSent.value = true;
+        saveResult("attempt", false).catch(() => { firstAttemptSent.value = false; });
+      }
+    }
+  }
+}
 function clearReplay() {
   if (replayTimer.value) { clearTimeout(replayTimer.value); replayTimer.value = null; }
   audioEl.onended = null;
@@ -165,7 +202,7 @@ function onKey(ev) {
 function onInput(ev) {
   const ch = ev.data || ev.target.value;
   ev.target.value = "";
-  if (!ch || submitted.value || ev.isComposing) return;
+  if (!ch || submitted.value || ev.isComposing || peeking.value) return;
   typeChar(ch);
 }
 function typeChar(ch) {
@@ -354,6 +391,7 @@ function toggleScope() {
     if (!mounted) return;
     cur.value = 0;
     submitted.value = false;
+    peeking.value = false;
     if (items.value.length) {
       replayCount.value = 0;
       resetAttempt();
@@ -379,6 +417,7 @@ function next() {
   retrying.value = false;
   failed.value = false;
   inputError.value = false;
+  peeking.value = false;
   replayCount.value = 0;
   resetAttempt();
   setTimeout(() => {
@@ -473,6 +512,10 @@ function cycleSpeed() {
           ref="cells" :tokens="item" :submitted="submitted" :feedback="retrying || submitted"
           :practice-mode="practiceMode"></component>
       </div>
+      <div class="peek-line" v-if="peeking && !submitted && !retrying && practiceMode !== 'follow'" aria-live="polite">
+        <span class="peek-label">答案：</span><span class="peek-word">{{ item.text }}</span>
+        <span class="peek-note">查看答案已记为答错</span>
+      </div>
       <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
       <div id="answer-line" aria-live="polite">
         <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
@@ -487,7 +530,7 @@ function cycleSpeed() {
         <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
         <button class="btn primary big" id="play-btn" aria-label="播放音频" @click="play">🔊</button>
       </div>
-      <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 自动重播间隔可在设置调整</div>
+      <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 忘了拼写可按住 Alt 看答案（记为答错）· 自动重播间隔可在设置调整</div>
     </div>
     <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"
