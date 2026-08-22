@@ -50,6 +50,23 @@ def test_quiz_session_rejects_sentence_material(client):
     assert get(client, "/api/quiz/session?list=test_sents").status_code == 400
 
 
+def test_quiz_kind_en_zh_options_are_distinct_meanings(client):
+    d = get(client, "/api/quiz/session?list=test_words&n=5&kind=en_zh").get_json()
+    assert d["kind"] == "en_zh"
+    for q in d["questions"]:
+        meanings = [o["meaning"] for o in q["options"]]
+        assert len(set(meanings)) == len(meanings)   # 释义互不相同，无双正确项
+        assert all(meanings)                          # 选项必须带释义
+
+
+def test_quiz_kind_zh_en_passthrough_and_default(client):
+    d = get(client, "/api/quiz/session?list=test_words&n=1&kind=zh_en").get_json()
+    assert d["kind"] == "zh_en"
+    assert d["questions"][0]["kind"] == "zh_en"
+    assert get(client, "/api/quiz/session?list=test_words&n=1").get_json()["kind"] == "audio_en"
+    assert get(client, "/api/quiz/session?list=test_words&n=1&kind=bogus").status_code == 400
+
+
 def test_quiz_session_unknown_list(client):
     assert get(client, "/api/quiz/session?list=nope").status_code == 404
 

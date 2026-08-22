@@ -4,7 +4,19 @@ import { api, playWord, sndRight, sndWrong } from "../lib/core";
 
 const props = defineProps({ params: { type: Object, default: null } });
 
+const KINDS = [
+  { k: "audio_en", label: "听音选词" },   // 音→形
+  { k: "en_zh", label: "听词选义" },      // 音→义
+  { k: "zh_en", label: "看义选词" },      // 义→形
+];
+const HINTS = {
+  audio_en: "听发音，选出正确的单词 · 答对自动下一题 · 快捷键 1-4 · 空格重听",
+  en_zh: "听发音，选出正确的中文意思 · 答对自动下一题 · 快捷键 1-4 · 空格重听",
+  zh_en: "看中文意思，选出正确的单词 · 答对自动下一题 · 快捷键 1-4",
+};
+
 const list = ref("cet4");
+const kind = ref("audio_en");
 const questions = ref([]);
 const qi = ref(0);
 const picked = ref(null);      // 已选中的 option id
@@ -22,21 +34,18 @@ const targetOpt = computed(() =>
 const progress = computed(() => `${qi.value + 1} / ${questions.value.length}`);
 const accuracy = computed(() =>
   questions.value.length ? Math.round((score.value / questions.value.length) * 100) : 0);
+// 义→形 题型：作答前不能出声（会泄露答案）
+const audible = computed(() => kind.value !== "zh_en");
 
 onMounted(async () => {
   // 同步段先挂监听：请求失败/卸载时序都不会留下僵尸监听器
   window.addEventListener("keydown", onKey);
   list.value = props.params?.get("list") || "cet4";
-  try {
-    const d = await api(`/quiz/session?list=${encodeURIComponent(list.value)}`);
-    if (!mounted) return;
-    questions.value = d.questions || [];
-    loading.value = false;
-    if (questions.value.length) play();
-  } catch (err) {
-    error.value = err.message || "题目加载失败";
-    loading.value = false;
-  }
+  const saved = localStorage.getItem("dict_quiz_kind");
+  if (saved && HINTS[saved]) kind.value = saved;
+  const fromUrl = props.params?.get("kind");
+  if (fromUrl && HINTS[fromUrl]) kind.value = fromUrl;
+  await load();
 });
 
 onUnmounted(() => {
@@ -45,7 +54,36 @@ onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
 });
 
+async function load() {
+  loading.value = true;
+  error.value = "";
+  try {
+    const d = await api(`/quiz/session?list=${encodeURIComponent(list.value)}&kind=${kind.value}`);
+    if (!mounted) return;
+    questions.value = d.questions || [];
+    qi.value = 0;
+    picked.value = null;
+    graded.value = false;
+    lastRight.value = false;
+    score.value = 0;
+    loading.value = false;
+    if (questions.value.length) play();
+  } catch (err) {
+    if (!mounted) return;
+    error.value = err.message || "题目加载失败";
+    loading.value = false;
+  }
+}
+
+function switchKind(k) {
+  if (k === kind.value || !HINTS[k]) return;
+  kind.value = k;
+  localStorage.setItem("dict_quiz_kind", k);
+  load();
+}
+
 function play() {
+  if (!audible.value) return;   // 看义选词：作答前不出声
   if (q.value) playWord(q.value);
 }
 
@@ -72,6 +110,7 @@ function answer(opt) {
     nextTimer.value = setTimeout(() => { if (mounted && graded.value) next(); }, 1000);
   } else {
     sndWrong();
+    if (kind.value === "zh_en") playWord(q.value);   // 义→形答错时朗读单词加深印象（无自动跳，播得完整）
   }
   // 计入掌握度与错词本：走旧版结果通道，失败静默（练习数据不阻塞下一题）
   api("/result", { method: "POST", body: JSON.stringify({
@@ -95,35 +134,43 @@ function goCatalog() { location.hash = "#/catalog"; }
 </script>
 
 <template>
-  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="restart">重试</button></div>
+  <div v-if="error && !questions.length" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="restart">重试</button></div>
   <div v-else-if="loading" class="empty">加载中…</div>
   <div v-else-if="!questions.length" class="empty">没有可出题的词</div>
 
   <div v-else-if="q" class="quiz-page">
     <div class="practice-top">
       <span class="progress-line">{{ progress }} · 得分 {{ score }}</span>
-      <span class="badge mode-badge">听音选词</span>
+      <span class="badge mode-badge">{{ KINDS.find((x) => x.k === kind)?.label }}</span>
     </div>
     <div class="practice-card">
-      <div class="info-line"><span id="meaning"></span></div>
-      <div class="quiz-play">
-        <button class="btn primary big" aria-label="播放单词发音" @click="play">🔊</button>
-        <div class="hint">听发音，选出正确的单词 · 答对自动下一题 · 快捷键 1-4 · 空格重听</div>
+      <div class="quiz-kinds" role="tablist" aria-label="题型切换">
+        <button v-for="x in KINDS" :key="x.k" class="btn ghost sm"
+          :class="{ primary: kind === x.k }" :aria-pressed="kind === x.k"
+          @click="switchKind(x.k)">{{ x.label }}</button>
       </div>
       <div id="answer-line" aria-live="polite">
         <span v-if="graded && lastRight" style="color:var(--green);">✔ 答对了！</span>
         <span v-else-if="graded" style="color:var(--red);">
           ✗ 正确答案：<span class="show-word">{{ q.text }}</span>
           <template v-if="targetOpt?.phonetic"> · {{ targetOpt.phonetic }}</template>
+          <template v-if="targetOpt?.meaning && kind !== 'en_zh'"> · {{ targetOpt.meaning }}</template>
         </span>
       </div>
+      <!-- 看义选词：题干是中文释义 -->
+      <div v-if="kind === 'zh_en'" class="quiz-prompt">{{ targetOpt?.meaning || '（该词暂无释义）' }}</div>
+      <div v-else class="quiz-play">
+        <button class="btn primary big" aria-label="播放单词发音" @click="play">🔊</button>
+      </div>
+      <div class="hint">{{ HINTS[kind] }}</div>
       <div class="quiz-options">
         <button v-for="(o, i) in q.options" :key="o.id" class="quiz-option"
           :class="{ picked: picked === o.id, right: graded && o.id === q.id,
                     wrong: graded && picked === o.id && o.id !== q.id }"
-          :disabled="graded" :aria-label="'选项 ' + (i + 1) + '：' + o.text" @click="answer(o)">
-          <b>{{ o.text }}</b>
-          <small v-if="graded && o.meaning">{{ o.meaning }}</small>
+          :disabled="graded" :aria-label="'选项 ' + (i + 1) + '：' + (kind === 'en_zh' ? o.meaning : o.text)"
+          @click="answer(o)">
+          <b>{{ kind === 'en_zh' ? (o.meaning || '（无释义）') : o.text }}</b>
+          <small v-if="graded">{{ kind === 'en_zh' ? o.text : o.meaning }}</small>
         </button>
       </div>
       <div class="controls" v-if="graded && !lastRight">

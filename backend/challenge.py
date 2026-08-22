@@ -30,12 +30,22 @@ def _int_or_none(raw):
         return None
 
 
+QUIZ_KINDS = {"audio_en", "en_zh", "zh_en"}   # 音→形 / 音→义 / 义→形
+
+
 @bp.get("/api/quiz/session")
 def api_quiz_session():
-    """听音选词出题：到期待复习词优先，其余从未学词里补齐，干扰项同词单随机。"""
+    """选词出题：到期待复习词优先，其余从未学词里补齐，干扰项同词单随机。
+
+    kind=audio_en 听音选英文（默认）；kind=en_zh 听音选中文释义；
+    kind=zh_en 看中文释义选英文。
+    """
     user = get_user()
     list_key = request.args.get("list", "cet4")
     n = _clamp_int(request.args.get("n"), CONFIG.get("quiz_questions", 10), 1, 30)
+    kind = request.args.get("kind", "audio_en")
+    if kind not in QUIZ_KINDS:
+        return jsonify({"error": "未知出题类型"}), 400
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":
@@ -76,6 +86,12 @@ def api_quiz_session():
     questions = []
     for target in targets:
         pool = [i for t, i in by_text.items() if t != target["text"]]
+        if kind == "en_zh":
+            # 选项是中文释义：排除与目标同释义的词，避免出现双正确项
+            filtered = [i for i in pool
+                        if (i.get("meaning") or "") != (target.get("meaning") or "")]
+            if len(filtered) >= 3 or len(filtered) >= len(pool):
+                pool = filtered
         k = min(3, len(pool))
         distractors = random.sample(pool, k)
         options = [target] + distractors
@@ -83,12 +99,13 @@ def api_quiz_session():
         questions.append({
             "id": target["id"],
             "text": target["text"],   # playWord 靠 text 拼真人发音 URL
+            "kind": kind,
             "audio": audio_url(list_key, target["id"], target["text"]),
             "options": [{"id": o["id"], "text": o["text"],
                          "phonetic": o.get("phonetic") or "",
                          "meaning": o.get("meaning") or ""} for o in options],
         })
-    return resp({"questions": questions, "total": len(questions)})
+    return resp({"questions": questions, "total": len(questions), "kind": kind})
 
 
 @bp.get("/api/sprint/session")

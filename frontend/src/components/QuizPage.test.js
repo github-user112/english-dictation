@@ -30,7 +30,7 @@ vi.mock("../lib/core", () => ({
   sndWrong: vi.fn(),
 }));
 
-import { playWord } from "../lib/core";
+import { playWord, api } from "../lib/core";
 
 function findOption(wrapper, text) {
   return wrapper.findAll(".quiz-option").find((b) => b.text().includes(text));
@@ -40,6 +40,7 @@ describe("QuizPage", () => {
   beforeEach(() => {
     resultPosts.length = 0;
     playWord.mockClear();
+    localStorage.clear();
   });
   afterEach(() => { vi.useRealTimers(); });
 
@@ -70,6 +71,39 @@ describe("QuizPage", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("本轮完成");
     expect(wrapper.text()).toContain("答对 2 / 2");
+  });
+
+  it("should render zh_en prompts silently and replay the word on a wrong pick", async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(QuizPage, {
+      props: { params: new URLSearchParams("list=test&kind=zh_en") },
+    });
+    await flushPromises();
+    // 作答前不出声（会泄露答案），也没有 🔊 按钮
+    expect(playWord).not.toHaveBeenCalled();
+    expect(wrapper.findAll("button").find((b) => b.attributes("aria-label") === "播放单词发音")).toBeUndefined();
+    expect(wrapper.text()).toContain("苹果");            // 题干是中文释义
+    expect(findOption(wrapper, "apple")).toBeDefined();  // 选项是英文单词
+
+    findOption(wrapper, "pear").trigger("click");        // 答错 → 朗读正确单词
+    await flushPromises();
+    expect(wrapper.text()).toContain("正确答案");
+    expect(playWord).toHaveBeenCalledWith(expect.objectContaining({ text: "apple" }));
+    // 答错无自动跳，手动按钮可见
+    expect(wrapper.findAll("button").find((b) => b.text().includes("下一题"))).toBeDefined();
+  });
+
+  it("should switch question kind and refetch", async () => {
+    vi.useFakeTimers();
+    const wrapper = mount(QuizPage);
+    await flushPromises();
+    const kindBtn = wrapper.findAll("button").find((b) => b.text() === "看义选词");
+    kindBtn.trigger("click");
+    await flushPromises();
+    expect(api).toHaveBeenCalledWith(expect.stringContaining("kind=zh_en"));
+    // 切题型后回到第 1 题、得分清零
+    expect(wrapper.text()).toContain("1 / 2");
+    expect(wrapper.text()).toContain("得分 0");
   });
 
   it("should reveal the answer on a wrong pick and wait for manual next", async () => {
