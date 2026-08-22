@@ -1,5 +1,5 @@
 /* 听音选词页组件测试 */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import QuizPage from "../components/QuizPage.vue";
 
@@ -41,8 +41,10 @@ describe("QuizPage", () => {
     resultPosts.length = 0;
     playWord.mockClear();
   });
+  afterEach(() => { vi.useRealTimers(); });
 
-  it("should grade a correct pick and advance through all questions", async () => {
+  it("should grade a correct pick and auto-advance after 1s", async () => {
+    vi.useFakeTimers();
     const wrapper = mount(QuizPage);
     await flushPromises();
     expect(wrapper.text()).toContain("1 / 2");
@@ -54,27 +56,41 @@ describe("QuizPage", () => {
     expect(wrapper.text()).toContain("答对了");
     expect(wrapper.text()).toContain("得分 1");
     expect(resultPosts[0]).toMatchObject({ id: "apple", right: true, mode: "quiz" });
+    // 选对后没有手动按钮，等 1 秒自动跳
+    expect(wrapper.findAll("button").find((b) => b.text().includes("下一题"))).toBeUndefined();
 
-    await wrapper.findAll("button").find((b) => b.text().includes("下一题")).trigger("click");
+    await vi.advanceTimersByTimeAsync(1000);
     await flushPromises();
     expect(wrapper.text()).toContain("2 / 2");
+
+    // 最后一题答对后自动进入结算页
+    findOption(wrapper, "dog").trigger("click");
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushPromises();
+    expect(wrapper.text()).toContain("本轮完成");
+    expect(wrapper.text()).toContain("答对 2 / 2");
   });
 
-  it("should reveal the answer on a wrong pick and reach the summary", async () => {
+  it("should reveal the answer on a wrong pick and wait for manual next", async () => {
+    vi.useFakeTimers();
     const wrapper = mount(QuizPage);
     await flushPromises();
-    findOption(wrapper, "apple").trigger("click");   // 第 1 题答对
+    findOption(wrapper, "apple").trigger("click");   // 第 1 题答对（自动跳）
     await flushPromises();
-    await wrapper.findAll("button").find((b) => b.text().includes("下一题")).trigger("click");
+    await vi.advanceTimersByTimeAsync(1000);
     await flushPromises();
+    expect(wrapper.text()).toContain("2 / 2");
 
     findOption(wrapper, "fox").trigger("click");     // 第 2 题答错
     await flushPromises();
     expect(wrapper.text()).toContain("正确答案");
     expect(wrapper.text()).toContain("dog");
     expect(resultPosts[1]).toMatchObject({ id: "dog", right: false });
-
-    await wrapper.findAll("button").find((b) => b.text().includes("查看结果")).trigger("click");
+    // 答错不自动跳：手动按钮保持可见
+    const nextBtn = wrapper.findAll("button").find((b) => b.text().includes("查看结果"));
+    expect(nextBtn).toBeDefined();
+    await nextBtn.trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("本轮完成");
     expect(wrapper.text()).toContain("答对 1 / 2");

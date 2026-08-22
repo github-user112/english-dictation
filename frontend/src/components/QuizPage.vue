@@ -9,6 +9,7 @@ const questions = ref([]);
 const qi = ref(0);
 const picked = ref(null);      // 已选中的 option id
 const graded = ref(false);
+const nextTimer = ref(null);
 const lastRight = ref(false);
 const score = ref(0);
 const loading = ref(true);
@@ -39,6 +40,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   mounted = false;
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   window.removeEventListener("keydown", onKey);
 });
 
@@ -61,7 +63,15 @@ function answer(opt) {
   graded.value = true;
   picked.value = opt.id;
   lastRight.value = opt.id === q.value.id;
-  if (lastRight.value) { score.value++; sndRight(); } else { sndWrong(); }
+  if (lastRight.value) {
+    score.value++;
+    sndRight();
+    // 选对 1 秒后自动进下一题；期间手动触发过下一题的话 graded 已复位，定时器不会重复跳
+    if (nextTimer.value) clearTimeout(nextTimer.value);
+    nextTimer.value = setTimeout(() => { if (mounted && graded.value) next(); }, 1000);
+  } else {
+    sndWrong();
+  }
   // 计入掌握度与错词本：走旧版结果通道，失败静默（练习数据不阻塞下一题）
   api("/result", { method: "POST", body: JSON.stringify({
     list: list.value, id: q.value.id, mode: "quiz",
@@ -72,6 +82,7 @@ function answer(opt) {
 
 function next() {
   if (!graded.value) return;
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   qi.value++;               // 越过末尾后 q 为 null，模板切换到结算页
   graded.value = false;
   picked.value = null;
@@ -96,7 +107,7 @@ function goCatalog() { location.hash = "#/catalog"; }
       <div class="info-line"><span id="meaning"></span></div>
       <div class="quiz-play">
         <button class="btn primary big" aria-label="播放单词发音" @click="play">🔊</button>
-        <div class="hint">听发音，选出正确的单词 · 快捷键 1-4 · 空格重听</div>
+        <div class="hint">听发音，选出正确的单词 · 答对自动下一题 · 快捷键 1-4 · 空格重听</div>
       </div>
       <div id="answer-line" aria-live="polite">
         <span v-if="graded && lastRight" style="color:var(--green);">✔ 答对了！</span>
@@ -114,7 +125,7 @@ function goCatalog() { location.hash = "#/catalog"; }
           <small v-if="graded && o.meaning">{{ o.meaning }}</small>
         </button>
       </div>
-      <div class="controls" v-if="graded">
+      <div class="controls" v-if="graded && !lastRight">
         <button class="btn primary big" @click="next">{{ qi + 1 >= questions.length ? '查看结果' : '下一题 →' }}</button>
       </div>
     </div>
