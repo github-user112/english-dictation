@@ -4,13 +4,13 @@ import { mount, flushPromises } from "@vue/test-utils";
 import QuizPage from "../components/QuizPage.vue";
 
 const questions = [
-  { id: "apple", audio: "/audio/lazy/apple.mp3", options: [
+  { id: "apple", text: "apple", audio: "/audio/lazy/apple.mp3", options: [
     { id: "apple", text: "apple", phonetic: "/ˈæp.əl/", meaning: "苹果" },
     { id: "pear", text: "pear", phonetic: "", meaning: "梨" },
     { id: "banana", text: "banana", phonetic: "", meaning: "香蕉" },
     { id: "cat", text: "cat", phonetic: "", meaning: "猫" },
   ] },
-  { id: "dog", audio: "/audio/lazy/dog.mp3", options: [
+  { id: "dog", text: "dog", audio: "/audio/lazy/dog.mp3", options: [
     { id: "dog", text: "dog", phonetic: "", meaning: "狗" },
     { id: "fox", text: "fox", phonetic: "", meaning: "狐狸" },
     { id: "bird", text: "bird", phonetic: "", meaning: "鸟" },
@@ -30,17 +30,24 @@ vi.mock("../lib/core", () => ({
   sndWrong: vi.fn(),
 }));
 
+import { playWord } from "../lib/core";
+
 function findOption(wrapper, text) {
   return wrapper.findAll(".quiz-option").find((b) => b.text().includes(text));
 }
 
 describe("QuizPage", () => {
-  beforeEach(() => { resultPosts.length = 0; });
+  beforeEach(() => {
+    resultPosts.length = 0;
+    playWord.mockClear();
+  });
 
   it("should grade a correct pick and advance through all questions", async () => {
     const wrapper = mount(QuizPage);
     await flushPromises();
     expect(wrapper.text()).toContain("1 / 2");
+    // 回归：playWord 必须拿到带 text 的题目，否则会去播 audio=undefined
+    expect(playWord).toHaveBeenCalledWith(expect.objectContaining({ id: "apple", text: "apple" }));
 
     findOption(wrapper, "apple").trigger("click");
     await flushPromises();

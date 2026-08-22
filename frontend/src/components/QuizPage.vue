@@ -16,6 +16,8 @@ const error = ref("");
 let mounted = true;
 
 const q = computed(() => questions.value[qi.value] || null);
+const targetOpt = computed(() =>
+  q.value ? q.value.options.find((o) => o.id === q.value.id) || null : null);
 const progress = computed(() => `${qi.value + 1} / ${questions.value.length}`);
 const accuracy = computed(() =>
   questions.value.length ? Math.round((score.value / questions.value.length) * 100) : 0);
@@ -99,8 +101,8 @@ function goCatalog() { location.hash = "#/catalog"; }
       <div id="answer-line" aria-live="polite">
         <span v-if="graded && lastRight" style="color:var(--green);">✔ 答对了！</span>
         <span v-else-if="graded" style="color:var(--red);">
-          ✗ 正确答案：<span class="show-word">{{ q.options.find((o) => o.id === q.id)?.text }}</span>
-          <template v-if="q.options.find((o) => o.id === q.id)?.phonetic"> · {{ q.options.find((o) => o.id === q.id).phonetic }}</template>
+          ✗ 正确答案：<span class="show-word">{{ q.text }}</span>
+          <template v-if="targetOpt?.phonetic"> · {{ targetOpt.phonetic }}</template>
         </span>
       </div>
       <div class="quiz-options">

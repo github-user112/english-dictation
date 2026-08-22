@@ -90,7 +90,17 @@ function nextWord() {
   if (idx.value + 1 >= items.value.length) idx.value = 0;   // 词流循环
   else idx.value++;
   play();
+  // 不重挂载 WordCells（靠组件内 watch 重置），避免移动端 DOM 重建把
+  // 隐藏输入框 blur 掉、软键盘收起；这里只做一次补偿聚焦。
   focusCatch();
+}
+
+function onCatchBlur() {
+  // 焦点守护：冲刺中输入框失焦（按钮点击等）立刻补聚焦，保住软键盘
+  if (phase.value !== "run" || !mounted) return;
+  setTimeout(() => {
+    if (mounted && phase.value === "run") focusCatch();
+  }, 60);
 }
 
 function play() {
@@ -206,7 +216,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
       <div class="practice-card">
         <div class="info-line"><span id="meaning"></span></div>
         <div class="cells-wrap">
-          <WordCells ref="cells" :key="idx" :tokens="item" :submitted="false"
+          <WordCells ref="cells" :tokens="item" :submitted="false"
             :feedback="revealing" practice-mode="assisted"></WordCells>
         </div>
         <div id="answer-line" aria-live="polite">
@@ -221,7 +231,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
       <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
              autocapitalize="off" spellcheck="false" enterkeyhint="done"
              style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
-             @input="onInput">
+             @input="onInput" @focusout="onCatchBlur">
     </div>
 
     <!-- 结算 -->

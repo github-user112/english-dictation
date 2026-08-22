@@ -17,8 +17,9 @@ def test_quiz_session_builds_options_with_answer(client):
         assert len({o["id"] for o in q["options"]}) == 4
         assert q["id"] in {o["id"] for o in q["options"]}
         assert q["audio"]
+        assert q["text"]    # playWord 需要 text 拼真人发音 URL
         target = next(o for o in q["options"] if o["id"] == q["id"])
-        assert target["text"]
+        assert target["text"] == q["text"]
 
 
 def test_quiz_session_caps_at_material_size(client):

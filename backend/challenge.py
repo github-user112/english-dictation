@@ -74,6 +74,7 @@ def api_quiz_session():
         random.shuffle(options)
         questions.append({
             "id": target["id"],
+            "text": target["text"],   # playWord 靠 text 拼真人发音 URL
             "audio": audio_url(list_key, target["id"], target["text"]),
             "options": [{"id": o["id"], "text": o["text"],
                          "phonetic": o.get("phonetic") or "",
