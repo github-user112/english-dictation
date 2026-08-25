@@ -11,6 +11,7 @@ const lessonLoading = ref({});
 const selectedLesson = ref({});
 const loading = ref(true);
 const error = ref("");
+const customs = ref([]);
 let mounted = true;
 const words = computed(() => lists.value.filter((l) => l.type === "words"));
 const sents = computed(() => lists.value.filter((l) => l.type === "sentences"));
@@ -39,6 +40,35 @@ async function load() {
   // 先渲染页面（词汇/句子卡片立即可见），课程数据异步加载，不阻塞首屏
   loading.value = false;
   loadLessons();
+  loadCustoms();
+}
+
+async function loadCustoms() {
+  try {
+    const d = await api("/materials/custom");
+    if (mounted) customs.value = d.items || [];
+  } catch { /* 游客/旧接口无此数据时静默 */ }
+}
+
+async function playCustom(m) {
+  try {
+    const d = await api(`/materials/custom/${m.id}`);
+    sessionStorage.setItem("dict_custom", JSON.stringify(d.sentences));
+    sessionStorage.setItem("dict_custom_label", `《${d.title}》`);
+    location.hash = "#/sentence";
+  } catch (err) {
+    alert(err.message || "文章加载失败");
+  }
+}
+
+async function delCustom(m) {
+  if (!confirm(`删除《${m.title}》？`)) return;
+  try {
+    await api(`/materials/custom/${m.id}`, { method: "DELETE" });
+    customs.value = customs.value.filter((x) => x.id !== m.id);
+  } catch (err) {
+    alert(err.message || "删除失败");
+  }
 }
 
 async function loadLessons() {
@@ -157,6 +187,16 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         </div>
       </div>
     </div>
+    <div class="section-title"><span>我的文章</span><small>粘贴任意英文，自动分句变成听写素材 · <a href="#/import" style="color:var(--accent);font-weight:700;">＋ 导入文章</a></small></div>
+    <div v-if="customs.length" class="resume-list">
+      <div v-for="m in customs" :key="m.id" class="resume-card" style="cursor:default;">
+        <span class="t"><b>📄 {{ m.title }}</b><small>{{ m.count }} 句 · {{ m.created_at.slice(0, 10) }}</small></span>
+        <button class="btn ghost sm" aria-label="删除文章" @click="delCustom(m)">删除</button>
+        <button class="btn primary sm" aria-label="开始听写这篇文章" @click="playCustom(m)">👂 开始听写</button>
+      </div>
+    </div>
+    <div v-else class="empty" style="padding:26px;">还没有导入过文章 —— 点右上「＋ 导入文章」试试粘贴一段新闻。</div>
+
     <div v-if="today" class="section-title today-summary">今日：新词 {{ today.new }} · 复习 {{ today.review }} · 背单词对 {{ today.memorize_right }} / 错 {{ today.memorize_wrong }} · 听打首答对 {{ today.right }} / 错 {{ today.wrong }}</div>
   </div>
 </template>

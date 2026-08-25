@@ -6,6 +6,7 @@ import WordCells from "./WordCells.vue";
 const props = defineProps({ params: { type: Object, default: null } });
 
 const DURATION = 60;   // 冲刺时长（秒）
+const RING_LEN = 2 * Math.PI * 22;   // 倒计时环周长（r=22）
 
 const list = ref("cet4");
 const phase = ref("start");    // start | run | done
@@ -30,12 +31,25 @@ let deadline = 0;                 // 基于时间戳计时，后台标签页节�
 let locked = false;               // 提交→切词之间的硬锁：防长按 Enter 重复计分/双跳词
 
 const item = computed(() => items.value[idx.value] || null);
+/* 异步挑战模式：URL 带 ?c=<挑战id> 时进入 */
+const challengeId = new URLSearchParams(location.hash.split("?")[1] || "").get("c") || "";
+const challenge = ref(null);
+const challengeLink = ref("");
+const creatingChallenge = ref(false);
 
 onMounted(async () => {
   // 同步段先挂监听：无论请求成败/卸载时序，onUnmounted 都能成对移除
   window.addEventListener("keydown", onGlobalKey, true);
   list.value = props.params?.get("list") || "cet4";
   try {
+    if (challengeId) {
+      const c = await api(`/sprint/challenge?id=${encodeURIComponent(challengeId)}`);
+      if (!mounted) return;
+      challenge.value = c;
+      list.value = c.list;
+      items.value = c.items || [];
+      return;
+    }
     const [d, b] = await Promise.all([
       api(`/sprint/session?list=${encodeURIComponent(list.value)}`),
       api("/sprint/best"),
@@ -47,6 +61,31 @@ onMounted(async () => {
     if (mounted) loadError.value = err.message || "题目加载失败";
   }
 });
+
+async function submitChallengeScore() {
+  if (!challengeId) return;
+  try {
+    const d = await api(`/sprint/challenge/${challengeId}/score`, {
+      method: "POST",
+      body: JSON.stringify({ score: score.value, combo: maxCombo.value, total: answered.value }),
+    });
+    if (challenge.value) challenge.value.scores = d.scores || [];
+  } catch { /* 挑战可能已过期，不影响结算展示 */ }
+}
+
+async function createChallenge() {
+  if (creatingChallenge.value) return;
+  creatingChallenge.value = true;
+  try {
+    const d = await api(`/sprint/challenge?list=${encodeURIComponent(list.value)}`, { method: "POST" });
+    challengeLink.value = `${location.origin}/#/sprint?c=${d.id}`;
+    await navigator.clipboard?.writeText(challengeLink.value).catch(() => {});
+  } catch (err) {
+    alert(err.message || "创建挑战失败");
+  } finally {
+    creatingChallenge.value = false;
+  }
+}
 
 onUnmounted(() => {
   mounted = false;
@@ -193,6 +232,7 @@ function finish() {
     isRecord.value = Boolean(d.record);
     best.value = d.best || best.value;
   }).catch(() => {});
+  if (challengeId) submitChallengeScore();
 }
 
 function restart() { location.reload(); }
@@ -205,21 +245,50 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
   <div class="sprint-page">
     <!-- 开始页 -->
     <div v-if="phase === 'start'" class="empty">
-      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚡ 限时冲刺</div>
-      <p v-if="loadError" role="alert" style="color:var(--red);">{{ loadError }}</p>
-      <p v-else>{{ DURATION }} 秒内听音打词，答对越多连击越高，音调随连击上升。</p>
-      <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
-      <div class="controls" style="margin-top:16px;">
-        <button class="btn primary big" :disabled="!items.length" @click="start">开始冲刺</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
-      </div>
+      <template v-if="loadError">
+        <p role="alert" style="color:var(--red);">{{ loadError }}</p>
+        <div class="controls" style="margin-top:16px;"><button class="btn primary big" @click="restart">重试</button></div>
+      </template>
+      <template v-else-if="challenge">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚔️ 来自 {{ challenge.owner }} 的冲刺挑战</div>
+        <p>{{ challenge.items.length }} 个词 · 同一条词流，看看谁的手速和耳力更强。</p>
+        <div v-if="challenge.scores?.length" style="max-width:340px;margin:12px auto 0;text-align:left;">
+          <div v-for="(s, i) in challenge.scores" :key="s.name + i" class="pk-row">
+            <span>{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
+            <b style="flex:1;margin-left:8px;">{{ s.name }}</b>
+            <span class="combo-num">×{{ s.combo }}</span>
+            <b style="width:56px;text-align:right;">{{ s.score }}</b>
+          </div>
+        </div>
+        <div class="controls" style="margin-top:16px;">
+          <button class="btn primary big" :disabled="!items.length" @click="start">开始应战</button>
+          <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        </div>
+      </template>
+      <template v-else>
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚡ 限时冲刺</div>
+        <p>{{ DURATION }} 秒内听音打词，答对越多连击越高，音调随连击上升。</p>
+        <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+        <div class="controls" style="margin-top:16px;">
+          <button class="btn primary big" :disabled="!items.length" @click="start">开始冲刺</button>
+          <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        </div>
+      </template>
     </div>
 
     <!-- 冲刺中 -->
     <div v-else-if="phase === 'run'" @pointerdown="focusCatch">
+      <div v-if="remain <= 10" class="urg" aria-hidden="true"></div>
       <div class="practice-top">
-        <span class="progress-line">得分 {{ score }} · 连击 <b class="combo-num">×{{ combo }}</b></span>
-        <span class="badge sprint-timer" :class="{ urgent: remain <= 10 }" aria-label="剩余时间">⏱ {{ remain }}s</span>
+        <span class="progress-line">得分 {{ score }} · 连击 <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">×{{ combo }}</b></Transition></span>
+        <span class="sprint-timer" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
+          <svg viewBox="0 0 52 52" aria-hidden="true">
+            <circle class="st-bg" cx="26" cy="26" r="22"></circle>
+            <circle class="st-fg" cx="26" cy="26" r="22"
+                    :stroke-dasharray="RING_LEN" :stroke-dashoffset="RING_LEN * (1 - remain / DURATION)"></circle>
+          </svg>
+          <b>{{ remain }}<small>s</small></b>
+        </span>
       </div>
       <div class="practice-card">
         <div class="info-line"><span id="meaning"></span></div>
@@ -244,12 +313,33 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
 
     <!-- 结算 -->
     <div v-else class="empty">
-      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</div>
-      <p>答对 {{ score }} 题 · 最高连击 ×{{ maxCombo }} · 作答 {{ answered }} 次</p>
-      <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+      <template v-if="challenge">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚔️ 战报 · 你得到 {{ score }} 分</div>
+        <div style="max-width:340px;margin:12px auto;text-align:left;">
+          <div v-for="(s, i) in challenge.scores || []" :key="s.name + i" class="pk-row">
+            <span>{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
+            <b style="flex:1;margin-left:8px;">{{ s.name }}</b>
+            <span class="combo-num">×{{ s.combo }}</span>
+            <b style="width:56px;text-align:right;">{{ s.score }}</b>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</div>
+        <p>答对 {{ score }} 题 · 最高连击 ×{{ maxCombo }} · 作答 {{ answered }} 次</p>
+        <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+      </template>
+
+      <!-- 发起挑战：生成同题链接 -->
+      <div v-if="!challengeId && challengeLink" class="pk-share">
+        挑战链接已复制，发给好友吧：<br><code>{{ challengeLink }}</code>
+      </div>
       <div class="controls" style="margin-top:16px;">
-        <button class="btn primary big" @click="restart">再来一轮</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        <button class="btn primary big" @click="restart">{{ challengeId ? '再战一局' : '再来一轮' }}</button>
+        <button v-if="!challengeId && !challengeLink" class="btn ghost big" :disabled="creatingChallenge" @click="createChallenge">
+          {{ creatingChallenge ? '生成中…' : '⚔️ 向好友发起挑战' }}
+        </button>
+        <button class="btn ghost big" @click="goCatalog">返回素材库</button>
       </div>
     </div>
   </div>

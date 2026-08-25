@@ -9,6 +9,7 @@ from .auth import get_user, resp
 from .config import AUDIO, CONFIG, MATERIALS, PRACTICE_MODES
 from .db import db
 from .materials import audio_url, find_item, iter_material, load_material
+from .scheduler import review as fsrs_review, days_between
 
 bp = Blueprint("catalog", __name__)
 
@@ -49,12 +50,19 @@ def now():
     return datetime.now().isoformat(timespec="seconds")
 
 
-def int_arg(name, default, minimum=0, maximum=100):
+def clamp_int(raw, default, minimum=0, maximum=100):
+    # 与 challenge._int_or_none 同口径：int(True)==1、int(3.9)==3 不是合法输入
+    if isinstance(raw, bool) or not isinstance(raw, (int, str)):
+        return default
     try:
-        value = int(request.args.get(name, default))
+        value = int(raw)
     except (TypeError, ValueError):
-        value = default
+        return default
     return max(minimum, min(maximum, value))
+
+
+def int_arg(name, default, minimum=0, maximum=100):
+    return clamp_int(request.args.get(name), default, minimum, maximum)
 
 
 def session_context():
@@ -325,7 +333,9 @@ def api_session():
 
 
 def update_word_state(conn, user, list_key, item_id, first_right, final_right, mode, today):
-    if mode == "follow":
+    # 跟打不另计掌握度；选词/冲刺是"再认"而非拼写，不能拿点选结果驱动
+    # 听写状态机与 FSRS（否则答错一次就把 memorized 清零、把词踢回复习队列）
+    if mode in ("follow", "quiz", "sprint"):
         return
     row = conn.execute(
         "SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?", (user, list_key, item_id)
@@ -350,33 +360,48 @@ def update_word_state(conn, user, list_key, item_id, first_right, final_right, m
             state["wrong_count"] += 1
         if state["consecutive_right"] >= CONFIG["known_threshold"]:
             state["status"] = "known"
-            days = 7
         else:
             state["status"] = "learning"
-            days = 1 if state["consecutive_right"] == 1 else 3
     else:
         state["wrong_count"] += 1
         state["consecutive_right"] = 0
         state["status"] = "learning"
-        days = 1
         if state["kind"] == "word":
             state["memorized"] = 0
             state["memorize_count"] = 0
+
+    # ---- FSRS 间隔：由首答/重试/答错推导评级，结合记忆状态算下次间隔 ----
+    grade = 3 if (final_right and first_right) else (2 if final_right else 1)
+    prev_mem = None
+    if row and row["stability"] is not None:
+        prev_mem = {"stability": row["stability"], "difficulty": row["difficulty"]}
+    elapsed = days_between(row["last_seen"], today) if row else 0
+    mem_state, days = fsrs_review(prev_mem, grade, elapsed)
+    state["stability"] = mem_state["stability"]
+    state["difficulty"] = mem_state["difficulty"]
+
     state["last_seen"] = today
     state["next_review"] = (date.fromisoformat(today) + timedelta(days=days)).isoformat()
     conn.execute(
         """INSERT INTO word_state(user,list,item_id,kind,status,wrong_count,right_count,
-               consecutive_right,last_seen,next_review,memorized,memorize_count,last_memorize)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+               consecutive_right,last_seen,next_review,memorized,memorize_count,last_memorize,
+               stability,difficulty)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(user,list,item_id) DO UPDATE SET status=excluded.status,
                wrong_count=excluded.wrong_count,right_count=excluded.right_count,
                consecutive_right=excluded.consecutive_right,last_seen=excluded.last_seen,
                next_review=excluded.next_review,memorized=excluded.memorized,
-               memorize_count=excluded.memorize_count,last_memorize=excluded.last_memorize""",
+               memorize_count=excluded.memorize_count,last_memorize=excluded.last_memorize,
+               stability=excluded.stability,difficulty=excluded.difficulty""",
         (user, list_key, item_id, state["kind"], state["status"], state["wrong_count"],
          state["right_count"], state["consecutive_right"], state["last_seen"],
          state["next_review"], state.get("memorized", 0), state.get("memorize_count", 0),
-         state.get("last_memorize", "")))
+         state.get("last_memorize", ""), state["stability"], state["difficulty"]))
+
+
+def _opt_bool(v):
+    """显式 null 表示"没有作答"，不能与 False（答错）混为一谈。"""
+    return None if v is None else bool(v)
 
 
 @bp.post("/api/result")
@@ -391,14 +416,32 @@ def api_result():
     outcome = data.get("outcome", "completed" if data.get("right") else "skipped")
     if outcome not in {"attempt", "completed", "skipped"}:
         return jsonify({"error": "outcome 无效"}), 400
-    first_right = bool(data.get("first_right", data.get("right") and not data.get("retried")))
-    final_right = bool(data.get("final_right", data.get("right")))
+    if "first_right" in data:
+        first_right = _opt_bool(data["first_right"])
+    else:
+        r = data.get("right")
+        first_right = None if r is None else bool(r and not data.get("retried"))
+    if "final_right" in data:
+        final_right = _opt_bool(data["final_right"])
+    else:
+        r = data.get("right")
+        final_right = None if r is None else bool(r)
     try:
         attempt_count = int(data.get("attempt_count", 1))
     except (TypeError, ValueError):
         return jsonify({"error": "attempt_count 无效"}), 400
     if attempt_count < 1:
         return jsonify({"error": "attempt_count 无效"}), 400
+    # 可选：本题作答耗时（毫秒），用于打字速度曲线；仅接受合理区间
+    duration_ms = None
+    raw_ms = data.get("ms")
+    if isinstance(raw_ms, (int, float)) and not isinstance(raw_ms, bool):
+        duration_ms = max(200, min(600000, int(raw_ms)))
+    # 可选：用户实际敲入的内容（词模式），用于易混词挖掘；截断到 64 字符
+    typed = None
+    raw_typed = data.get("typed")
+    if isinstance(raw_typed, str):
+        typed = raw_typed.strip()[:64] or None
     today = date.today().isoformat()
     stamp = now()
     if not session_id:
@@ -418,9 +461,11 @@ def api_result():
         if outcome == "attempt":
             if item["first_right"] is None:
                 conn.execute(
-                    "UPDATE study_session_item SET first_right=?,attempt_count=?,first_answer_at=? "
+                    "UPDATE study_session_item SET first_right=?,attempt_count=?,first_answer_at=?,"
+                    "last_typed=COALESCE(?,last_typed),first_typed=COALESCE(?,first_typed) "
                     "WHERE session_id=? AND item_id=?",
-                    (1 if first_right else 0, attempt_count, stamp, session_id, item_id))
+                    (1 if first_right else 0, attempt_count, stamp, typed, typed,
+                     session_id, item_id))
                 update_mode_log(conn, today, user, session["practice_mode"], item["phase"],
                                 first_right, None, False)
             return resp({"ok": True, "pending": True})
@@ -429,11 +474,13 @@ def api_result():
         state = "skipped" if skipped else "completed"
         conn.execute(
             "UPDATE study_session_item SET state=?,first_right=COALESCE(first_right,?),final_right=?,"
-            "attempt_count=?,first_answer_at=COALESCE(first_answer_at,?),answered_at=? "
+            "attempt_count=?,first_answer_at=COALESCE(first_answer_at,?),answered_at=?,duration_ms=?,"
+            "last_typed=COALESCE(?,last_typed),first_typed=COALESCE(?,first_typed) "
             "WHERE session_id=? AND item_id=? AND state='pending'",
             (state, None if skipped else (1 if effective_first else 0),
              None if skipped else (1 if final_right else 0), attempt_count,
-             None if skipped else stamp, stamp, session_id, item_id))
+             None if skipped else stamp, stamp,
+             None if skipped else duration_ms, typed, typed, session_id, item_id))
         if skipped:
             update_mode_log(conn, today, user, session["practice_mode"],
                             item["phase"] if item["first_right"] is None else None,
@@ -444,7 +491,7 @@ def api_result():
         else:
             update_mode_log(conn, today, user, session["practice_mode"], None,
                             None, final_right, False)
-        if not skipped:
+        if not skipped and final_right is not None:
             update_word_state(conn, user, session["list"], item_id, effective_first,
                               final_right, session["practice_mode"], today)
         if session["practice_mode"] != "follow":
@@ -501,7 +548,9 @@ def legacy_result(user, data, item_id, first_right, final_right, outcome, today)
         return jsonify({"error": "未知素材"}), 404
     skipped = outcome == "skipped"
     with db() as conn:
-        if not skipped:
+        # 只为素材里真实存在的条目记听写状态：自定义文章的 s0/s1 等伪 id
+        # 在这里被挡下，不再生成幽灵 word_state 行污染错词数/到期复习统计
+        if not skipped and final_right is not None and find_item(list_key, item_id) is not None:
             update_word_state(conn, user, list_key, item_id, first_right, final_right,
                               data.get("mode", "assisted"), today)
         update_mode_log(conn, today, user, data.get("mode", "assisted"), "review",

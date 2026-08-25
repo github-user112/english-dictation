@@ -6,7 +6,7 @@ const page = ref("catalog");
 const TITLES = {
   catalog: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
   quiz: "听音选词", sprint: "限时冲刺",
-  wrong: "错词本", stats: "统计", settings: "设置", account: "账户",
+  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");
 const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
@@ -48,6 +48,7 @@ onUnmounted(() => window.removeEventListener("hashchange", sync));
       <a class="nav-link" :class="{active: page==='catalog'}" href="#/catalog">素材</a>
       <a class="nav-link" :class="{active: page==='wrong'}" href="#/wrong">错词</a>
       <a class="nav-link" :class="{active: page==='stats'}" href="#/stats">统计</a>
+      <a class="nav-link" :class="{active: page==='report'}" href="#/report">报告</a>
       <a class="nav-link" :class="{active: page==='settings'}" href="#/settings">设置</a>
       <a v-if="!Account.loading && !Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">登录 / 注册</a>
       <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn ghost sm" @click="signOut">退出</button></div>

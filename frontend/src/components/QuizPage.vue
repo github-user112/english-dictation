@@ -112,7 +112,8 @@ function answer(opt) {
     sndWrong();
     if (kind.value === "zh_en") playWord(q.value);   // 义→形答错时朗读单词加深印象（无自动跳，播得完整）
   }
-  // 计入掌握度与错词本：走旧版结果通道，失败静默（练习数据不阻塞下一题）
+  // 只计模式统计，不动听写掌握度/错词本/FSRS（选词是再认，拼写口径不同）：
+  // 走旧版结果通道，失败静默（练习数据不阻塞下一题）
   api("/result", { method: "POST", body: JSON.stringify({
     list: list.value, id: q.value.id, mode: "quiz",
     first_right: lastRight.value, final_right: lastRight.value,
@@ -165,6 +166,7 @@ function goCatalog() { location.hash = "#/catalog"; }
       <div class="hint">{{ HINTS[kind] }}</div>
       <div class="quiz-options">
         <button v-for="(o, i) in q.options" :key="o.id" class="quiz-option"
+          :style="{ '--qi': i }"
           :class="{ picked: picked === o.id, right: graded && o.id === q.id,
                     wrong: graded && picked === o.id && o.id !== q.id }"
           :disabled="graded" :aria-label="'选项 ' + (i + 1) + '：' + (kind === 'en_zh' ? o.meaning : o.text)"

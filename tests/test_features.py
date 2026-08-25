@@ -78,12 +78,17 @@ def test_follow_does_not_advance_mastery(client):
     assert row is None
 
 
-def test_completed_results_schedule_reviews_after_one_three_seven_days(client):
+def test_completed_results_schedule_reviews_with_fsrs(client):
+    """FSRS 调度：首答对 → 约 4 天；连对增长；答错收缩到 1 天；状态机不变。"""
     from backend.catalog import now
     from backend.db import db
-
-    expected = ((1, "learning"), (3, "learning"), (7, "known"))
-    for consecutive, (days, status) in enumerate(expected, 1):
+    # FSRS-4.5 黄金值：同日连续首答对时 r=1，官方增长式末项 (e^{w9(1-r)}-1)=0，
+    # 稳定性必须停在初始值 W[2]=3.7145、间隔恒 4 天。
+    # 若回归成漏 "-" 的旧式，同日重复会把稳定性按 ~1.69 倍连乘（间隔漂到 6/8/240+ 天）。
+    expected_intervals = {1: 4, 2: 4, 3: 4}
+    init_good_stability = 3.7145
+    cases = ((1, "learning", True), (2, "learning", True), (3, "known", True))
+    for consecutive, (expected_consecutive, status, first_right) in enumerate(cases, 1):
         session_id = f"schedule-{consecutive}"
         stamp = now()
         with db() as conn:
@@ -94,15 +99,46 @@ def test_completed_results_schedule_reviews_after_one_three_seven_days(client):
                           VALUES(?,?,?,?,?)""",
                          (session_id, 0, "abandon", "word", "review" if consecutive > 1 else "new"))
         response = post(client, "/api/result", {
-            "session_id": session_id, "id": "abandon", "first_right": True,
+            "session_id": session_id, "id": "abandon", "first_right": first_right,
             "final_right": True, "attempt_count": 1, "outcome": "completed",
         })
         assert response.status_code == 200
         with db() as conn:
             row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
                                ("a" * 32, "test_words", "abandon")).fetchone()
-        assert (row["consecutive_right"], row["status"]) == (consecutive, status)
-        assert row["next_review"] == (date.today() + timedelta(days=days)).isoformat()
+        assert (row["consecutive_right"], row["status"]) == (expected_consecutive, status)
+        assert abs(row["stability"] - init_good_stability) < 1e-3   # 同日复习零增长
+        assert row["next_review"] == (
+            date.today() + timedelta(days=expected_intervals[consecutive])).isoformat()
+
+
+def test_fsrs_wrong_answer_shortens_interval(client):
+    from backend.catalog import now
+    from backend.db import db
+
+    session_id = "schedule-wrong"
+    stamp = now()
+    with db() as conn:
+        conn.execute("INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (session_id, "a" * 32, "test_words", "pure", "all", "daily", None,
+                      date.today().isoformat(), 0, "active", stamp, stamp, None))
+        conn.execute("INSERT INTO study_session_item(session_id,seq,item_id,kind,phase) VALUES(?,?,?,?,?)",
+                     (session_id, 0, "apple", "word", "new"))
+    resp = post(client, "/api/result", {
+        "session_id": session_id, "id": "apple", "first_right": False,
+        "final_right": False, "attempt_count": 2, "outcome": "completed",
+        "typed": "aple",
+    })
+    assert resp.status_code == 200
+    with db() as conn:
+        row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
+                           ("a" * 32, "test_words", "apple")).fetchone()
+    assert row["next_review"] == (date.today() + timedelta(days=1)).isoformat()
+    # 错拼已随结果入库，供易混词挖掘
+    with db() as conn:
+        typed = conn.execute("SELECT last_typed FROM study_session_item WHERE session_id=?",
+                             (session_id,)).fetchone()["last_typed"]
+    assert typed == "aple"
 
 
 def test_lesson_session_is_ordered_and_filtered(client):

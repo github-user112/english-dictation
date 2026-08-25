@@ -23,3 +23,7 @@ sentences/*.json
 scripts/ingest_nce_audio.py
 scripts/split_nce_audio.py
 scripts/fix_nce_last_sentences.py
+
+# 设计稿本地字体（Noto SC 可变字体，体积大，不入库；打开 mockups 前自行放置或忽略）
+design/mockups/fonts/
+design/shots/report.txt

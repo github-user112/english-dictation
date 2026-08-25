@@ -130,15 +130,15 @@ function restore(s) {
   if (!s) return;
   input.value = [...(s.input || [])];
   scur.value = Number(s.cursor) || 0;
-  mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
-  extras.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.extras || [])];
+  mark.value = [];    // 恢复快照不还原上次的判错标色，进入时保持干净界面
+  extras.value = [];
 }
-defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, serialize, restore });
+defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, serialize, restore, answerText });
 </script>
 
 <template>
   <div ref="box" class="cells-wrap" style="margin:0;">
-    <span v-if="!showSequence" class="cell word-line current pure-line"
+    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted }"
           :style="{ '--chars': Math.max(10, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(w, i) in displayWords" v-else :key="i">
       <span v-for="(e, k) in extraAt(i)" :key="'extra-' + i + '-' + k" class="cell word-line wrong"

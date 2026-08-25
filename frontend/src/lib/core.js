@@ -181,10 +181,14 @@ export function stopAudio() {
   audioEl.load?.();
 }
 export async function ensureAudio(item) {
-  try {
-    const r = await fetch(item.audio, { method: "HEAD" });
-    if (r.ok) return item.audio;
-  } catch (e) { /* 懒生成 */ }
+  // 自定义文章等素材 audio 为空串：fetch("") 会 HEAD 到页面自身并因 200 误判可用，
+  // 导致永远不回落 TTS；必须先排除空值
+  if (item.audio) {
+    try {
+      const r = await fetch(item.audio, { method: "HEAD" });
+      if (r.ok) return item.audio;
+    } catch (e) { /* 懒生成 */ }
+  }
   return (await api("/tts", { method: "POST", body: JSON.stringify({ text: item.text }) })).url;
 }
 

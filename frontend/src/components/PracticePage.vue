@@ -29,6 +29,7 @@ const loading = ref(true);
 const error = ref("");
 const saveError = ref("");
 const custom = ref(false);
+const customLabel = ref("错词重练");
 const audioCache = ref({});
 const playToken = ref(0);
 const replayTimer = ref(null);
@@ -37,7 +38,10 @@ const focusTimers = ref([]);
 const replayCount = ref(0);
 const cells = ref(null);
 const catchEl = ref(null);
+const itemShownAt = ref(0);   // 当前题出现时刻，用于打字速度统计
 let mounted = true;
+
+function markItemShown() { itemShownAt.value = Date.now(); }
 
 const speed = ref(Settings.get().speed);
 const item = computed(() => items.value[cur.value]);
@@ -51,6 +55,14 @@ const prog = computed(() => {
 const speedLabel = computed(() => speed.value.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
 const settings = computed(() => Settings.get());
 const sessionProgress = ref(null);
+/* 判对后的停留节奏与卡片进度发丝线 */
+const NEXT_DELAY_MS = 1100;
+const pbarWidth = computed(() => {
+  if (!items.value.length) return "0%";
+  const done = completedAtLoad.value + cur.value + (submitted.value && lastRight.value ? 1 : 0);
+  const total = sessionProgress.value?.total || items.value.length;
+  return Math.min(100, Math.round((done / total) * 100)) + "%";
+});
 
 onMounted(async () => {
   const h = location.hash.replace(/^#\/?/, "").split("?");
@@ -62,7 +74,9 @@ onMounted(async () => {
   const c = sessionStorage.getItem("dict_custom");
   if (c) {
     items.value = JSON.parse(c);
+    customLabel.value = sessionStorage.getItem("dict_custom_label") || "错词重练";
     sessionStorage.removeItem("dict_custom");
+    sessionStorage.removeItem("dict_custom_label");
     custom.value = true;
   } else {
     try {
@@ -82,6 +96,7 @@ onMounted(async () => {
     restoreInputSnapshot();
     replayCount.value = 0;
     focusCatch();
+    markItemShown();
     play();
   }
   focusTimers.value = [setTimeout(focusCatch, 150), setTimeout(focusCatch, 450)];
@@ -155,6 +170,8 @@ function onAltUp(ev) {
 function stopPeek() { peeking.value = false; }
 function startPeek() {
   if (!item.value || submitted.value || saving.value) return;
+  // 跟打模式下答案本来就显示在输入框上方，Alt 偷看无从谈起，也不该记错
+  if (practiceMode.value === "follow") return;
   peeking.value = true;
   // 偷看答案按答错计：首答记为错，与打错字母的判定一致
   if (!failed.value) {
@@ -320,7 +337,7 @@ async function submit() {
     }
     failed.value = false;
     clearTimeout(nextTimer.value);
-    nextTimer.value = setTimeout(() => next(), 2000);
+    nextTimer.value = setTimeout(() => next(), NEXT_DELAY_MS);
   } else {
     cells.value.markWrong();
     if (!inputError.value) sndWrong();
@@ -340,12 +357,18 @@ async function submit() {
   }
 }
 async function saveResult(outcome, finalRight) {
+  const ms = itemShownAt.value ? Math.max(200, Date.now() - itemShownAt.value) : undefined;
+  // 词模式下附带实际敲入内容，供易混词挖掘（服务端截断到 64 字符）
+  const typed = mode.value === "word" && cells.value?.answerText
+    ? cells.value.answerText() : undefined;
   return api("/result", { method: "POST", body: JSON.stringify({
     session_id: sessionId.value || undefined,
-    list: list.value, id: item.value.id, mode: practiceMode.value,
+    // 易混词特练/错词重练的条目自带真实来源列表，优先于页面级 list
+    list: item.value.list || list.value, id: item.value.id, mode: practiceMode.value,
     first_right: firstRight.value, final_right: finalRight,
     attempt_count: attemptCount.value, outcome,
     right: finalRight, retried: firstRight.value === false,
+    ms, typed,
   }) });
 }
 async function retrySave() {
@@ -367,7 +390,7 @@ async function retrySave() {
   }
   failed.value = false;
   clearTimeout(nextTimer.value);
-  nextTimer.value = setTimeout(() => next(), 2000);
+  nextTimer.value = setTimeout(() => next(), NEXT_DELAY_MS);
 }
 
 async function loadSession() {
@@ -390,6 +413,7 @@ function toggleScope() {
   loadSession().then(() => {
     if (!mounted) return;
     cur.value = 0;
+    markItemShown();   // 重置后首题重新计时，避免把切换前的停留算进速度统计
     submitted.value = false;
     peeking.value = false;
     if (items.value.length) {
@@ -413,6 +437,7 @@ function next() {
     return;
   }
   cur.value++;
+  markItemShown();
   submitted.value = false;
   retrying.value = false;
   failed.value = false;
@@ -467,12 +492,14 @@ function clearInputSnapshot() {
 }
 function restoreAttempt() {
   const first = item.value?.first_right;
+  // 只恢复“不可覆盖”的首答统计（first_right / attempt_count），
+  // 不还原上次的错误视觉：进入或切题时一律以干净的输入界面开始，
+  // 红格与答案提示只在本次会话内真实答错时出现。
   firstRight.value = first === null || first === undefined ? null : Boolean(first);
   attemptCount.value = Number(item.value?.attempt_count) || 0;
   failed.value = first === false;
-  retrying.value = first === false;
+  retrying.value = false;
   firstAttemptSent.value = first !== null && first !== undefined;
-  if (retrying.value) setTimeout(() => { if (mounted) cells.value?.markWrong(); }, 0);
 }
 function retryLoad() { location.reload(); }
 function cycleSpeed() {
@@ -494,7 +521,7 @@ function cycleSpeed() {
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
   <div v-else @pointerdown="focusCatch">
     <div class="practice-top">
-      <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（错词重练）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span></span>
+      <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（{{ customLabel }}）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span><span class="mini-bar"><i :style="{ width: pbarWidth }"></i></span></span>
       <span class="badge mode-badge">{{ practiceMode === 'pure' ? '纯听写' : practiceMode === 'follow' ? '跟打' : '辅助听写' }}</span>
       <div class="scope-group" v-if="mode === 'word' && !custom">
         <button class="btn ghost sm" :class="{ active: scope === 'all' }" :aria-pressed="scope === 'all'" @click="scope !== 'all' && toggleScope()">全部</button>
@@ -502,7 +529,7 @@ function cycleSpeed() {
       </div>
       <button class="btn ghost" aria-label="调节播放速度" @click="cycleSpeed">{{ speedLabel }}</button>
     </div>
-    <div class="practice-card">
+    <div class="practice-card" :class="{ 'err-state': retrying && !submitted }">
       <div class="info-line">
         <span id="phonetic">{{ practiceMode !== 'pure' && settings.showPhonetic && item.phonetic ? item.phonetic : '' }}</span>
         <span id="meaning">{{ practiceMode !== 'pure' && settings.showMeaning && item.meaning ? item.meaning : '' }}</span>
@@ -519,7 +546,7 @@ function cycleSpeed() {
       <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
       <div id="answer-line" aria-live="polite">
         <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
-        <span v-if="submitted && lastRight">✔ 正确，继续！</span>
+        <span v-if="submitted && lastRight">✔ 正确 · 即将进入下一题</span>
         <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
       </div>
       <SpeechDrill v-if="mode === 'word' && (submitted || retrying)" :text="item.text"></SpeechDrill>

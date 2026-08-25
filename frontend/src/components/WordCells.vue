@@ -11,12 +11,25 @@ const mark = ref([]);
 const extraInput = ref("");
 const ignoredHint = ref("");
 let ignoredTimer = null;
+/* 动效状态：键入弹入(lastHit) / 判对波浪(winFlash) / 判错抖动(errFlash) */
+const lastHit = ref(-1);
+const winFlash = ref(false);
+const errFlash = ref(false);
+let errTimer = null;
 const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback || mark.value.some(Boolean));
 
 const refTokens = computed(() =>
   [...props.tokens.text].map((c) => ({ type: /[a-zA-Z]/.test(c) ? "letter" : "punct", text: c })));
 
-watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; ignoredHint.value = ""; clearTimeout(ignoredTimer); });
+/* 字母序号 → 判对波浪的逐格延迟（--wi） */
+const ordOf = computed(() => {
+  const out = [];
+  let k = 0;
+  for (const t of refTokens.value) out.push(t.type === "letter" ? k++ : -1);
+  return out;
+});
+
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { wcur.value = 0; input.value = []; flash.value = []; mark.value = []; extraInput.value = ""; ignoredHint.value = ""; lastHit.value = -1; winFlash.value = false; errFlash.value = false; clearTimeout(errTimer); });
 
 function letterIdxs() {
   const out = [];
@@ -38,6 +51,7 @@ function typeLetter(ch) {
   const idx = ids[wcur.value];
   input.value[idx] = ch;
   wcur.value++;
+  lastHit.value = idx;
   const wrong = ch.toLowerCase() !== refTokens.value[idx].text.toLowerCase();
   if (props.practiceMode !== "pure") mark.value[idx] = wrong ? "wrong" : "";
   return props.practiceMode !== "pure" && wrong;
@@ -56,7 +70,7 @@ function restore(s) {
   if (!s) return;
   input.value = [...(s.input || [])];
   wcur.value = Number(s.cursor) || 0;
-  mark.value = props.practiceMode === "pure" && !props.feedback ? [] : [...(s.mark || [])];
+  mark.value = [];   // 恢复快照不还原上次的判错标色，进入时保持干净界面
   extraInput.value = s.extraInput || "";
 }
 function backspace() {
@@ -66,14 +80,22 @@ function backspace() {
   }
   if (wcur.value <= 0) return;
   wcur.value--;
+  lastHit.value = -1;
   const idx = letterIdxs()[wcur.value];
   input.value[idx] = "";
   mark.value[idx] = "";
 }
 function paint() {
+  winFlash.value = true;   // 触发逐格波浪点亮
   mark.value = refTokens.value.map((t) => t.type === "punct" ? "" : "right");
 }
-function markWrong() {
+function markWrong(animate = true) {
+  if (animate) {
+    errFlash.value = false;
+    requestAnimationFrame(() => { errFlash.value = true; });
+    clearTimeout(errTimer);
+    errTimer = setTimeout(() => { errFlash.value = false; }, 400);
+  }
   mark.value = refTokens.value.map((t, i) => {
     if (t.type === "punct") return "";
     const mine = (input.value[i] || "").toLowerCase();
@@ -87,23 +109,28 @@ function reset() {
   flash.value = [];
   mark.value = [];
   extraInput.value = "";
+  lastHit.value = -1;
+  winFlash.value = false;
+  errFlash.value = false;
+  clearTimeout(errTimer);
   box.value?.querySelectorAll(".cell").forEach((el) => el.classList.remove("right", "wrong", "miss"));
 }
 function isCorrect() {
   return !extraInput.value && refTokens.value.every((t, i) => t.type === "punct" ||
     (input.value[i] || "").toLowerCase() === t.text.toLowerCase());
 }
-defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull, serialize, restore });
+defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull, serialize, restore, answerText });
 </script>
 
 <template>
-  <div ref="box" class="cells-wrap letter-lines" style="margin:0;">
-    <span v-if="!showSequence" class="cell word-line current pure-line"
+  <div ref="box" class="cells-wrap letter-lines" :class="{ win: winFlash, err: errFlash }" style="margin:0;">
+    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted }"
           :style="{ '--chars': Math.max(6, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(t, i) in refTokens" :key="i">
       <span v-if="showSequence && t.type === 'punct'" class="punct">{{ t.text }}</span>
       <span v-else-if="showSequence" class="cell letter-line"
-            :class="[mark[i] || '', isCurrent(i) ? 'current' : '']">{{ input[i] }}</span>
+            :class="[mark[i] || '', isCurrent(i) ? 'current' : '', lastHit === i ? 'hit' : '']"
+            :style="{ '--wi': ordOf[i] }">{{ input[i] }}</span>
     </template>
     <span v-for="(c, i) in extraInput" v-if="showSequence" :key="'extra-' + i" class="cell letter-line wrong">{{ c }}</span>
     <span v-if="ignoredHint" class="ignored-hint" role="status">{{ ignoredHint }}</span>

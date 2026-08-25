@@ -118,9 +118,25 @@ def api_wrong_remove():
     return resp({"ok": True})
 
 
+def day_streak(days):
+    """连续打卡天数：days 为 ISO 日期字符串可迭代；今天还没练则从昨天起算。"""
+    known = set(days)
+    d = date.today()
+    if d.isoformat() not in known:
+        d -= timedelta(days=1)
+    n = 0
+    while d.isoformat() in known:
+        n += 1
+        d -= timedelta(days=1)
+    return n
+
+
 @bp.get("/api/stats")
 def api_stats():
     u = get_user()
+    # 报告口径是"这一年"（ReportPage 文案），速度/时段统计同样只扫近一年，
+    # 避免 study_session_item 全历史随练习量线性拖慢每次请求
+    since = (date.today() - timedelta(days=370)).isoformat()
     with db() as conn:
         rows = conn.execute("SELECT * FROM daily_log WHERE user=? ORDER BY day", (u,)).fetchall()
         mode_rows = conn.execute(
@@ -128,6 +144,24 @@ def api_stats():
             "SUM(first_wrong_count) first_wrong,SUM(final_right_count) final_right,"
             "SUM(skipped_count) skipped FROM daily_practice_log WHERE user=? GROUP BY practice_mode",
             (u,)).fetchall()
+        wrong = conn.execute("SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0", (u,)).fetchone()["c"]
+        # 打字速度曲线：按天聚合正确完成题的平均耗时（秒）
+        speed = [{"day": r["d"], "sec": round(r["sec"], 2), "n": r["n"]} for r in conn.execute(
+            "SELECT substr(si.answered_at,1,10) d, AVG(si.duration_ms)/1000.0 sec, COUNT(*) n "
+            "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
+            "WHERE s.user=? AND si.state='completed' AND si.final_right=1 "
+            "AND si.duration_ms IS NOT NULL AND si.answered_at>=? GROUP BY d ORDER BY d",
+            (u, since)).fetchall()]
+        # 按小时作答分布（用于学习报告的“黄金时段”）：只算实际完成的题，与速度曲线同口径
+        hours = [0] * 24
+        for r in conn.execute(
+            "SELECT CAST(substr(si.answered_at,12,2) AS INT) h, COUNT(*) c "
+            "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
+            "WHERE s.user=? AND si.answered_at>=? AND si.state='completed' GROUP BY h",
+            (u, since)).fetchall():
+            if 0 <= r["h"] <= 23:
+                hours[r["h"]] = r["c"]
+        due_soon = _due_soon_count(u, conn)
     days = [{"day": r["day"], "new": r["new_count"], "review": r["review_count"],
              "right": r["right_count"], "wrong": r["wrong_count"],
              "memorize_right": r["memorize_right"], "memorize_wrong": r["memorize_wrong"]}
@@ -136,18 +170,7 @@ def api_stats():
     total_w = sum(d["wrong"] for d in days)
     total_mr = sum(d["memorize_right"] for d in days)
     total_mw = sum(d["memorize_wrong"] for d in days)
-    # 连续打卡（今天还没练则从昨天算）
-    streak = 0
-    d = date.today()
-    known = {r["day"] for r in rows}
-    if d.isoformat() not in known:
-        d -= timedelta(days=1)
-    while d.isoformat() in known:
-        streak += 1
-        d -= timedelta(days=1)
-    wrong = 0
-    with db() as conn:
-        wrong = conn.execute("SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0", (u,)).fetchone()["c"]
+    streak = day_streak(r["day"] for r in rows)
     practice_modes = {}
     for row in mode_rows:
         total = row["first_right"] + row["first_wrong"]
@@ -158,8 +181,95 @@ def api_stats():
         }
     return resp({"days": days, "total_right": total_r, "total_wrong": total_w,
                  "total_memorize_right": total_mr, "total_memorize_wrong": total_mw,
+                 "speed": speed, "hours": hours, "due_soon": due_soon,
                  "streak": streak, "wrong_words": wrong,
                  "practice_modes": practice_modes})
+
+
+def _due_soon_count(user, conn, within_days=2):
+    """未来 N 天内（含已逾期）到期的复习词数量，用于遗忘预警。复用调用方的连接。"""
+    cutoff = (date.today() + timedelta(days=within_days)).isoformat()
+    return conn.execute(
+        "SELECT COUNT(*) c FROM word_state WHERE user=? AND status IN ('learning','known') "
+        "AND next_review IS NOT NULL AND next_review<=?", (user, cutoff)).fetchone()["c"]
+
+
+# ---------------- 易混词特训：从真实错拼记录里挖最小对立体 ----------------
+
+def _levenshtein(a, b):
+    """编辑距离。注意：与前端 lib/speech.js 的 levenshtein 归一化不同——
+    前端先剥掉非 a-z 字符再比较，这里用原始小写串（含撇号/连字符）。
+    阈值 ≤3 的口径两侧需保持一致，调整时两处同步。
+    """
+    if a == b:
+        return 0
+    la, lb = len(a), len(b)
+    if not la or not lb:
+        return la + lb
+    prev = list(range(lb + 1))
+    for i in range(1, la + 1):
+        cur = [i] + [0] * lb
+        for j in range(1, lb + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1,
+                         prev[j - 1] + (a[i - 1] != b[j - 1]))
+        prev = cur
+    return prev[lb]
+
+
+@bp.get("/api/confusions")
+def api_confusions():
+    """聚合最近的错拼：word → 常被错打成什么。只保留编辑距离 ≤3 的近似对。"""
+    user = get_user()
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT s.list list_key, si.item_id item_id, si.state state, "
+            "si.first_typed first_typed, si.last_typed typed "
+            "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
+            "WHERE s.user=? AND (si.last_typed IS NOT NULL OR si.first_typed IS NOT NULL) "
+            "ORDER BY si.answered_at DESC LIMIT 2000", (user,)).fetchall()
+
+    agg = {}   # (list,text) -> {"meta", "typos": {typed: count}}
+    for r in rows:
+        # completed 行的 last_typed 一定已被"改对重输"覆盖成正确拼写，
+        # 只有不可覆盖的 first_typed（第一次敲入）才是真错拼；
+        # 未完成行（跳过/中途放弃）的 last_typed 是最后实际输入，仍可参考
+        typed = r["first_typed"] or (r["typed"] if r["state"] != "completed" else None)
+        typed = (typed or "").strip()
+        tl = typed.lower()
+        if len(tl) < 3 or len(tl) > 40:
+            continue
+        m = find_item(r["list_key"], r["item_id"])
+        if not m or m.get("kind") != "word":
+            continue
+        word = m["text"]
+        wl = word.lower()
+        if tl == wl:
+            continue
+        if abs(len(wl) - len(tl)) > 3:   # 长度差已超阈值，省掉整张编辑距离矩阵
+            continue
+        if _levenshtein(wl, tl) > 3:
+            continue
+        key = (r["list_key"], wl)
+        slot = agg.setdefault(key, {"meta": m, "list": r["list_key"], "typos": {}})
+        # 记录原始大小写形式中出现最多的拼法
+        slot["typos"][typed] = slot["typos"].get(typed, 0) + 1
+
+    # 先按总次数排序取前 40，再为入选词补 meta/audio（audio_url 涉及磁盘 stat）
+    entries = []
+    for list_key, slot in ((k[0], v) for k, v in agg.items()):
+        typos = sorted(slot["typos"].items(), key=lambda kv: -kv[1])[:4]
+        total = sum(c for _, c in typos)
+        entries.append((total, slot["meta"]["text"], list_key, slot["meta"], typos))
+    entries.sort(key=lambda e: (-e[0], e[1]))
+    items = [{
+        "id": m["id"], "word": m["text"], "list": list_key,
+        "kind": "word",
+        "phonetic": m.get("phonetic") or "", "meaning": (m.get("meaning") or "")[:40],
+        "audio": audio_url(list_key, m["id"], m["text"]),
+        "total": total,
+        "typos": [{"typed": t, "count": c} for t, c in typos],
+    } for total, _text, list_key, m, typos in entries[:40]]
+    return resp({"items": items, "total": len(entries)})
 
 
 @bp.post("/api/tts")
@@ -169,7 +279,8 @@ def api_tts():
     data = request.get_json(force=True)
     text = (data.get("text") or "").strip()
     voice = data.get("voice") or CONFIG["tts_default_voice"]
-    if not text or len(text) > 200:
+    # 上限须覆盖自定义文章的单句长度（custom.MAX_SENTENCE_LEN=280）
+    if not text or len(text) > 320:
         return jsonify({"error": "text 无效"}), 400
     if voice not in CONFIG["tts_allowed_voices"]:
         return jsonify({"error": "voice 不受支持"}), 400

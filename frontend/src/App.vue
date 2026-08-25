@@ -8,6 +8,8 @@ import QuizPage from "./components/QuizPage.vue";
 import SprintPage from "./components/SprintPage.vue";
 import WrongPage from "./components/WrongPage.vue";
 import StatsPage from "./components/StatsPage.vue";
+import ReportPage from "./components/ReportPage.vue";
+import ImportPage from "./components/ImportPage.vue";
 import SettingsPage from "./components/SettingsPage.vue";
 import AccountPage from "./components/AccountPage.vue";
 import { refreshAccount } from "./lib/account";
@@ -16,7 +18,9 @@ import { stopAudio } from "./lib/core";
 const ROUTES = {
   catalog: CatalogPage, word: PracticePage, sentence: PracticePage,
   memorize: MemorizePage, quiz: QuizPage, sprint: SprintPage,
-  wrong: WrongPage, stats: StatsPage, settings: SettingsPage, account: AccountPage,
+  wrong: WrongPage, stats: StatsPage, report: ReportPage,
+  import: ImportPage,
+  settings: SettingsPage, account: AccountPage,
 };
 const view = ref(CatalogPage);
 const params = ref(new URLSearchParams());

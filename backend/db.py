@@ -1,4 +1,5 @@
 """数据库：连接 / 建表 / 迁移"""
+import json
 import sqlite3
 from contextlib import contextmanager
 
@@ -75,7 +76,7 @@ def init_db():
             kind TEXT NOT NULL, phase TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
             first_right INTEGER, final_right INTEGER,
             attempt_count INTEGER NOT NULL DEFAULT 0,
-            first_answer_at TEXT, answered_at TEXT,
+            first_answer_at TEXT, answered_at TEXT, first_typed TEXT,
             PRIMARY KEY(session_id, item_id), UNIQUE(session_id, seq),
             FOREIGN KEY(session_id) REFERENCES study_session(id) ON DELETE CASCADE
         );
@@ -125,6 +126,34 @@ def init_db():
             combo INTEGER NOT NULL DEFAULT 0,
             total INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS custom_material (
+            id TEXT PRIMARY KEY,
+            user TEXT NOT NULL,
+            title TEXT NOT NULL,
+            sentences TEXT NOT NULL,
+            sentence_count INTEGER,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_custom_material_user
+            ON custom_material(user, created_at);
+        CREATE TABLE IF NOT EXISTS sprint_challenge (
+            id TEXT PRIMARY KEY,
+            owner_user TEXT NOT NULL,
+            owner_name TEXT NOT NULL DEFAULT '',
+            list_key TEXT NOT NULL,
+            items TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS sprint_challenge_score (
+            challenge_id TEXT NOT NULL,
+            user TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            score INTEGER NOT NULL DEFAULT 0,
+            combo INTEGER NOT NULL DEFAULT 0,
+            total INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(challenge_id, user)
         );
         CREATE INDEX IF NOT EXISTS idx_auth_session_user_expiry
             ON auth_session(user_id, expires_at);
@@ -192,4 +221,29 @@ def migrate():
         for col in ("memorize_right", "memorize_wrong"):
             if col not in [r["name"] for r in conn.execute("PRAGMA table_info(daily_log)").fetchall()]:
                 conn.execute(f"ALTER TABLE daily_log ADD COLUMN {col} INTEGER DEFAULT 0")
+        # 打字速度曲线：记录每道完成题的作答耗时（毫秒）
+        if "duration_ms" not in [r["name"] for r in conn.execute("PRAGMA table_info(study_session_item)").fetchall()]:
+            conn.execute("ALTER TABLE study_session_item ADD COLUMN duration_ms INTEGER")
+        # FSRS 记忆状态（听打复习调度）与错拼采集
+        ws_cols = [r["name"] for r in conn.execute("PRAGMA table_info(word_state)").fetchall()]
+        if "stability" not in ws_cols:
+            conn.execute("ALTER TABLE word_state ADD COLUMN stability REAL")
+        if "difficulty" not in ws_cols:
+            conn.execute("ALTER TABLE word_state ADD COLUMN difficulty REAL")
+        if "last_typed" not in [r["name"] for r in conn.execute("PRAGMA table_info(study_session_item)").fetchall()]:
+            conn.execute("ALTER TABLE study_session_item ADD COLUMN last_typed TEXT")
+        # 首次敲入快照：completed 行的 last_typed 会被改对重输覆盖，
+        # 易混词挖掘需要"第一次的错拼"，故单独落列不可覆盖
+        if "first_typed" not in [r["name"] for r in conn.execute("PRAGMA table_info(study_session_item)").fetchall()]:
+            conn.execute("ALTER TABLE study_session_item ADD COLUMN first_typed TEXT")
+        # 我的文章：句子数落列，目录页列表不再为计数反序列化整篇 JSON
+        cm_cols = [r["name"] for r in conn.execute("PRAGMA table_info(custom_material)").fetchall()]
+        if "sentence_count" not in cm_cols:
+            conn.execute("ALTER TABLE custom_material ADD COLUMN sentence_count INTEGER")
+            for row in conn.execute("SELECT id,sentences FROM custom_material").fetchall():
+                try:
+                    n = len(json.loads(row["sentences"]))
+                except (ValueError, TypeError):
+                    n = 0
+                conn.execute("UPDATE custom_material SET sentence_count=? WHERE id=?", (n, row["id"]))
         print("migrate ok")

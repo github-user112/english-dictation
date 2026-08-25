@@ -30,6 +30,7 @@ function start() {
       state.value = "result";
     },
     onError: (err) => {
+      if (err === "aborted") return;   // 用户主动取消，不算失败
       errorMsg.value = err === "not-allowed" ? "需要麦克风权限"
         : err === "no-speech" ? "没听到声音，靠近点再试"
         : err === "unsupported" ? "当前浏览器不支持语音识别"

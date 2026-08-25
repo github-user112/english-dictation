@@ -11,7 +11,8 @@ class TestMiscAPI:
         assert rv.status_code == 400
 
     def test_tts_long_text(self, client):
-        rv = client.post("/api/tts", json={"text": "x" * 201})
+        # 上限 320：须放行自定义文章单句（最长 280），只拦更长的滥用
+        rv = client.post("/api/tts", json={"text": "x" * 321})
         assert rv.status_code == 400
 
     def test_tts_rejects_unapproved_voice(self, client):

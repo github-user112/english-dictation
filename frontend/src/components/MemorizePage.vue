@@ -384,15 +384,17 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       <button class="btn ghost" aria-label="跳过学习，直接自测" @click="startQuiz">跳过学习，直接自测</button>
     </div>
     <div class="practice-card">
-      <div class="flash-card" :class="{ flipped }" role="button" aria-label="点击翻面查看释义" tabindex="0" @click="flip">
-        <div class="face front">
-          <div class="fw">{{ cur.text }}</div>
-          <div class="fp">{{ cur.phonetic }}</div>
+      <Transition name="pop" mode="out-in">
+        <div class="flash-card" :key="cur.text" :class="{ flipped }" role="button" aria-label="点击翻面查看释义" tabindex="0" @click="flip">
+          <div class="face front">
+            <div class="fw">{{ cur.text }}</div>
+            <div class="fp">{{ cur.phonetic }}</div>
+          </div>
+          <div class="face back">
+            <div class="fm">{{ cur.meaning }}</div>
+          </div>
         </div>
-        <div class="face back">
-          <div class="fm">{{ cur.meaning }}</div>
-        </div>
-      </div>
+      </Transition>
       <div class="controls" style="margin-top:16px;">
         <button class="btn ghost" aria-label="播放发音" @click="play">🔊 发音</button>
         <button class="btn primary big" @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
