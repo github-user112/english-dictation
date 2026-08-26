@@ -2,14 +2,10 @@
 import { onMounted, ref } from "vue";
 import { api } from "../lib/core";
 import { refreshProfile } from "../lib/profile";
+import TreeArt from "./TreeArt.vue";
 
-/* 阶段阶梯与 backend/profile.py 的 TREE_ICONS/TREE_LABELS 保持一致 */
-const STAGES = [
-  { icon: "🌰", label: "种子" }, { icon: "🌱", label: "发芽" },
-  { icon: "🌿", label: "幼苗" }, { icon: "🪴", label: "成株" },
-  { icon: "🌳", label: "小树" }, { icon: "🌳", label: "繁茂" },
-  { icon: "🌸", label: "开花" }, { icon: "🍎", label: "硕果" },
-];
+/* 阶段阶梯与 backend/profile.py 的 TREE_LABELS 保持一致 */
+const STAGES = ["种子", "发芽", "幼苗", "成株", "小树", "繁茂", "开花", "硕果"];
 const SEEN_KEY = "dict_tree_stage_v1";
 
 const p = ref(null);
@@ -52,9 +48,8 @@ function statusLine(d) {
     </div>
 
     <div class="practice-card tree-card">
-      <div class="tree-stage" :class="{ wilted: p.tree_wilted, grow: grew }"
-           role="img" :aria-label="`单词树阶段：${p.tree_label}`">
-        <span class="tree-icon">{{ p.tree_icon }}</span>
+      <div class="tree-stage" :class="{ wilted: p.tree_wilted, grow: grew }">
+        <TreeArt :stage="p.tree_stage" :wilted="p.tree_wilted" :size="116"></TreeArt>
         <transition name="combo-pop"><span v-if="grew" class="tree-grew">长大了！</span></transition>
       </div>
       <p class="hint">{{ statusLine(p) }}</p>
@@ -74,11 +69,12 @@ function statusLine(d) {
       </div>
     </div>
 
-    <!-- 阶段阶梯 -->
+    <!-- 阶段阶梯：每个节点是当阶段的小树剪影 -->
     <div class="tree-ladder" aria-hidden="true">
-      <span v-for="(s, i) in STAGES" :key="s.label" class="ladder-node"
+      <span v-for="(label, i) in STAGES" :key="label" class="ladder-node"
             :class="{ reached: i <= p.tree_stage, current: i === p.tree_stage }">
-        <b>{{ s.icon }}</b><small>{{ s.label }}</small>
+        <span class="ladder-art"><TreeArt :stage="i" :size="40"></TreeArt></span>
+        <small>{{ label }}</small>
       </span>
     </div>
 

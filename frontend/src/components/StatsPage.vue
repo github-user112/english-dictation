@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { api } from "../lib/core";
 import { activity } from "../lib/stats";
 import { Profile, refreshProfile } from "../lib/profile";
+import TreeArt from "./TreeArt.vue";
 
 const stats = ref(null);
 const error = ref("");
@@ -156,7 +157,9 @@ function checkNewBadges() {
             经验 {{ Profile.xp }}<template v-if="Profile.nextLevelXp != null"> · 距下一级还差 <b>{{ Profile.nextLevelXp - Profile.xp }}</b></template><template v-else> · 已达最高称号 🎉</template>
           </p>
           <a class="tree-mini" href="#/tree" :class="{ wilted: Profile.treeWilted }">
-            <span class="tm-icon" aria-hidden="true">{{ Profile.treeIcon }}</span>
+            <span class="tm-icon" aria-hidden="true">
+              <TreeArt :stage="Profile.treeStage" :wilted="Profile.treeWilted" :size="34"></TreeArt>
+            </span>
             <span class="tm-body"><b>单词树 · {{ Profile.treeLabel }}</b>
               <small>连续活跃 {{ Profile.streak }} 天 · 累计 {{ Profile.totalActiveDays }} 天{{ Profile.treeWilted ? " · 枯萎了，快去浇水" : (Profile.treeNeedsWater ? " · 今天还没浇水" : "") }}</small>
             </span>

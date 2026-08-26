@@ -1252,3 +1252,17 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
   outline: none; border-color: var(--type-text);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--type-text), transparent 84%);
 }
+
+/* ---- 单词树重绘：TreeArt SVG 手绘树替换 emoji ---- */
+/* 枯萎观感由组件内部负责（去饱和+垂头），容器层的旧滤镜撤掉避免双重发灰 */
+.tree-stage.wilted { filter: none; opacity: 1; }
+.tree-mini.wilted .tm-icon { filter: none; }
+.tree-mini .tm-icon { display: grid; place-items: center; }
+.tree-stage .tree-art { display: block; }
+/* 阶段阶梯：节点是当阶段的小树剪影 */
+.ladder-node .ladder-art {
+  display: grid; place-items: center; height: 46px;
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+.ladder-node.current .ladder-art { transform: scale(1.24); }
+.ladder-node.current small { color: var(--accent-strong); font-weight: 800; }
