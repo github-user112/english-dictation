@@ -46,17 +46,17 @@ const s = props.stage;
     </g>
 
     <!-- 树干与树枝（4 阶段起） -->
-    <path d="M56.6 102 C58 88 58.4 74 59.3 60 L60.7 60 C61.6 74 62 88 63.4 102 Z"
+    <path d="M57.2 102 C58.2 88 58.5 74 59.3 60 L60.7 60 C61.5 74 61.8 88 62.8 102 Z"
           class="trunk gp" :class="{ on: s >= 4 }" style="--d:.05s"></path>
-    <path d="M60 68 C54.5 64 50.5 60.5 47.5 56.5" class="branch" :class="{ on: s >= 5 }" style="--d:.12s"></path>
-    <path d="M60 68 C65.5 64 69.5 60.5 72.5 56.5" class="branch" :class="{ on: s >= 5 }" style="--d:.18s"></path>
+    <path d="M60 68 C54.5 64 50.5 60.5 47.5 56.5" class="branch gp" :class="{ on: s >= 5 }" style="--d:.12s"></path>
+    <path d="M60 68 C65.5 64 69.5 60.5 72.5 56.5" class="branch gp" :class="{ on: s >= 5 }" style="--d:.18s"></path>
 
     <!-- 树冠：4 阶段主团，5 阶段铺满，随风轻摆 -->
     <g class="canopy" :class="{ on: s >= 4 }">
       <circle cx="60" cy="48" r="15" class="c-main gp" :class="{ on: s >= 4 }" style="--d:.12s"></circle>
-      <circle cx="46.5" cy="55" rx="9.5" ry="9" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.2s"></circle>
-      <circle cx="73.5" cy="55" rx="9.5" ry="9" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.28s"></circle>
-      <circle cx="60" cy="36.5" rx="10.5" ry="10" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.36s"></circle>
+      <ellipse cx="46.5" cy="55" rx="9.5" ry="9" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.2s"></ellipse>
+      <ellipse cx="73.5" cy="55" rx="9.5" ry="9" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.28s"></ellipse>
+      <ellipse cx="60" cy="36.5" rx="10.5" ry="10" class="c-main gp" :class="{ on: s >= 5 }" style="--d:.36s"></ellipse>
       <circle cx="52.5" cy="42" r="6" class="c-light gp" :class="{ on: s >= 5 }" style="--d:.42s"></circle>
     </g>
 
@@ -93,13 +93,13 @@ const s = props.stage;
 
 .tree-art .soil { fill: color-mix(in srgb, var(--green) 16%, var(--panel3)); }
 .tree-art .grass { stroke: var(--green); stroke-width: 2; stroke-linecap: round; opacity: 0; transition: opacity var(--dur-3); }
-.tree-art .grass.on { opacity: .8; }
+.tree-art .grass.on { opacity: .55; }
 .tree-art .stem { stroke: var(--green); stroke-width: 3; stroke-linecap: round; }
 .tree-art .leaf { fill: var(--green); }
 .tree-art .trunk, .tree-art .branch { fill: #8a5f3f; stroke: #8a5f3f; }
 .tree-art .branch { fill: none; stroke-width: 3; stroke-linecap: round; }
 .tree-art .c-main { fill: var(--green); }
-.tree-art .c-light { fill: #fff; opacity: .14; }
+.tree-art .c-light { fill: #fff; fill-opacity: .14; }   /* fill-opacity：不被 .gp.on 的 opacity 覆盖 */
 .tree-art .petal { fill: var(--accent); }
 .tree-art .heart { fill: var(--panel); }
 .tree-art .apple { fill: var(--red); }
