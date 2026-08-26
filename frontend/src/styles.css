@@ -1128,8 +1128,9 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 }
 
 /* ---- 3.8 英中配对消消乐 ---- */
+/* 上边距取正值：daily-banner 的下边距只有 6px，负值会叠进上一条横幅 */
 .fun-banner {
-  margin-top: -18px;
+  margin-top: 10px;
   border-color: color-mix(in srgb, var(--yellow), transparent 55%);
   background: linear-gradient(120deg, color-mix(in srgb, var(--yellow), transparent 88%), var(--panel));
 }
