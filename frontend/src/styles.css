@@ -1214,7 +1214,7 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 .quiz-page .quiz-play { margin: 14px 0 18px; }
 .quiz-page .quiz-prompt { margin: 22px 0 12px; }
 .quiz-page .quiz-options { gap: 13px; margin-top: 2px; }
-.quiz-page .hint { margin-top: 16px; }
+.quiz-page .hint { margin-top: 16px; margin-bottom: 14px; }
 /* 「下一题 →」按钮行与选项网格拉开距离 */
 .quiz-page .controls { margin-top: 24px; }
 .daily-done-title {
@@ -1232,4 +1232,22 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 
 @media (max-width: 620px) {
   .daily-done .grid-cell { width: 22px; height: 22px; border-radius: 7px; }
+}
+
+/* ---- 原生控件跟随主题：暗色下 select/下拉列表不再用 UA 亮色渲染 ---- */
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* 每日挑战右上角词库切换：融进所在的主题色胶囊，不再是一块异色灰底 */
+.daily-list-select {
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--panel), transparent 45%);
+  color: inherit;
+  border-radius: 7px; padding: 2px 6px; font-size: 12px; font-family: inherit;
+  transition: background var(--dur-1), border-color var(--dur-1);
+}
+.daily-list-select:hover { border-color: color-mix(in srgb, var(--type-text), transparent 55%); }
+.daily-list-select:focus {
+  outline: none; border-color: var(--type-text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--type-text), transparent 84%);
 }

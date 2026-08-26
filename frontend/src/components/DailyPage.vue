@@ -363,9 +363,6 @@ function savePoster() {
 </template>
 
 <style scoped>
-.daily-list-select {
-  border: 1px solid var(--border); background: var(--panel2); color: var(--text);
-  border-radius: 8px; padding: 2px 6px; font-size: 12px; font-family: inherit;
-}
-.daily-kind-tag { font-style: normal; color: var(--dim2); margin-left: 8px; }
+/* 词库切换的配色在全局 styles.css（跟随主题胶囊），这里只留题型标签 */
+.daily-kind-tag { font-style: normal; color: inherit; opacity: .75; margin-left: 8px; }
 </style>
