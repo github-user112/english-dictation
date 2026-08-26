@@ -31,11 +31,21 @@ def api_achievements():
             "SELECT COUNT(*) c FROM word_state WHERE user=? AND memorized=1", (user,)).fetchone()["c"]
         sprint = conn.execute(
             "SELECT score, combo FROM sprint_best WHERE user=?", (user,)).fetchone()
+        dc_days = [r["day"] for r in conn.execute(
+            "SELECT day FROM daily_challenge WHERE user=? ORDER BY day", (user,)).fetchall()]
+        dc_best = conn.execute(
+            "SELECT COALESCE(MAX(score),0) m FROM daily_challenge WHERE user=?",
+            (user,)).fetchone()["m"]
+        practice_days = {r["day"] for r in conn.execute(
+            "SELECT DISTINCT day FROM daily_practice_log WHERE user=?", (user,))}
 
     first_attempts = (first["fr"] or 0) + (first["fw"] or 0)
     accuracy = (first["fr"] / first_attempts) if first_attempts else 0
     sprint_score = sprint["score"] if sprint else 0
     sprint_combo = sprint["combo"] if sprint else 0
+    dc_streak = day_streak(dc_days)
+    # 树的成长口径：听打/背诵打卡与选词、冲刺、每日挑战活跃日的 union（见 backend/profile.py）
+    activity_streak = day_streak(set(dc_days) | {r["day"] for r in daily} | practice_days)
 
     # id, 图标, 标题, 描述, 当前进度, 目标（进度>=目标 即解锁）
     defs = [
@@ -53,6 +63,10 @@ def api_achievements():
         ("sniper-90", "🎖️", "神射手", "首答正确率 ≥90%（≥100 次首答）",
          round(accuracy * 100) if first_attempts >= 100 else 0, 90),
         ("memorize-100", "🧠", "背词机器", "背下 100 个词", memorized, 100),
+        ("daily-streak-7", "🗓️", "每日之约", "每日挑战连续 7 天", dc_streak, 7),
+        ("daily-perfect", "🌟", "十全十美", "每日挑战一次全对（≥10 题）", dc_best, 10),
+        ("tree-full", "🌳", "枝繁叶茂", "连续活跃 7 天让小树结果",
+         min(activity_streak, 7), 7),
     ]
     return resp({"badges": [
         {"id": bid, "icon": icon, "title": title, "desc": desc,

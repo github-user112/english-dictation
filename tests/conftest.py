@@ -96,6 +96,7 @@ def app(tmp_path):
         patch("backend.catalog.CONFIG", test_config),
         patch("backend.challenge.MATERIALS", test_materials),
         patch("backend.challenge.CONFIG", test_config),
+        patch("backend.daily.MATERIALS", test_materials),
         patch("backend.memorize.MATERIALS", test_materials),
         patch("backend.memorize.CONFIG", test_config),
         patch("backend.misc.AUDIO", audio_path),

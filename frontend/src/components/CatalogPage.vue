@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, Settings } from "../lib/core";
+import { Profile, refreshProfile } from "../lib/profile";
 
 const lists = ref([]);
 const today = ref(null);
@@ -41,6 +42,8 @@ async function load() {
   loading.value = false;
   loadLessons();
   loadCustoms();
+  // 每日横幅状态强刷：从每日挑战页回来后能立刻看到"已完成"
+  refreshProfile(true).catch(() => {});
 }
 
 async function loadCustoms() {
@@ -145,6 +148,18 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div><b>{{ today.memorize_right }}</b><span>背诵答对</span></div>
       </div>
     </section>
+    <!-- 每日挑战横幅：每天一个固定回来的理由 -->
+    <a v-if="Profile.ready" class="daily-banner" href="#/daily"
+       :aria-label="Profile.dailyDoneToday ? '每日挑战今日已完成' : '开始每日挑战'">
+      <span class="db-icon" aria-hidden="true">🗓️</span>
+      <span class="db-body">
+        <b>今日词力 · 每日挑战</b>
+        <small>{{ Profile.dailyDoneToday
+          ? `今天已完成 · 连续 ${Profile.dailyStreak} 天，重玩不计分`
+          : "10 道全站同题 · 完成即给小树浇水" }}</small>
+      </span>
+      <em class="db-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</em>
+    </a>
     <template v-if="active.length">
       <div class="section-title"><span>继续学习</span><small>从上次停下的地方开始</small></div>
       <div class="resume-list">

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import { api } from "../lib/core";
 import { activity, goldenHour } from "../lib/stats";
+import { PALETTES, currentTheme, roundRect } from "../lib/poster";
 
 const stats = ref(null);
 const error = ref("");
@@ -56,26 +57,7 @@ watch(view, async (v) => {
   drawPoster();
 });
 
-/* 海报双主题调色板：与 styles.css 的 tokens 保持一致 */
-function currentTheme() {
-  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
-}
-const PALETTES = {
-  dark: {
-    bgTop: "#0e1631", bgMid: "#0b1020", bgBottom: "#070a14",
-    glow: "rgba(245,168,60,.22)", grid: "rgba(158,174,222,.07)",
-    title: "#f2efe6", sub: "#a7b0c8", dim: "#667089",
-    big: "#ffd37a", cardStroke: "rgba(158,174,222,.18)", cardFill: "rgba(27,35,64,.55)",
-    label: "#a7b0c8", num: "#f2efe6",
-  },
-  light: {
-    bgTop: "#fffdf8", bgMid: "#f3efe7", bgBottom: "#eae4d6",
-    glow: "rgba(217,138,29,.16)", grid: "rgba(31,42,66,.06)",
-    title: "#1d2436", sub: "#5c6579", dim: "#9aa0b0",
-    big: "#b06e0e", cardStroke: "rgba(31,42,66,.15)", cardFill: "rgba(255,255,255,.72)",
-    label: "#5c6579", num: "#1d2436",
-  },
-};
+/* 双主题调色板与圆角路径已抽到 lib/poster.js，与 DailyPage 共用 */
 
 /* 预览画布按显示尺寸渲染即可；全分辨率（dpr=2，约 18MB 位图）只在保存时离屏出一次 */
 function paintPoster(cv, v, dpr, P) {
@@ -137,15 +119,6 @@ function drawPoster() {
   const v = view.value;
   if (!cv || !v) return;
   paintPoster(cv, v, 1, PALETTES[currentTheme()]);   // CSS 显示约 400px 宽，900px 内部宽度已足够清晰
-}
-function roundRect(g, x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
 }
 
 /* ---- 打卡海报下载：离屏重绘 dpr=2 全分辨率再导出 ---- */

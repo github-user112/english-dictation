@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request, send_from_directory
 
-from . import achievements, auth_routes, catalog, challenge, custom, db as dbmod, memorize, misc
+from . import achievements, auth_routes, catalog, challenge, custom, daily, db as dbmod, memorize, misc, profile
 from .auth import csrf_valid, legacy_account_protected
 from .config import STATIC_DIR
 from .materials import MaterialUnavailable
@@ -17,7 +17,7 @@ def create_app(*, static_dir=None):
     app = Flask(__name__, static_folder=str(asset_root))
     dbmod.init_db()
     dbmod.migrate()
-    for mod in (achievements, auth_routes, catalog, challenge, custom, memorize, misc):
+    for mod in (achievements, auth_routes, catalog, challenge, custom, daily, memorize, misc, profile):
         app.register_blueprint(mod.bp)
 
     @app.before_request

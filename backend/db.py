@@ -155,6 +155,18 @@ def init_db():
             updated_at TEXT NOT NULL,
             PRIMARY KEY(challenge_id, user)
         );
+        CREATE TABLE IF NOT EXISTS daily_challenge (
+            day TEXT NOT NULL,
+            user TEXT NOT NULL,
+            list_key TEXT NOT NULL,
+            score INTEGER NOT NULL DEFAULT 0,
+            total INTEGER NOT NULL DEFAULT 0,
+            detail TEXT NOT NULL DEFAULT '[]',
+            completed_at TEXT NOT NULL,
+            PRIMARY KEY(day, user)
+        );
+        CREATE INDEX IF NOT EXISTS idx_daily_challenge_user
+            ON daily_challenge(user, day);
         CREATE INDEX IF NOT EXISTS idx_auth_session_user_expiry
             ON auth_session(user_id, expires_at);
         CREATE INDEX IF NOT EXISTS idx_word_state_review
@@ -171,6 +183,8 @@ def init_db():
             ON study_session_item(session_id, state, seq);
         CREATE INDEX IF NOT EXISTS idx_daily_practice_user_day
             ON daily_practice_log(user, day);
+        CREATE INDEX IF NOT EXISTS idx_daily_log_user
+            ON daily_log(user, day);
         """)
 
 

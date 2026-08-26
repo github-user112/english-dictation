@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { api } from "../lib/core";
 import { activity } from "../lib/stats";
+import { Profile, refreshProfile } from "../lib/profile";
 
 const stats = ref(null);
 const error = ref("");
@@ -46,6 +47,8 @@ async function load() {
     error.value = err.message || "统计加载失败";
     return;
   }
+  // 词力档案独立加载：失败只隐藏等级卡，不拖垮整页统计
+  refreshProfile(true).catch(() => {});
   // 徽章独立加载：成就接口故障只隐藏徽章墙，不拖垮整页统计
   try {
     const a = await api("/achievements");
@@ -134,6 +137,35 @@ function checkNewBadges() {
       <div class="stat-card"><div class="num">{{ stats.total_wrong }}</div><div class="lab">累计答错</div></div>
       <div class="stat-card"><div class="num">{{ stats.wrong_words }}</div><div class="lab">错词本</div></div>
     </div>
+    <!-- 词力等级：全程可见的成长线；小树入口 -->
+    <template v-if="Profile.ready">
+      <div class="section-title">词力等级<small>听打 · 背诵 · 选词 · 冲刺 · 每日挑战都算经验</small></div>
+      <div class="stat-card level-card">
+        <div class="donut-chart" role="img" :aria-label="`词力等级 ${Profile.level} 级 ${Profile.title}`">
+          <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+            <circle cx="66" cy="66" r="52" fill="none" stroke="var(--panel3)" stroke-width="12"></circle>
+            <circle class="dn-fg" cx="66" cy="66" r="52" fill="none" stroke-width="12"
+                    :stroke-dasharray="DONUT_LEN"
+                    :stroke-dashoffset="donutGrown ? DONUT_LEN * (1 - Profile.levelProgress) : DONUT_LEN"></circle>
+          </svg>
+          <b>Lv.{{ Profile.level }}</b>
+          <small>{{ Profile.title }}</small>
+        </div>
+        <div class="level-side">
+          <p class="level-xp">
+            经验 {{ Profile.xp }}<template v-if="Profile.nextLevelXp != null"> · 距下一级还差 <b>{{ Profile.nextLevelXp - Profile.xp }}</b></template><template v-else> · 已达最高称号 🎉</template>
+          </p>
+          <a class="tree-mini" href="#/tree" :class="{ wilted: Profile.treeWilted }">
+            <span class="tm-icon" aria-hidden="true">{{ Profile.treeIcon }}</span>
+            <span class="tm-body"><b>单词树 · {{ Profile.treeLabel }}</b>
+              <small>连续活跃 {{ Profile.streak }} 天 · 累计 {{ Profile.totalActiveDays }} 天{{ Profile.treeWilted ? " · 枯萎了，快去浇水" : (Profile.treeNeedsWater ? " · 今天还没浇水" : "") }}</small>
+            </span>
+            <em aria-hidden="true">→</em>
+          </a>
+        </div>
+      </div>
+    </template>
+
     <div class="section-title">首答真实统计</div>
     <div class="stat-cards">
       <div v-for="(m, key) in stats.practice_modes" :key="key" class="stat-card">

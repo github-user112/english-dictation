@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, playWord, sndWrong, sndCombo, stopAudio } from "../lib/core";
+import { ghostScore } from "../lib/progress";
 import WordCells from "./WordCells.vue";
 
 const props = defineProps({ params: { type: Object, default: null } });
@@ -18,6 +19,8 @@ const maxCombo = ref(0);
 const answered = ref(0);
 const remain = ref(DURATION);
 const best = ref(null);        // { score, combo, total }
+const ghost = ref(0);          // 幽灵的实时期望分（个人最佳按均匀配速换算）
+const ghostTarget = ref(0);    // 开局捕获的个人最佳分；finish 更新 best 不影响本局对比
 const isRecord = ref(false);
 const loadError = ref("");
 const revealing = ref(false);  // 答错展示答案的短暂锁定
@@ -31,6 +34,7 @@ let deadline = 0;                 // 基于时间戳计时，后台标签页节�
 let locked = false;               // 提交→切词之间的硬锁：防长按 Enter 重复计分/双跳词
 
 const item = computed(() => items.value[idx.value] || null);
+const ghostDelta = computed(() => score.value - ghost.value);   // 正=领先
 /* 异步挑战模式：URL 带 ?c=<挑战id> 时进入 */
 const challengeId = new URLSearchParams(location.hash.split("?")[1] || "").get("c") || "";
 const challenge = ref(null);
@@ -114,9 +118,13 @@ async function start() {
   phase.value = "run";
   score.value = 0; combo.value = 0; maxCombo.value = 0; answered.value = 0;
   idx.value = 0; remain.value = DURATION; revealing.value = false; locked = false;
+  // 开局捕获幽灵目标分：finish() 更新 best 不影响本局的对手
+  ghostTarget.value = best.value && best.value.score > 0 ? best.value.score : 0;
+  ghost.value = 0;
   deadline = Date.now() + DURATION * 1000;
   tickTimer.value = setInterval(() => {
     remain.value = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    ghost.value = ghostScore(ghostTarget.value, remain.value, DURATION);
     if (remain.value <= 0) finish();
   }, 250);
   focusCatch();   // 手势调用栈内同步聚焦，iOS 才会弹出软键盘
@@ -281,6 +289,12 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
       <div v-if="remain <= 10" class="urg" aria-hidden="true"></div>
       <div class="practice-top">
         <span class="progress-line">得分 {{ score }} · 连击 <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">×{{ combo }}</b></Transition></span>
+        <!-- 幽灵竞速：个人最佳按均匀配速换算的实时期望分 -->
+        <span v-if="ghostTarget > 0" class="ghost-line" :class="{ ahead: ghostDelta >= 0 }"
+              :aria-label="`幽灵期望 ${ghost} 分，你${ghostDelta >= 0 ? '领先' : '落后'} ${Math.abs(ghostDelta)} 分`">
+          👻 {{ ghost }} · 你 {{ score }}
+          <b>{{ ghostDelta >= 0 ? `领先 ${ghostDelta}` : `落后 ${-ghostDelta}` }}</b>
+        </span>
         <span class="sprint-timer" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
           <svg viewBox="0 0 52 52" aria-hidden="true">
             <circle class="st-bg" cx="26" cy="26" r="22"></circle>
@@ -327,6 +341,12 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
       <template v-else>
         <div style="font-size:20px;font-weight:700;margin-bottom:10px;">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</div>
         <p>答对 {{ score }} 题 · 最高连击 ×{{ maxCombo }} · 作答 {{ answered }} 次</p>
+        <!-- 幽灵竞速结果：ghostTarget 是开局捕获的个人最佳 -->
+        <p v-if="ghostTarget > 0" class="ghost-verdict" :class="{ ahead: score >= ghostTarget }">
+          {{ score >= ghostTarget
+            ? (score === ghostTarget ? `👻 与幽灵战平（${ghostTarget} 分）` : `👻 胜过幽灵！超出 ${score - ghostTarget} 分`)
+            : `👻 惜败幽灵，还差 ${ghostTarget - score} 分` }}
+        </p>
         <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
       </template>
 
