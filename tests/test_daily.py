@@ -130,3 +130,30 @@ def test_daily_result_mints_identity_without_cookies(client):
                     json={"list": "test_words", "answers": answers})
     assert r.status_code == 200
     assert r.get_json()["duplicate"] is False
+
+
+def test_daily_practice_rounds_deal_fresh_questions(client):
+    off = get(client, "/api/daily?list=test_words").get_json()
+    p1 = get(client, "/api/daily?list=test_words&r=1").get_json()
+    # 练习局：另一批题（小词库表现为换序/换题型/换干扰项）、不计成绩
+    assert p1["practice"] is True and p1["completed"] is False and p1["my_result"] is None
+    assert [q["id"] for q in p1["questions"]] != [q["id"] for q in off["questions"]]
+    # 同一轮次确定性重放，不同轮次不同题
+    again = get(client, "/api/daily?list=test_words&r=1").get_json()
+    assert again["questions"] == p1["questions"]
+    p2 = get(client, "/api/daily?list=test_words&r=2").get_json()
+    assert [q["id"] for q in p2["questions"]] != [q["id"] for q in p1["questions"]]
+    # 非法轮次回退正式局
+    assert get(client, "/api/daily?list=test_words&r=abc").get_json()["practice"] is False
+
+
+def test_daily_practice_never_touches_official_score(client):
+    d, answers = _all_right(client)
+    client.post(f"/api/daily/result?u={USER}", json={"list": d["list"], "answers": answers})
+    # 正式局已完成；练习局照常出题且不携带正式成绩
+    pr = get(client, "/api/daily?list=test_words&r=5").get_json()
+    assert pr["practice"] is True and pr["my_result"] is None
+    off = get(client, "/api/daily?list=test_words").get_json()
+    assert off["completed"] is True and off["practice"] is False
+    # 正式成绩不被练习局覆盖：仍是最初那次
+    assert off["my_result"]["score"] == off["total"]

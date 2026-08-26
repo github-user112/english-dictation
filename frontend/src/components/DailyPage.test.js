@@ -18,6 +18,27 @@ const questions = [
   ] },
 ];
 
+/* 练习局（带 r= 轮次）：服务端出的另一批词 */
+const practiceQuestions = [
+  { id: "moon", text: "moon", kind: "audio_en", audio: "/audio/lazy/moon.mp3", options: [
+    { id: "moon", text: "moon", phonetic: "", meaning: "月亮" },
+    { id: "star", text: "star", phonetic: "", meaning: "星星" },
+    { id: "sky", text: "sky", phonetic: "", meaning: "天空" },
+    { id: "sea", text: "sea", phonetic: "", meaning: "海" },
+  ] },
+  { id: "sun", text: "sun", kind: "en_zh", audio: "/audio/lazy/sun.mp3", options: [
+    { id: "sun", text: "sun", phonetic: "", meaning: "太阳" },
+    { id: "rain", text: "rain", phonetic: "", meaning: "雨" },
+    { id: "wind", text: "wind", phonetic: "", meaning: "风" },
+    { id: "snow", text: "snow", phonetic: "", meaning: "雪" },
+  ] },
+];
+const practiceSession = {
+  day: "2026-08-26", list: "test_words", list_title: "CET-4",
+  total: 2, questions: practiceQuestions,
+  practice: true, completed: false, my_result: null,
+};
+
 const session = {
   day: "2026-08-26", list: "test_words", list_title: "CET-4",
   total: 2, questions, completed: false, my_result: null,
@@ -30,6 +51,7 @@ const resultResp = {
 
 const dailyPosts = [];
 let sessionOverride = null;
+let practiceRequested = "";
 
 vi.mock("../lib/core", () => ({
   api: vi.fn(async (path, opts) => {
@@ -37,7 +59,11 @@ vi.mock("../lib/core", () => ({
       dailyPosts.push(JSON.parse(opts.body));
       return resultResp;
     }
-    if (path.startsWith("/daily")) return sessionOverride || session;
+    if (path.startsWith("/daily")) {
+      const m = path.match(/[?&]r=(\d+)/);
+      if (m) { practiceRequested = m[1]; return practiceSession; }
+      return sessionOverride || session;
+    }
     if (path === "/lists") return { lists: [{ key: "test_words", type: "words", title: "CET-4" }] };
     if (path === "/profile") return { level: 3, title: "词木", daily_streak: 0 };
     return { ok: true };
@@ -66,6 +92,7 @@ describe("DailyPage", () => {
   beforeEach(() => {
     dailyPosts.length = 0;
     sessionOverride = null;
+    practiceRequested = "";
     localStorage.clear();
   });
   afterEach(() => { vi.useRealTimers(); });
@@ -92,7 +119,7 @@ describe("DailyPage", () => {
     spy.mockRestore();
   });
 
-  it("lands on the done screen when today is already counted, replay skips POST", async () => {
+  it("lands on the done screen when counted; replay deals fresh words and never submits", async () => {
     sessionOverride = {
       ...session, completed: true,
       my_result: { list: "test_words", score: 2, total: 2,
@@ -104,11 +131,31 @@ describe("DailyPage", () => {
     expect(wrapper.text()).toContain("今日挑战完成");
     expect(dailyPosts).toHaveLength(0);   // 已计分：不再提交
 
+    // 再玩一次：带轮次拉新词练习局
     await wrapper.findAll("button").find((b) => b.text().includes("再玩一次")).trigger("click");
     await flushPromises();
-    await answerAllCorrectly(wrapper);
-    expect(dailyPosts).toHaveLength(0);   // 重玩不计分
-    expect(wrapper.text()).toContain("重玩不计分");
+    expect(practiceRequested).toBe("1");
+    expect(wrapper.find(".quiz-option").text()).toContain("moon");   // 不是上午那批词
+
+    // 练习局作答：moon 对 → 自动跳；sun 听词选义点"太阳"对 → 1s 后自动进结算
+    await wrapper.findAll(".quiz-option")[0].trigger("click");
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+    await findOption(wrapper, "太阳").trigger("click");
+    await vi.advanceTimersByTimeAsync(1100);
+    await flushPromises();
+
+    expect(dailyPosts).toHaveLength(0);   // 练习局从不提交判分
+    expect(wrapper.text()).toContain("练习局完成");
+    expect(wrapper.text()).toContain("换一批词练手");
+    expect(wrapper.text()).toContain("答对 2 / 2");
+    expect(wrapper.find(".share-box").exists()).toBe(false);   // 非正式成绩不给分享物
+
+    // 再玩一次继续换批：轮次递进
+    practiceRequested = "";
+    await wrapper.findAll("button").find((b) => b.text().includes("再玩一次")).trigger("click");
+    await flushPromises();
+    expect(practiceRequested).toBe("2");
   });
 
   it("keeps the share box usable when clipboard is unavailable", async () => {

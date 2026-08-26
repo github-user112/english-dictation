@@ -33,6 +33,7 @@ const completed = ref(false);   // 今日成绩是否已计分
 const result = ref(null);       // 服务端返回的正式成绩 {score,total,detail,profile,...}
 const fallbackProfile = ref(null);   // 回访结算页没有随成绩返回 profile，单独兜底
 const replaying = ref(false);   // 完成后的重玩：只练不计分
+const round = ref(0);           // 练习局轮次：每 +1 服务端换一批题
 const copied = ref(false);
 const loading = ref(true);
 const error = ref("");
@@ -87,7 +88,9 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    const d = await api(`/daily?list=${encodeURIComponent(list.value)}`);
+    const qs = new URLSearchParams({ list: list.value });
+    if (round.value > 0) qs.set("r", String(round.value));   // 练习局：服务端换一批题
+    const d = await api(`/daily?${qs}`);
     if (!mounted) return;
     applySession(d);
     loading.value = false;
@@ -104,13 +107,20 @@ function applySession(d) {
   day.value = d.day;
   listTitle.value = d.list_title || "";
   localStorage.setItem("dict_daily_list", list.value);
-  if (d.completed) {
+  if (d.practice || round.value > 0) {
+    // 练习局：只练不计分，提交被 finish 直接拦下
+    completed.value = false;
+    replaying.value = true;
+    resetRun();
+  } else if (d.completed) {
     // 今日已计分：直接落结算页展示首成绩，重玩不再提交
     completed.value = true;
     replaying.value = false;
     result.value = d.my_result;
     stage.value = "done";
   } else {
+    completed.value = false;
+    replaying.value = false;
     resetRun();
   }
 }
@@ -126,6 +136,8 @@ function resetRun() {
 
 function switchList() {
   if (stage.value === "play" && picks.value.length) return;   // 作答中不允许换库换题
+  round.value = 0;          // 换库回到该词库的正式局
+  replaying.value = false;
   load();
 }
 
@@ -172,7 +184,7 @@ function next() {
 }
 
 async function finish() {
-  if (completed.value) { stage.value = "done"; return; }   // 重玩：只练不计分
+  if (completed.value || replaying.value) { stage.value = "done"; return; }   // 重玩：只练不计分
   try {
     const d = await api("/daily/result", {
       method: "POST",
@@ -188,8 +200,8 @@ async function finish() {
 function startReplay() {
   result.value = null;
   replaying.value = true;
-  resetRun();
-  play();
+  round.value++;            // 轮次前进 → 服务端出另一批词
+  load();
 }
 
 async function copyShare() {
@@ -323,25 +335,28 @@ function savePoster() {
   </div>
 
   <div v-else class="empty daily-done">
-    <div style="font-size:20px;font-weight:700;margin-bottom:6px;">
-      {{ completed ? '今日挑战完成 🎉' : '本轮完成' }}<span v-if="replaying">（重玩不计分）</span>
+    <div class="daily-done-title">
+      {{ completed ? '今日挑战完成 🎉' : replaying ? '练习局完成' : '本轮完成' }}
+      <small v-if="replaying">换一批词练手 · 不计成绩</small>
     </div>
-    <p>答对 {{ doneScore }} / {{ doneTotal }} · 正确率 {{ doneAcc }}%</p>
+    <p class="done-score-line">答对 {{ doneScore }} / {{ doneTotal }} · 正确率 {{ doneAcc }}%</p>
     <div class="daily-grid" aria-label="今日答题网格">
       <span v-for="(c, i) in gridCells" :key="i" class="grid-cell"
             :class="c === '🟩' ? 'right' : 'wrong'" :style="{ '--ci': i }"></span>
     </div>
-    <p v-if="profile" class="daily-xp-line">
+    <p v-if="profile && !replaying" class="daily-xp-line">
       词力 <b>{{ profile.title }}</b> Lv.{{ profile.level }}
       <template v-if="profile.daily_streak"> · 每日挑战连续 <b>{{ profile.daily_streak }}</b> 天</template>
     </p>
-    <pre class="share-box" aria-label="分享文本">{{ shareText }}</pre>
-    <div class="controls" style="margin-top:16px;">
-      <button class="btn primary big" @click="copyShare">{{ copied ? '已复制 ✓' : '复制文本' }}</button>
-      <button class="btn ghost big" @click="savePoster">保存海报 PNG</button>
-    </div>
-    <div class="controls" style="margin-top:10px;">
-      <button class="btn ghost sm" @click="startReplay">再玩一次（不计分）</button>
+    <template v-if="!replaying">
+      <pre class="share-box" aria-label="分享文本">{{ shareText }}</pre>
+      <div class="controls share-actions">
+        <button class="btn primary big" @click="copyShare">{{ copied ? '已复制 ✓' : '复制文本' }}</button>
+        <button class="btn ghost big" @click="savePoster">保存海报 PNG</button>
+      </div>
+    </template>
+    <div class="controls more-actions">
+      <button class="btn primary sm" @click="startReplay">再玩一次（新词 · 不计分）</button>
       <a class="btn ghost sm" href="#/tree">看看我的小树 →</a>
     </div>
   </div>

@@ -1208,3 +1208,26 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
   background: color-mix(in srgb, var(--accent), transparent 86%);
   border-color: var(--accent);
 }
+
+/* ---- 每日挑战：答题页与结算页留白 ---- */
+.daily-page #answer-line { margin-bottom: 18px; }
+.daily-page .quiz-play { margin: 14px 0 18px; }
+.daily-page .quiz-prompt { margin: 22px 0 12px; }
+.daily-page .quiz-options { gap: 13px; margin-top: 2px; }
+.daily-page .hint { margin-top: 16px; }
+.daily-done-title {
+  display: grid; gap: 7px; justify-items: center;
+  font-size: 20px; font-weight: 700; margin-bottom: 12px;
+}
+.daily-done-title small { font-size: 12px; font-weight: 450; color: var(--dim); letter-spacing: .02em; }
+.done-score-line { margin: 0; color: var(--text); font-weight: 650; }
+.daily-done .daily-grid { margin: 18px 0 12px; gap: 9px; }
+.daily-done .grid-cell { width: 26px; height: 26px; border-radius: 8px; }
+.daily-xp-line { margin: 12px 0 0; }
+.daily-done .share-box { margin: 20px auto 0; padding: 14px 16px; }
+.share-actions { margin-top: 18px; }
+.more-actions { margin-top: 12px; }
+
+@media (max-width: 620px) {
+  .daily-done .grid-cell { width: 22px; height: 22px; border-radius: 7px; }
+}

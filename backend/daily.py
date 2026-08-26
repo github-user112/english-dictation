@@ -12,7 +12,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from .auth import get_user, resp
-from .catalog import now
+from .catalog import clamp_int, now
 from .config import MATERIALS
 from .db import db
 from .materials import audio_url, load_material
@@ -24,8 +24,11 @@ DAILY_QUESTIONS = 10
 KIND_PLAN = ["audio_en"] * 5 + ["en_zh"] * 3 + ["zh_en"] * 2   # 音→形 / 音→义 / 义→形
 
 
-def _rng(day, list_key):
-    return random.Random(f"daily|{day}|{list_key}")
+def _rng(day, list_key, round_no=0):
+    # 练习局（round_no>=1）在种子里追加轮次：同一天每一轮都是另一批题，
+    # 且同一轮次在任何进程重放仍完全一致
+    seed = f"daily|{day}|{list_key}" + (f"|r{round_no}" if round_no else "")
+    return random.Random(seed)
 
 
 def _kind_plan(rng, n):
@@ -36,10 +39,10 @@ def _kind_plan(rng, n):
     return plan
 
 
-def _build_questions(list_key, day):
-    """确定性生成当日题组：同一种子在任何进程/时间重放都得到完全一致的题。"""
+def _build_questions(list_key, day, round_no=0):
+    """确定性生成题组：同一种子在任何进程/时间重放都得到完全一致的题。"""
     material = load_material(list_key)
-    rng = _rng(day, list_key)
+    rng = _rng(day, list_key, round_no)
 
     # 目标池按文本去重后按 id 排序再洗牌：重复单词（hello / hello~2）只留一个，
     # 排序保证不依赖字典插入序；干扰项同样按"去重后的文本"抽样，
@@ -89,27 +92,38 @@ def _stored_result(conn, day, user):
 
 @bp.get("/api/daily")
 def api_daily():
-    """当日题组。已完成时附带 my_result，前端直接进结算页（可重玩但不计分）。"""
+    """当日题组。已完成时附带 my_result，前端直接进结算页（可重玩但不计分）。
+
+    ?r=<n> 请求练习局：种子加轮次后缀出另一批题，不读也不产生正式成绩；
+    判分端点只认无轮次的正式题组，练习局的答案提交会被原样拒绝。
+    """
     list_key = request.args.get("list", "cet4")
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":
         return jsonify({"error": "每日挑战仅支持词汇素材"}), 400
+    round_no = clamp_int(request.args.get("r"), 0, 0, 99)
 
     day = date.today().isoformat()
-    questions = _build_questions(list_key, day)
+    questions = _build_questions(list_key, day, round_no)
     if len(questions) < 2:
         return jsonify({"error": "该素材词太少，无法出题"}), 400
+
+    payload = {
+        "day": day, "list": list_key,
+        "list_title": MATERIALS[list_key]["title"],
+        "total": len(questions), "questions": questions,
+        "practice": bool(round_no),
+    }
+    if round_no:
+        payload.update({"completed": False, "my_result": None})
+        return resp(payload)
 
     user = get_user()
     with db() as conn:
         result = _stored_result(conn, day, user)
-    return resp({
-        "day": day, "list": list_key,
-        "list_title": MATERIALS[list_key]["title"],
-        "total": len(questions), "questions": questions,
-        "completed": result is not None, "my_result": result,
-    })
+    payload.update({"completed": result is not None, "my_result": result})
+    return resp(payload)
 
 
 @bp.post("/api/daily/result")
