@@ -7,6 +7,7 @@ const page = ref("catalog");
 const TITLES = {
   catalog: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
   quiz: "听音选词", sprint: "限时冲刺", daily: "每日挑战", tree: "单词树",
+  boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句",
   wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");

@@ -6,7 +6,10 @@ import PracticePage from "./components/PracticePage.vue";
 import MemorizePage from "./components/MemorizePage.vue";
 import QuizPage from "./components/QuizPage.vue";
 import SprintPage from "./components/SprintPage.vue";
+import BossPage from "./components/BossPage.vue";
 import DailyPage from "./components/DailyPage.vue";
+import ArrangePage from "./components/ArrangePage.vue";
+import MatchPage from "./components/MatchPage.vue";
 import TreePage from "./components/TreePage.vue";
 import WrongPage from "./components/WrongPage.vue";
 import StatsPage from "./components/StatsPage.vue";
@@ -21,6 +24,9 @@ const ROUTES = {
   catalog: CatalogPage, word: PracticePage, sentence: PracticePage,
   memorize: MemorizePage, quiz: QuizPage, sprint: SprintPage,
   daily: DailyPage, tree: TreePage,
+  boss: BossPage,
+  match: MatchPage,
+  arrange: ArrangePage,
   wrong: WrongPage, stats: StatsPage, report: ReportPage,
   import: ImportPage,
   settings: SettingsPage, account: AccountPage,

@@ -62,8 +62,10 @@ describe("CatalogPage", () => {
     const oralCard = cards.find((card) => card.text().includes("口语900"));
     const ncCard = cards.find((card) => card.text().includes("NCE1"));
     expect(oralCard.find("select").exists()).toBe(false);
-    expect(oralCard.find("button").attributes("disabled")).toBeDefined();
-    expect(ncCard.find("button").attributes("disabled")).toBeUndefined();
+    // 主按钮（开始听写/按课学习）在课号缺失时禁用；排句入口不受影响
+    expect(oralCard.find("button.primary").attributes("disabled")).toBeDefined();
+    expect(ncCard.find("button.primary").attributes("disabled")).toBeUndefined();
+    expect(oralCard.findAll("button").some((b) => b.text().includes("排句"))).toBe(true);
   });
 
   it("should only label sessions in the current practice mode as resumable", async () => {

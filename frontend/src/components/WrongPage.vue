@@ -46,6 +46,10 @@ function redo() {
   sessionStorage.setItem("dict_custom_label", "错词重练");
   location.hash = "#/word?list=" + (items.value[0]?.list || "cet4");
 }
+/* 错词 Boss 战：最常错的词打包成 Boss，集中讨伐 */
+function goBoss() {
+  location.hash = "#/boss";
+}
 async function remove(item) {
   await api("/wrong/remove", { method: "POST", body: JSON.stringify({ list: item.list, id: item.id }) });
   location.reload();
@@ -62,7 +66,10 @@ function grouped() {
     <div class="page-heading compact"><span class="eyebrow">REVIEW & REBUILD</span><h1>错词不是终点</h1><p>集中处理还不够熟悉的内容。</p></div>
     <div class="practice-top">
       <span class="progress-line">共 {{ items.length }} 个需巩固</span>
-      <button v-if="items.length" class="btn primary" @click="redo">全部重练</button>
+      <span v-if="items.length" class="wrong-actions">
+        <button class="btn ghost" @click="goBoss">⚔️ 错词Boss战</button>
+        <button class="btn primary" @click="redo">全部重练</button>
+      </span>
     </div>
     <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
     <div v-else-if="!loading && !items.length && !confusions.length" class="empty">太棒了，错词本里没有词 🎉</div>

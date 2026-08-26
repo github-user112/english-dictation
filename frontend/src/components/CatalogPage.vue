@@ -126,6 +126,12 @@ function resume(s) {
 function memorize(key) { window.location.hash = `#/memorize?list=${key}`; }
 function startQuiz(l) { window.location.hash = `#/quiz?list=${l.key}`; }
 function startSprint(l) { window.location.hash = `#/sprint?list=${l.key}`; }
+/* 听音排句：听句子把词块点回正确顺序 */
+function startArrange(l) {
+  const p = new URLSearchParams({ list: l.key });
+  if (l.lesson_count && selectedLesson.value[l.key]) p.set("lesson", selectedLesson.value[l.key]);
+  location.hash = `#/arrange?${p}`;
+}
 function title(key) { return lists.value.find((l) => l.key === key)?.title || key; }
 </script>
 
@@ -159,6 +165,15 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
           : "10 道全站同题 · 完成即给小树浇水" }}</small>
       </span>
       <em class="db-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</em>
+    </a>
+    <!-- 趣味小游戏入口：英中配对消消乐 -->
+    <a class="daily-banner fun-banner" href="#/match" aria-label="开始英中配对消消乐">
+      <span class="db-icon" aria-hidden="true">🀄</span>
+      <span class="db-body">
+        <b>英中配对消消乐</b>
+        <small>词与释义翻牌配对 · 首配即中拿满经验</small>
+      </span>
+      <em class="db-go">去玩一局 →</em>
     </a>
     <template v-if="active.length">
       <div class="section-title"><span>继续学习</span><small>从上次停下的地方开始</small></div>
@@ -198,6 +213,7 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div v-else-if="lessonErrors[l.key]" class="meta" role="alert">{{ lessonErrors[l.key] }}</div>
         <div v-else-if="lessonLoading[l.key]" class="meta">课程加载中…</div>
         <div class="card-actions">
+          <button class="btn ghost sm" aria-label="听音排句" @click="startArrange(l)">🧩 排句</button>
           <button class="btn primary sm" :disabled="Boolean(l.lesson_count && !selectedLesson[l.key])" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听写')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听写' }}</button>
         </div>
       </div>

@@ -38,6 +38,9 @@ def api_achievements():
             (user,)).fetchone()["m"]
         practice_days = {r["day"] for r in conn.execute(
             "SELECT DISTINCT day FROM daily_practice_log WHERE user=?", (user,))}
+        boss_hits = conn.execute(
+            "SELECT COALESCE(SUM(final_right_count),0) s FROM daily_practice_log "
+            "WHERE user=? AND practice_mode='boss'", (user,)).fetchone()["s"]
 
     first_attempts = (first["fr"] or 0) + (first["fw"] or 0)
     accuracy = (first["fr"] / first_attempts) if first_attempts else 0
@@ -67,6 +70,7 @@ def api_achievements():
         ("daily-perfect", "🌟", "十全十美", "每日挑战一次全对（≥10 题）", dc_best, 10),
         ("tree-full", "🌳", "枝繁叶茂", "连续活跃 7 天让小树结果",
          min(activity_streak, 7), 7),
+        ("boss-slayer", "🐲", "屠龙勇士", "错词 Boss 战累计答对 10 词", boss_hits, 10),
     ]
     return resp({"badges": [
         {"id": bid, "icon": icon, "title": title, "desc": desc,
