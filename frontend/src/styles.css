@@ -1210,11 +1210,13 @@ select:focus, input[type=number]:focus { border-color: var(--accent); box-shadow
 }
 
 /* ---- 每日挑战：答题页与结算页留白 ---- */
-.daily-page #answer-line { margin-bottom: 18px; }
-.daily-page .quiz-play { margin: 14px 0 18px; }
-.daily-page .quiz-prompt { margin: 22px 0 12px; }
-.daily-page .quiz-options { gap: 13px; margin-top: 2px; }
-.daily-page .hint { margin-top: 16px; }
+.quiz-page #answer-line { margin-bottom: 18px; }
+.quiz-page .quiz-play { margin: 14px 0 18px; }
+.quiz-page .quiz-prompt { margin: 22px 0 12px; }
+.quiz-page .quiz-options { gap: 13px; margin-top: 2px; }
+.quiz-page .hint { margin-top: 16px; }
+/* 「下一题 →」按钮行与选项网格拉开距离 */
+.quiz-page .controls { margin-top: 24px; }
 .daily-done-title {
   display: grid; gap: 7px; justify-items: center;
   font-size: 20px; font-weight: 700; margin-bottom: 12px;
