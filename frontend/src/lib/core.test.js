@@ -37,7 +37,7 @@ describe("Settings", () => {
     expect(s.speed).toBe(1.0);
     expect(s.newPerDay).toBe(10);
     expect(s.practiceMode).toBe("assisted");
-    expect(s.theme).toBe("dark");
+    expect(s.theme).toBe("light");   // 默认亮色：暖琥珀主题
   });
 
   it("should save and retrieve settings", () => {
