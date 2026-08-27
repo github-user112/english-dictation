@@ -212,61 +212,114 @@ async function copyShare() {
   } catch { /* 剪贴板不可用时分享文本块始终可见，可手动复制 */ }
 }
 
-/* ---- 分享海报：与 ReportPage 同款画布风格，点击时才离屏绘制 ---- */
+/* ---- 分享海报：离屏绘制，专为社媒竖图（900×1080）优化 ---- */
+// 根据正确率评定等级，返回 {tier, label, color}
+function dailyTier(acc) {
+  if (acc >= 100) return { tier: "S", label: "全对封神", color: "#ffd37a" };
+  if (acc >= 90)  return { tier: "A", label: "词力高手", color: "#3edc97" };
+  if (acc >= 75)  return { tier: "B", label: "稳扎稳打", color: "#5fb0ff" };
+  if (acc >= 60)  return { tier: "C", label: "继续加油", color: "#f5a83c" };
+  return { tier: "D", label: "明日再战", color: "#ff8a9a" };
+}
+
 function paintDailyPoster(cv, m, dpr, P) {
   const W = 900, H = 1080;
   cv.width = W * dpr; cv.height = H * dpr;
   const g = cv.getContext("2d");
   if (!g) return;
   g.scale(dpr, dpr);
-  const bg = g.createLinearGradient(0, 0, W * .4, H);
+  g.textBaseline = "middle";
+
+  // —— 背景：对角渐变 + 右上辉光 + 细网格 ——
+  const bg = g.createLinearGradient(0, 0, W * .35, H);
   bg.addColorStop(0, P.bgTop); bg.addColorStop(.55, P.bgMid); bg.addColorStop(1, P.bgBottom);
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  const glow = g.createRadialGradient(W - 80, -40, 20, W - 80, -40, 520);
+  const glow = g.createRadialGradient(W + 40, -60, 30, W + 40, -60, 620);
   glow.addColorStop(0, P.glow); glow.addColorStop(1, "transparent");
-  g.fillStyle = glow; g.fillRect(0, 0, W, 620);
+  g.fillStyle = glow; g.fillRect(0, 0, W, 700);
   g.strokeStyle = P.grid; g.lineWidth = 1;
-  for (let x = 44; x < W; x += 44) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
-  for (let y = 44; y < H; y += 44) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  for (let x = 50; x < W; x += 50) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+  for (let y = 50; y < H; y += 50) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
 
-  // 品牌行
-  g.fillStyle = "#f5a83c"; roundRect(g, 64, 64, 56, 56, 14); g.fill();
+  // —— 外框：圆角描边卡片感 ——
+  g.strokeStyle = P.cardStroke; g.lineWidth = 2;
+  roundRect(g, 26, 26, W - 52, H - 52, 36); g.stroke();
+
+  // —— 品牌行 ——
+  g.fillStyle = "#f5a83c"; roundRect(g, 64, 64, 56, 56, 16); g.fill();
   g.fillStyle = "#241703"; g.font = "800 34px Georgia, 'Noto Serif SC', serif";
-  g.textBaseline = "middle"; g.textAlign = "center"; g.fillText("E", 92, 94);
+  g.textAlign = "center"; g.fillText("E", 92, 94);
   g.textAlign = "left";
   g.fillStyle = P.title; g.font = "700 30px 'PingFang SC','Microsoft YaHei',sans-serif";
-  g.fillText("英语听打 · 每日挑战", 138, 86);
+  g.fillText("英语听打 · 每日挑战", 142, 86);
   g.fillStyle = P.dim; g.font = "600 15px Inter,'PingFang SC',sans-serif";
-  g.fillText("DAILY CHALLENGE", 139, 112);
+  g.fillText("DAILY CHALLENGE", 143, 113);
 
-  // 日期与词库
-  g.fillStyle = P.sub; g.font = "500 28px 'PingFang SC',sans-serif";
-  g.fillText(`${String(m.day || "").slice(0, 4)} 年 ${String(m.day || "").slice(5, 7)} 月 ${String(m.day || "").slice(8, 10)} 日 · ${m.listTitle}`, 64, 220);
+  // —— 日期 / 词库胶囊 ——
+  const chip = `📅 ${String(m.day || "").slice(0, 4)} 年 ${String(m.day || "").slice(5, 7)} 月 ${String(m.day || "").slice(8, 10)} 日  ·  ${m.listTitle}`;
+  g.font = "500 24px 'PingFang SC',sans-serif";
+  const chipW = g.measureText(chip).width + 52;
+  g.fillStyle = P.cardFill; roundRect(g, (W - chipW) / 2, 156, chipW, 56, 28); g.fill();
+  g.fillStyle = P.sub; g.textAlign = "center"; g.fillText(chip, W / 2, 185);
 
-  // 大字战绩
-  g.fillStyle = P.big; g.font = "700 170px Georgia,'Noto Serif SC',serif";
-  g.fillText(`${m.score}/${m.total}`, 60, 400);
+  // —— 中心正确率环 ——
+  const cx = W / 2, cy = 470, R = 168, sw = 28;
+  const acc = m.total ? Math.round((m.score / m.total) * 100) : 0;
+  // 环后光晕
+  const rg = g.createRadialGradient(cx, cy, R - 60, cx, cy, R + 70);
+  rg.addColorStop(0, "transparent"); rg.addColorStop(1, P.glow);
+  g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, R + 70, 0, Math.PI * 2); g.fill();
+  // 轨道
+  g.strokeStyle = P.cardStroke; g.lineWidth = sw; g.lineCap = "round";
+  g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
+  // 进度
+  const tier = dailyTier(acc);
+  const grad = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+  grad.addColorStop(0, tier.color); grad.addColorStop(1, P.big);
+  g.strokeStyle = grad;
+  g.beginPath(); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * acc) / 100); g.stroke();
+  // 环内文字
+  g.textAlign = "center";
+  g.fillStyle = P.big; g.font = "700 116px Georgia,'Noto Serif SC',serif";
+  g.fillText(`${acc}%`, cx, cy - 14);
   g.fillStyle = P.sub; g.font = "500 26px 'PingFang SC',sans-serif";
-  g.fillText(`答对 ${m.score} 题 · 正确率 ${m.total ? Math.round((m.score / m.total) * 100) : 0}%`, 64, 480);
+  g.fillText("正确率", cx, cy + 66);
 
-  // 答题网格：圆角方块代替 emoji 字形（跨平台渲染不一致）
-  const cell = 62, gap = 14;
-  const n = (m.detail || []).length;
-  const rowW = n * cell + Math.max(0, n - 1) * gap;
-  let x = (W - rowW) / 2;
-  for (const d of m.detail || []) {
-    g.fillStyle = d.right ? P.good : P.bad;
-    roundRect(g, x, 570, cell, cell, 14); g.fill();
-    x += cell + gap;
+  // —— 战绩与等级徽章 ——
+  g.fillStyle = P.title; g.font = "700 34px 'PingFang SC',sans-serif";
+  g.fillText(`答对 ${m.score} / ${m.total} 题`, cx, 700);
+  const badge = `${tier.tier} 级 · ${tier.label}`;
+  g.font = "700 26px 'PingFang SC',sans-serif";
+  const bw = g.measureText(badge).width + 56;
+  g.fillStyle = tier.color; roundRect(g, (W - bw) / 2, 738, bw, 60, 30); g.fill();
+  g.fillStyle = "#10131f"; g.fillText(badge, cx, 769);
+
+  // —— 答题网格（自动换行，居中）——
+  const detail = m.detail || [];
+  const cell = 50, gap = 12, perRow = 11;
+  const rows = Math.ceil(detail.length / perRow);
+  let gy = 838;
+  for (let r = 0; r < rows; r++) {
+    const slice = detail.slice(r * perRow, (r + 1) * perRow);
+    const rw = slice.length * cell + Math.max(0, slice.length - 1) * gap;
+    let gx = (W - rw) / 2;
+    for (const d of slice) {
+      g.fillStyle = d.right ? P.good : P.bad;
+      roundRect(g, gx, gy, cell, cell, 12); g.fill();
+      gx += cell + gap;
+    }
+    gy += cell + gap;
   }
 
-  // 连击与页脚
+  // —— 连续打卡 ——
   if (m.streak > 0) {
-    g.fillStyle = P.num; g.font = "600 30px 'PingFang SC',sans-serif"; g.textAlign = "center";
-    g.fillText(`🔥 每日挑战连续 ${m.streak} 天`, W / 2, 740);
+    g.fillStyle = P.num; g.font = "600 28px 'PingFang SC',sans-serif"; g.textAlign = "center";
+    g.fillText(`🔥 每日挑战连续 ${m.streak} 天`, cx, 980);
   }
+
+  // —— 页脚 ——
   g.fillStyle = P.dim; g.font = "500 22px 'PingFang SC',sans-serif"; g.textAlign = "center";
-  g.fillText("mi2.cc.cd · 听清每一个词，写下每一句", W / 2, H - 70);
+  g.fillText("mi2.cc.cd · 听清每一个词，写下每一句", cx, H - 64);
 }
 
 function savePoster() {
