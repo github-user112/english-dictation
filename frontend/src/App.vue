@@ -61,5 +61,9 @@ function route() {
   <main>
     <component :is="view" :params="params" :key="hashKey" />
   </main>
-  <footer class="app-footer">英语听打 v{{ APP_VERSION.replace(/\.0$/, "") }}</footer>
+  <footer class="app-footer">
+    英语听打 v{{ APP_VERSION.replace(/\.0$/, "") }}
+    <span class="foot-sep">·</span>
+    <a class="foot-mail" href="mailto:jonesc@foxmail.com">联系我：jonesc@foxmail.com</a>
+  </footer>
 </template>

@@ -187,6 +187,9 @@ main > :nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
 
 main { width: min(1120px, 100%); min-height: calc(100vh - 125px); margin: 0 auto; padding: 36px 22px 72px; }
 .app-footer { padding: 0 0 26px; color: var(--dim2); font-size: 11px; letter-spacing: .08em; text-align: center; opacity: .72; }
+.app-footer .foot-sep { margin: 0 8px; opacity: .6; }
+.app-footer .foot-mail { color: var(--accent-strong, #f5a83c); text-decoration: none; }
+.app-footer .foot-mail:hover { text-decoration: underline; }
 
 /* Shared controls */
 .btn {
