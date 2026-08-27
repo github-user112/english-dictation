@@ -6,10 +6,11 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
-from .auth import get_user, resp
+from .auth import display_name, get_user, resp
 from .catalog import clamp_int, now
 from .config import CONFIG, MATERIALS
 from .db import db
+from .friends import record_activity
 from .materials import _material_index, audio_url, load_material
 
 bp = Blueprint("challenge", __name__)
@@ -103,7 +104,7 @@ def api_quiz_session():
     return resp({"questions": questions, "total": len(questions), "kind": kind})
 
 
-def _sprint_items(list_key, n):
+def sprint_items(list_key, n):
     """随机抽 n 个词生成冲刺词流；限时冲刺与挑战链接共用同一形状。"""
     material = load_material(list_key)
     pool = random.sample(material, min(n, len(material)))
@@ -120,7 +121,7 @@ def api_sprint_session():
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":
         return jsonify({"error": "限时冲刺仅支持词汇素材"}), 400
-    return resp({"items": _sprint_items(list_key, n)})
+    return resp({"items": sprint_items(list_key, n)})
 
 
 @bp.get("/api/sprint/best")
@@ -157,6 +158,7 @@ def api_sprint_best_post():
                     score=excluded.score, combo=excluded.combo,
                     total=excluded.total, updated_at=excluded.updated_at
             """, (user, score, combo, total, stamp))
+            record_activity(conn, user, "sprint_record", {"score": score, "combo": combo})
         best = conn.execute(
             "SELECT score, combo, total FROM sprint_best WHERE user=?", (user,)).fetchone()
     return resp({"best": {"score": best["score"], "combo": best["combo"], "total": best["total"]},
@@ -164,15 +166,6 @@ def api_sprint_best_post():
 
 
 # ---------------- 异步冲刺挑战：同词流、比分榜，无需 WebSocket ----------------
-
-def _display_name(conn, user):
-    """登录用户显示用户名；游客显示 游客xxxx。"""
-    row = conn.execute("SELECT username FROM account WHERE user_id=?", (user,)).fetchone()
-    if row:
-        return row["username"]
-    tail = "".join(ch for ch in user if ch.isalnum())[:4] or "0000"
-    return f"游客{tail}"
-
 
 @bp.post("/api/sprint/challenge")
 def api_sprint_challenge_create():
@@ -182,13 +175,13 @@ def api_sprint_challenge_create():
     n = clamp_int(request.args.get("n"), 40, 5, 100)
     if list_key not in MATERIALS or MATERIALS[list_key]["type"] != "words":
         return jsonify({"error": "未知素材"}), 404
-    items = _sprint_items(list_key, n)
+    items = sprint_items(list_key, n)
     cid = uuid.uuid4().hex[:10]
     with db() as conn:
         conn.execute(
             "INSERT INTO sprint_challenge(id,owner_user,owner_name,list_key,items,created_at) "
             "VALUES(?,?,?,?,?,?)",
-            (cid, user, _display_name(conn, user), list_key,
+            (cid, user, display_name(conn, user), list_key,
              json.dumps(items, ensure_ascii=False), now()))
     return resp({"id": cid})
 
@@ -238,7 +231,7 @@ def api_sprint_challenge_score(cid):
                    ON CONFLICT(challenge_id,user) DO UPDATE SET
                      name=excluded.name, score=excluded.score, combo=excluded.combo,
                      total=excluded.total, updated_at=excluded.updated_at""",
-                (cid, user, _display_name(conn, user), score, combo, total, now()))
+                (cid, user, display_name(conn, user), score, combo, total, now()))
         scores = conn.execute(
             "SELECT name,score,combo,total FROM sprint_challenge_score "
             "WHERE challenge_id=? ORDER BY score DESC, combo DESC, updated_at LIMIT 50",

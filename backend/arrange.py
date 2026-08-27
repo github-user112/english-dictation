@@ -11,6 +11,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from .friends import notify_level
 from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
@@ -129,6 +130,7 @@ def api_arrange_answer():
                final_right_count=final_right_count+excluded.final_right_count""",
             (today, user, "arrange", 0, 0, 1 if right else 0,
              0 if right else 1, 1 if right else 0, 0))
+        notify_level(conn, user)
         profile = derive_profile(conn, user)
 
     return resp({"right": right, "score": 1 if right else 0,

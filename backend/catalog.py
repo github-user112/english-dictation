@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request
 from .auth import get_user, resp
 from .config import AUDIO, CONFIG, MATERIALS, PRACTICE_MODES
 from .db import db
+from .friends import notify_level
 from .materials import audio_url, find_item, iter_material, load_material
 from .scheduler import review as fsrs_review, days_between
 
@@ -539,6 +540,7 @@ def update_mode_log(conn, day, user, mode, phase, first_right, final_right, skip
            skipped_count=skipped_count+excluded.skipped_count""",
         (day, user, mode, values["new"], values["review"], values["first_right"],
          values["first_wrong"], values["final_right"], values["skipped"]))
+    notify_level(conn, user)   # 每题经验入账后探测升级，好友动态由此保持及时
 
 
 def legacy_result(user, data, item_id, first_right, final_right, outcome, today):

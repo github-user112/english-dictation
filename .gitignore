@@ -27,3 +27,5 @@ scripts/fix_nce_last_sentences.py
 # 设计稿本地字体（Noto SC 可变字体，体积大，不入库；打开 mockups 前自行放置或忽略）
 design/mockups/fonts/
 design/shots/report.txt
+# 会话暂存：规范稿/评审结论/nginx 暂存配置
+.agents-tmp/

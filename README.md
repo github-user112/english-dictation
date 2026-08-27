@@ -25,6 +25,11 @@
 - **词力等级与单词树**：所有练习实时折算经验值（词童→词神 11 级称号）；连续活跃喂养单词树（8 阶段），断水两天枯萎、练一题复活
 - **跟读打分**：Web Speech API 浏览器端语音识别，识别文本与目标词比对给相似度分，无需后端
 - **真实首答统计**：首答结果不可被重输覆盖，按模式分别统计首答正确率
+- **全局排行榜**：五个维度实时聚合自学习记录——冲刺最高分 / 每日挑战最佳 / 总经验 / 连续打卡 / 首答准确率；全部时间·本月·本周窗口，并列名次稳定排序，游客可看
+- **好友系统**：用户名搜索、双向申请自动互认、共同动态流（冲刺新纪录/每日完成/升级提醒/结为好友），14 天动态窗口
+- **实时 PK 对战**：六位口令建房分享链接，WebSocket 双人同词流 60 秒竞速，服务端权威计时判分、超时自动关局、单调合并防乱序帧
+- **学习小组**：建组加入退出解散（上限 20 人）、组内"每日挑战比分"与"N 天累计答对词数"两类排行，成绩一律从学习表推导不可提交伪造
+- **社交分享卡**：冲刺成绩卡 / PK 战报卡 / 成就徽章卡统一弹层预览，一键保存 PNG + 复制文案
 - **每日任务恢复**：每日新题配额固定，刷新/换设备继续未完成题目和顺序
 - **新概念按课学习**：1-4 册可选择课号并按课文原顺序练习
 - **句子序列对齐**：漏词、多词、拼错分别定位，不再因一个漏词导致后续全部错位
@@ -33,6 +38,7 @@
 
 - 后端：Flask + SQLite（API）
 - 前端：Vue 3 + Vite 8（SFC 组件，`frontend/` 目录）
+- 实时对战：flask-sock（WebSocket），多 worker 部署以 SQLite 房间版本号做权威推送源
 - TTS：edge-tts 预生成 + 按需懒生成兜底
 
 ## 目录结构
@@ -89,6 +95,19 @@ kill -HUP $(pgrep -of "gunicorn.*app:app")
 
 部署后验证：`curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8200/api/auth/me` 应为 200。
 
+- **WebSocket（实时对战必需）**：nginx 需放行 `/ws/` 升级头：
+
+```nginx
+location /ws/ {
+    proxy_pass http://127.0.0.1:8200;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 75s;   # 服务端每 25s 心跳，此值只需 > 30s
+}
+```
+
 ### API
 
 | 接口 | 说明 |
@@ -121,6 +140,20 @@ kill -HUP $(pgrep -of "gunicorn.*app:app")
 | POST /api/auth/logout | 退出当前账户 |
 | POST /api/auth/change-password | 修改密码并撤销其他会话 |
 | POST /api/tts | TTS 懒生成 |
+| GET /api/leaderboard?scope=sprint\|daily\|xp\|streak\|accuracy&period=all\|monthly\|weekly | 全局排行榜（sprint/streak 无周期） |
+| GET /api/friends | 好友列表 + 待处理申请 |
+| GET /api/friends/search?q= | 用户名模糊搜索（含关系状态） |
+| POST /api/friends/add | 加好友（{username} 或 {user_id}；对方已申请则直接互认） |
+| POST /api/friends/accept \| reject | 通过/拒绝/删除好友 |
+| GET /api/friends/activity | 共同动态流（最近 50 条） |
+| GET /api/friends/invite-info?user= | 邀请横幅公开查询用户名 |
+| POST /api/groups | 创建小组（1–24 字组名） |
+| GET /api/groups · /search?q= · /<gid> | 我的组 / 找组 / 详情（非成员可看） |
+| POST /api/groups/<gid>/join · leave · dissolve | 加入/退出/解散（仅组长可解散） |
+| POST /api/groups/<gid>/challenge | 发起挑战 {kind:daily\|words_target,days,target_words}，同时进行上限 3 |
+| POST /api/pk/room?list= | 创建 PK 等待房 → {code} |
+| GET /api/pk/room/<code> | PK 房间快照（兼作 WS 前的 Cookie 预热） |
+| WS /ws/pk/<code> | 对战长连接：join/start/progress/finish ⇄ state/ping/gone |
 
 普通学习接口通过安全 Cookie 隔离用户。未注册的旧 `?u=UUID` 链接会在首次请求后转换为游客 Cookie；已认领账户的旧链接必须登录，不能作为访问凭据。
 

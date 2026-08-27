@@ -10,6 +10,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from .friends import notify_level
 from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
@@ -105,6 +106,7 @@ def api_boss_result():
                     "UPDATE word_state SET wrong_count=0,status='new',next_review=NULL "
                     "WHERE user=? AND item_id=?", (user, qid))
                 cleared += 1
+        notify_level(conn, user)
         remaining = conn.execute(
             "SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0",
             (user,)).fetchone()["c"]

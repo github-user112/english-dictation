@@ -35,23 +35,42 @@ def level_of(xp):
     return level
 
 
-def derive_profile(conn, user):
-    """在调用方持有的连接上推导等级与树状态；本模块与 daily 共用。"""
-    today = date.today()
+# 经验权重：答对是主体，背词与新词加权，错题/跳过也给少量"努力分"。
+# leaderboard 的全员窗口聚合按字段名引用同一份权重，公式改一处即两处同步。
+XP_WEIGHTS = {
+    "final_right": 10, "new": 3, "effort": 2,
+    "memorize_right": 5, "daily_right": 10, "daily_wrong": 2,
+}
 
-    # 经验值：答对是主体，背词与新词加权，错题/跳过也给少量"努力分"
+
+def xp_of(conn, user):
+    """累计经验值（整史单人口径，与 leaderboard 的窗口聚合共用 XP_WEIGHTS）。
+
+    独立成函数：derive_profile 与 friends 的升级动态探测共用同一公式。
+    """
+    w = XP_WEIGHTS
     pr = conn.execute(
-        """SELECT COALESCE(SUM(final_right_count),0) fr,
-                  COALESCE(SUM(new_count),0) nw,
-                  COALESCE(SUM(first_wrong_count),0)+COALESCE(SUM(skipped_count),0) fs
-           FROM daily_practice_log WHERE user=?""", (user,)).fetchone()
+        "SELECT COALESCE(SUM(final_right_count),0) fr, COALESCE(SUM(new_count),0) nw, "
+        "COALESCE(SUM(first_wrong_count),0)+COALESCE(SUM(skipped_count),0) fs "
+        "FROM daily_practice_log WHERE user=?", (user,)).fetchone()
     mem = conn.execute(
         "SELECT COALESCE(SUM(memorize_right),0) m FROM daily_log WHERE user=?",
         (user,)).fetchone()
     dc = conn.execute(
-        """SELECT COALESCE(SUM(score),0) s, COALESCE(SUM(total-score),0) w, COUNT(*) c
-           FROM daily_challenge WHERE user=?""", (user,)).fetchone()
-    xp = pr["fr"] * 10 + pr["nw"] * 3 + pr["fs"] * 2 + mem["m"] * 5 + dc["s"] * 10 + dc["w"] * 2
+        "SELECT COALESCE(SUM(score),0) s, COALESCE(SUM(total-score),0) w "
+        "FROM daily_challenge WHERE user=?", (user,)).fetchone()
+    return (pr["fr"] * w["final_right"] + pr["nw"] * w["new"] + pr["fs"] * w["effort"]
+            + mem["m"] * w["memorize_right"]
+            + dc["s"] * w["daily_right"] + dc["w"] * w["daily_wrong"])
+
+
+def derive_profile(conn, user):
+    """在调用方持有的连接上推导等级与树状态；本模块与 daily 共用。"""
+    today = date.today()
+
+    xp = xp_of(conn, user)
+    daily_count = conn.execute(
+        "SELECT COUNT(*) c FROM daily_challenge WHERE user=?", (user,)).fetchone()["c"]
 
     level = level_of(xp)
     floor, title = LEVELS[level - 1]
@@ -96,7 +115,7 @@ def derive_profile(conn, user):
         "tree_stage": stage, "tree_max_stage": TREE_MAX_STAGE,
         "tree_icon": icon, "tree_label": label,
         "tree_wilted": wilted, "tree_needs_water": not today_done and streak > 0,
-        "daily_count": dc["c"], "daily_streak": day_streak(dc_days),
+        "daily_count": daily_count, "daily_streak": day_streak(dc_days),
         "daily_done_today": today.isoformat() in set(dc_days),
         "week": week,
     }

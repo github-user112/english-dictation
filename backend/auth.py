@@ -120,6 +120,29 @@ def get_user():
     return get_identity()["user_id"]
 
 
+def get_cookie_identity():
+    """只认会话或 dict_u Cookie 的身份解析；PK 座位专用。
+
+    ?u= 是旧进度页的兼容通道，值来自 URL：座位归属若接受它，
+    知道别人 uuid 的人就能顶替其对局身份。这里刻意不读该参数。
+    """
+    identity = _session_identity()
+    if identity is not None:
+        return identity
+    cached = getattr(g, "dict_cookie_identity", None)
+    if cached is not None:
+        return cached
+    cookie_id = request.cookies.get(COOKIE, "").lower()
+    if valid_user_id(cookie_id) and not _account_exists(cookie_id):
+        resolved = {"user_id": cookie_id, "username": None, "csrf_token": None,
+                    "authenticated": False}
+    else:
+        resolved = {"user_id": uuid_mod.uuid4().hex, "username": None,
+                    "csrf_token": None, "authenticated": False}
+    g.dict_cookie_identity = resolved
+    return resolved
+
+
 def authenticated():
     return get_identity()["authenticated"]
 
@@ -166,13 +189,45 @@ def csrf_valid():
     return not identity["authenticated"] or secrets.compare_digest(token, identity["csrf_token"])
 
 
-def resp(obj, status=200):
-    """JSON 响应：游客身份和 CSRF token 保存在 Cookie，不再写入 URL。"""
-    identity = get_identity()
-    payload = {**obj, "user": identity["user_id"]}
+def display_name(conn, user):
+    """公开场合（排行榜/对战/挑战）的展示名：登录用户用用户名，游客用 游客xxxx。"""
+    row = conn.execute("SELECT username FROM account WHERE user_id=?", (user,)).fetchone()
+    if row:
+        return row["username"]
+    tail = "".join(ch for ch in user if ch.isalnum())[:4] or "0000"
+    return f"游客{tail}"
+
+
+def display_names(conn, users):
+    """批量展示名。游客名取 id 尾 4 位——与 challenge 冲刺比分榜的历史口径一致，
+    游客 ID 恒为 32 位 hex，该约定不随时间变化。"""
+    ids = list(dict.fromkeys(users))   # 去重保序
+    named = {}
+    if ids:
+        named = {r["user_id"]: r["username"] for r in conn.execute(
+            f"SELECT user_id, username FROM account WHERE user_id IN ({','.join('?' * len(ids))})",
+            ids)}
+    out = {}
+    for uid in ids:
+        if uid in named:
+            out[uid] = named[uid]
+            continue
+        tail = "".join(ch for ch in uid if ch.isalnum())[:4] or "0000"
+        out[uid] = f"游客{tail}"
+    return out
+
+
+def resp(obj, status=200, identity=None):
+    """JSON 响应：游客身份和 CSRF token 保存在 Cookie，不再写入 URL。
+
+    identity 供座位类端点显式传入（如 PK 只认 Cookie 的 get_cookie_identity），
+    保证"业务视角的身份"与"Cookie 下发的身份"是同一个；缺省走完整解析。
+    """
+    ident = identity or get_identity()
+    payload = {**obj, "user": ident["user_id"]}
     response = make_response(jsonify(payload), status)
-    if not identity["authenticated"]:
-        response.set_cookie(COOKIE, identity["user_id"], **_cookie_options(31536000))
-    csrf_token = identity["csrf_token"] or request.cookies.get(CSRF_COOKIE) or secrets.token_urlsafe(24)
+    if not ident["authenticated"]:
+        response.set_cookie(COOKIE, ident["user_id"], **_cookie_options(31536000))
+    csrf_token = ident["csrf_token"] or request.cookies.get(CSRF_COOKIE) or secrets.token_urlsafe(24)
     response.set_cookie(CSRF_COOKIE, csrf_token, **_csrf_cookie_options(AUTH_SESSION_DAYS * 86400))
     return response

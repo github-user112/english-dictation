@@ -185,6 +185,84 @@ def init_db():
             ON daily_practice_log(user, day);
         CREATE INDEX IF NOT EXISTS idx_daily_log_user
             ON daily_log(user, day);
+        CREATE TABLE IF NOT EXISTS friend_relation (
+            user_a TEXT NOT NULL,
+            user_b TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            requested_by TEXT,       -- pending 方向：谁发起的申请
+            created_at TEXT NOT NULL,
+            updated_at TEXT,
+            PRIMARY KEY(user_a, user_b),
+            CHECK(user_a < user_b)   -- 双向请求规范化到同一行，杜绝 A→B 与 B→A 并存
+        );
+        CREATE INDEX IF NOT EXISTS idx_friend_relation_b ON friend_relation(user_b, status);
+        CREATE TABLE IF NOT EXISTS friend_activity (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user TEXT NOT NULL,
+            kind TEXT NOT NULL,      -- sprint_record | daily_complete | level_up | friend_join
+            detail TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_friend_activity_user
+            ON friend_activity(user, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_friend_activity_created ON friend_activity(created_at);
+        -- 升级推送的基线记账（内部状态，不随动态下发给前端）
+        CREATE TABLE IF NOT EXISTS friend_level_seen (
+            user TEXT PRIMARY KEY,
+            level INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS study_group (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            creator TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS group_member (
+            group_id TEXT NOT NULL,
+            user TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',   -- owner | member
+            joined_at TEXT NOT NULL,
+            PRIMARY KEY(group_id, user),
+            FOREIGN KEY(group_id) REFERENCES study_group(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_member_user ON group_member(user);
+        CREATE TABLE IF NOT EXISTS group_challenge (
+            id TEXT PRIMARY KEY,
+            group_id TEXT NOT NULL,
+            creator TEXT NOT NULL,
+            kind TEXT NOT NULL,      -- daily（每日挑战同题比分）| words_target（窗口内累计答对词数）
+            config TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            FOREIGN KEY(group_id) REFERENCES study_group(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_challenge_group
+            ON group_challenge(group_id, expires_at);
+        CREATE TABLE IF NOT EXISTS pk_room (
+            code TEXT PRIMARY KEY,
+            creator TEXT NOT NULL,
+            opponent TEXT,
+            list_key TEXT NOT NULL,
+            items TEXT NOT NULL,     -- JSON 词流，双方同一份
+            state TEXT NOT NULL DEFAULT 'waiting',  -- waiting | playing | finished
+            version INTEGER NOT NULL DEFAULT 0,     -- 每次状态/比分变更 +1，长连接轮询据此增量推送
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_pk_room_creator ON pk_room(creator, state);
+        CREATE TABLE IF NOT EXISTS pk_result (
+            room_code TEXT NOT NULL,
+            user TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            score INTEGER NOT NULL DEFAULT 0,
+            combo INTEGER NOT NULL DEFAULT 0,
+            answered INTEGER NOT NULL DEFAULT 0,
+            finished_at TEXT,
+            PRIMARY KEY(room_code, user),
+            FOREIGN KEY(room_code) REFERENCES pk_room(code) ON DELETE CASCADE
+        );
         """)
 
 

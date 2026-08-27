@@ -17,6 +17,11 @@ import ReportPage from "./components/ReportPage.vue";
 import ImportPage from "./components/ImportPage.vue";
 import SettingsPage from "./components/SettingsPage.vue";
 import AccountPage from "./components/AccountPage.vue";
+import LeaderboardPage from "./components/LeaderboardPage.vue";
+import FriendsPage from "./components/FriendsPage.vue";
+import GroupsPage from "./components/GroupsPage.vue";
+import GroupDetailPage from "./components/GroupDetailPage.vue";
+import PkPage from "./components/PkPage.vue";
 import { refreshAccount } from "./lib/account";
 import { stopAudio } from "./lib/core";
 
@@ -30,6 +35,9 @@ const ROUTES = {
   wrong: WrongPage, stats: StatsPage, report: ReportPage,
   import: ImportPage,
   settings: SettingsPage, account: AccountPage,
+  leaderboard: LeaderboardPage, friends: FriendsPage,
+  groups: GroupsPage, group: GroupDetailPage,
+  pk: PkPage,
 };
 const view = ref(CatalogPage);
 const params = ref(new URLSearchParams());

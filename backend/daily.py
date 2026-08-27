@@ -15,6 +15,7 @@ from .auth import get_user, resp
 from .catalog import clamp_int, now
 from .config import MATERIALS
 from .db import db
+from .friends import notify_level, record_activity
 from .materials import audio_url, load_material
 from .profile import derive_profile
 
@@ -175,6 +176,9 @@ def api_daily_result():
                VALUES(?,?,?,?,?,?,?)""",
             (day, user, list_key, score, len(questions),
              json.dumps(detail, ensure_ascii=False), now()))
+        record_activity(conn, user, "daily_complete", {"score": score, "total": len(questions)})
+        # 每日挑战计入经验：首个正式成绩是升级探测的天然检查点
+        notify_level(conn, user)
         payload = {"duplicate": False, "day": day, "score": score,
                    "total": len(questions), "detail": detail,
                    "profile": derive_profile(conn, user)}

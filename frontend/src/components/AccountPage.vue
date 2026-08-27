@@ -1,7 +1,9 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { Account, applyAccount, refreshAccount } from "../lib/account";
 import { api } from "../lib/core";
+
+const props = defineProps({ params: { type: Object, default: null } });
 
 const mode = ref(Account.authenticated ? "account" : "login");
 const form = reactive({ username: "", password: "", currentPassword: "", newPassword: "" });
@@ -9,6 +11,20 @@ const busy = ref(false);
 const error = ref("");
 const notice = ref("");
 const isSignedIn = computed(() => Account.authenticated && mode.value === "account");
+
+/* 邀请注册：URL 带 ?invite=<32hex> 时拉取邀请人信息，注册时带上 inviter */
+const inviteId = ref("");
+const inviteName = ref("");
+const inviteBanner = ref(false);
+
+function loadInvite() {
+  const raw = props.params?.get("invite") || "";
+  if (!/^[0-9a-fA-F]{32}$/.test(raw)) return;   // 非法的 invite 静默忽略
+  inviteId.value = raw;
+  api(`/friends/invite-info?user=${encodeURIComponent(raw)}`)
+    .then((d) => { inviteName.value = d.username || ""; inviteBanner.value = true; })
+    .catch(() => { /* 404 等：静默不显示横幅 */ });
+}
 
 function switchMode(next) {
   mode.value = next;
@@ -23,12 +39,17 @@ async function submitCredentials() {
   try {
     const data = await api(`/auth/${mode.value}`, {
       method: "POST",
-      body: JSON.stringify({ username: form.username, password: form.password }),
+      body: JSON.stringify({ username: form.username, password: form.password,
+        ...(inviteId.value ? { inviter: inviteId.value } : {}) }),
     });
     applyAccount(data);
     notice.value = mode.value === "register" ? "账户已创建，当前学习进度已受到保护。" : "登录成功。";
     mode.value = "account";
     form.password = "";
+    if (mode.value === "account" && inviteId.value) {
+      history.replaceState(null, "", "#/account");   // 清掉 invite 参数，不触发重渲染
+      inviteBanner.value = false;
+    }
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -59,7 +80,9 @@ watch(() => Account.authenticated, (signedIn) => {
   if (signedIn) mode.value = "account";
 });
 
-refreshAccount().catch(() => {});
+refreshAccount()
+  .then(() => { if (!Account.authenticated) loadInvite(); })
+  .catch(() => loadInvite());
 </script>
 
 <template>
@@ -71,6 +94,9 @@ refreshAccount().catch(() => {});
     </div>
 
     <section v-if="!isSignedIn" class="account-card">
+      <div v-if="inviteBanner" class="account-message success invite-banner" role="status">
+        好友 {{ inviteName || "好友" }} 邀请你加入，注册后自动成为好友
+      </div>
       <div class="account-tabs" role="tablist" aria-label="账户操作">
         <button class="btn ghost" :class="{ primary: mode === 'login' }" @click="switchMode('login')">登录</button>
         <button class="btn ghost" :class="{ primary: mode === 'register' }" @click="switchMode('register')">注册</button>

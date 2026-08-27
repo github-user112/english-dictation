@@ -2,13 +2,27 @@
 import { computed, onMounted, ref } from "vue";
 import { api } from "../lib/core";
 import { activity } from "../lib/stats";
+import { Account } from "../lib/account";
 import { Profile, refreshProfile } from "../lib/profile";
 import TreeArt from "./TreeArt.vue";
+import ShareCard from "./ShareCard.vue";
 
 const stats = ref(null);
 const error = ref("");
 const badges = ref(null);
 const celebrating = ref([]);
+const badgeShareOpen = ref(false);
+
+function badgeSharePayload() {
+  return {
+    name: Account.username || "游客",
+    level: Profile.level,
+    levelTitle: Profile.title,
+    streak: Profile.streak,
+    xp: Profile.xp,
+    link: location.origin + "/#/",
+  };
+}
 
 onMounted(async () => {
   await load();
@@ -165,6 +179,9 @@ function checkNewBadges() {
             </span>
             <em aria-hidden="true">→</em>
           </a>
+          <div class="controls" style="margin-top:14px;">
+            <button class="btn ghost sm" @click="badgeShareOpen = true">🎖 分享我的勋章</button>
+          </div>
         </div>
       </div>
     </template>
@@ -237,5 +254,7 @@ function checkNewBadges() {
       </div>
     </div>
     </template>
+
+    <ShareCard :open="badgeShareOpen" kind="badge" :payload="badgeSharePayload()" @close="badgeShareOpen = false" />
   </div>
 </template>

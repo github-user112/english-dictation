@@ -11,6 +11,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from .friends import notify_level
 from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
@@ -95,6 +96,7 @@ def api_match_result():
              sum(1 for _, right in graded if right),
              sum(1 for _, right in graded if not right),
              sum(1 for _, right in graded if right), 0))
+        notify_level(conn, user)
         profile = derive_profile(conn, user)
 
     return resp({"total": len(graded),

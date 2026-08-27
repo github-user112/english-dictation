@@ -12,12 +12,15 @@ from .auth import (
     identity_payload,
     issue_session,
     legacy_account_protected,
+    now_iso,
     resp,
     set_session,
     token_hash,
+    valid_user_id,
 )
 from .config import AUTH_RATE_LIMIT_ATTEMPTS, AUTH_RATE_LIMIT_SECONDS, COOKIE
 from .db import db
+from .friends import record_activity
 
 bp = Blueprint("auth_routes", __name__, url_prefix="/api/auth")
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,32}$")
@@ -142,6 +145,21 @@ def register():
         """, (user_id, username, generate_password_hash(password, method="scrypt")))
         raw_token, csrf_token = issue_session(conn, user_id)
         _record_failure(conn, "register-ip", ip_key)
+        # 邀请链接：注册即与邀请人结为好友（含把对方此前的单向申请一并确认）
+        inviter = data.get("inviter")
+        if isinstance(inviter, str) and valid_user_id(inviter):
+            pair = (user_id, inviter) if user_id < inviter else (inviter, user_id)
+            if pair[0] != pair[1]:
+                conn.execute(
+                    """INSERT INTO friend_relation(user_a,user_b,status,requested_by,
+                                                  created_at,updated_at)
+                       VALUES(?,?, 'accepted', ?, ?, ?)
+                       ON CONFLICT(user_a,user_b) DO UPDATE SET
+                           status='accepted', updated_at=excluded.updated_at""",
+                    (*pair, inviter, now_iso(), now_iso()))
+                for who in (user_id, inviter):
+                    record_activity(conn, who, "friend_join",
+                                    {"with": inviter if who == user_id else user_id})
 
     response = jsonify({"authenticated": True, "guest": False, "username": username})
     response.delete_cookie(COOKIE, samesite="Lax")

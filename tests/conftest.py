@@ -96,6 +96,7 @@ def app(tmp_path):
         patch("backend.catalog.CONFIG", test_config),
         patch("backend.challenge.MATERIALS", test_materials),
         patch("backend.challenge.CONFIG", test_config),
+        patch("backend.pk.MATERIALS", test_materials),
         patch("backend.daily.MATERIALS", test_materials),
         patch("backend.boss.MATERIALS", test_materials),
         patch("backend.match.MATERIALS", test_materials),

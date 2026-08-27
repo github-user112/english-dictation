@@ -40,6 +40,8 @@ const challengeId = new URLSearchParams(location.hash.split("?")[1] || "").get("
 const challenge = ref(null);
 const challengeLink = ref("");
 const creatingChallenge = ref(false);
+const pkCreating = ref(false);
+const pkError = ref("");
 
 onMounted(async () => {
   // 同步段先挂监听：无论请求成败/卸载时序，onUnmounted 都能成对移除
@@ -246,6 +248,20 @@ function finish() {
 function restart() { location.reload(); }
 function goCatalog() { location.hash = "#/catalog"; }
 
+async function createPkRoom() {
+  if (pkCreating.value) return;
+  pkCreating.value = true;
+  pkError.value = "";
+  try {
+    const d = await api(`/pk/room?list=${encodeURIComponent(list.value)}`, { method: "POST" });
+    location.hash = `#/pk?room=${d.code}&list=${list.value}`;
+  } catch (err) {
+    pkError.value = err.message || "创建对战房间失败";
+  } finally {
+    pkCreating.value = false;
+  }
+}
+
 async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
 </script>
 
@@ -280,6 +296,12 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
         <div class="controls" style="margin-top:16px;">
           <button class="btn primary big" :disabled="!items.length" @click="start">开始冲刺</button>
           <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        </div>
+        <p v-if="pkError" role="alert" style="color:var(--red);margin-top:10px;">{{ pkError }}</p>
+        <div class="controls" style="margin-top:6px;">
+          <button class="btn ghost big" :disabled="pkCreating || !items.length" @click="createPkRoom">
+            {{ pkCreating ? "生成中…" : "⚔️ 实时PK对战" }}
+          </button>
         </div>
       </template>
     </div>

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from flask import Blueprint, jsonify, request
 
+from .friends import notify_level
 from .auth import get_user, resp
 from .config import CONFIG, MATERIALS
 from .db import db
@@ -122,6 +123,7 @@ def api_memorize():
                 memorize_right=memorize_right+excluded.memorize_right,
                 memorize_wrong=memorize_wrong+excluded.memorize_wrong
         """, (today, u, 1 if right else 0, 0 if right else 1))
+        notify_level(conn, u)
         if attempt_id:
             conn.execute("""
                 INSERT INTO memorize_attempt(user,attempt_id,list,item_id,right,memorized,memorize_count,created_at)
