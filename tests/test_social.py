@@ -73,6 +73,23 @@ def test_leaderboard_sprint_best_orders_and_exposes_details(client):
     assert client.get("/api/leaderboard?scope=streak&period=monthly").json["period"] == "all"
 
 
+def test_leaderboard_masks_strangers_but_not_self(app):
+    """打码在后端完成：陌生人只留首尾轮廓，本人行保留全名，邮箱域名仍可读。"""
+    viewer, rival, mailer = (browser(app, name) for name in
+                             ("viewer_me", "alice_soc", "bob_smith@qq.com"))
+    with db() as conn:
+        conn.executemany(
+            "INSERT INTO sprint_best(user,score,combo,total,updated_at) VALUES(?,?,?,?,?)",
+            [(uid_of(mailer), 30, 3, 40, now_iso()),
+             (uid_of(rival), 20, 2, 40, now_iso()),
+             (uid_of(viewer), 10, 1, 40, now_iso())])
+    names = {r["rank"]: r["name"]
+             for r in viewer.get("/api/leaderboard?scope=sprint").json["rows"]}
+    assert names[1] == "bo***h@qq.com"      # 邮箱：本地段打码，域名保留便于辨识
+    assert names[2] == "al***c"             # 陌生人：中段固定三星，不暴露长度
+    assert names[3] == "viewer_me"          # 自己那一行无需对自己隐藏
+
+
 def test_leaderboard_daily_respects_period_windows(client):
     with db() as conn:
         conn.executemany(

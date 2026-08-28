@@ -37,6 +37,21 @@ def _cutoff(period):
     return None
 
 
+def _mask_part(s):
+    """陌生人名字打码：保留首尾轮廓，中段固定三星，不暴露长度。"""
+    if len(s) <= 3:
+        return s[:1] + "**"
+    return f"{s[:2]}***{s[-1:]}"
+
+
+def mask_name(name):
+    """排行榜对非本人行隐藏账号中段；邮箱保留域名便于辨识重复域名。"""
+    if "@" in name:
+        local, _, domain = name.partition("@")
+        return f"{_mask_part(local)}@{domain}" if local else name
+    return _mask_part(name)
+
+
 def _sprint_rows(conn):
     """冲刺历史最高分：sprint_best 每人一行，直接读。无周期口径。"""
     return {
@@ -143,7 +158,10 @@ def api_leaderboard():
     out, my_rank = [], None
     me = get_user()
     for i, (uid, val) in enumerate(ordered[:limit], start=1):
-        entry = {"rank": i, "user": uid, "name": names.get(uid, "？"), "scope": scope}
+        # 陌生人对陌生人：名字只留轮廓；自己那一行保留全名
+        shown = names.get(uid, "？")
+        entry = {"rank": i, "user": uid,
+                 "name": shown if uid == me else mask_name(shown), "scope": scope}
         if scope == "sprint":
             score, combo, total = by_user[uid]
             entry.update({"value": score, "score": score, "combo": combo, "total": total})
