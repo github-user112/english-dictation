@@ -7,11 +7,13 @@ from .config import DB
 
 
 @contextmanager
-def db():
+def db(immediate=False):
     """连接上下文：成功提交、异常回滚、退出关闭。
 
     sqlite3 连接自身的 with 只提交不关闭，长期运行会依赖 GC 兜底回收 fd；
     这里显式 close，事务语义与原先 `with sqlite3.connect(...)` 完全一致。
+    immediate=True 用 BEGIN IMMEDIATE 开事务：先取写锁再读，供读-改-写
+    路径（PK 判分）在 gunicorn 多 worker 下不丢更新。
     """
     conn = sqlite3.connect(str(DB))
     try:
@@ -19,6 +21,8 @@ def db():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA busy_timeout=5000")
+        if immediate:
+            conn.execute("BEGIN IMMEDIATE")
         with conn:
             yield conn
     finally:
@@ -259,6 +263,7 @@ def init_db():
             score INTEGER NOT NULL DEFAULT 0,
             combo INTEGER NOT NULL DEFAULT 0,
             answered INTEGER NOT NULL DEFAULT 0,
+            answers TEXT,              -- JSON {index: bool}，服务端校验后的逐词结果
             finished_at TEXT,
             PRIMARY KEY(room_code, user),
             FOREIGN KEY(room_code) REFERENCES pk_room(code) ON DELETE CASCADE
@@ -338,4 +343,8 @@ def migrate():
                 except (ValueError, TypeError):
                     n = 0
                 conn.execute("UPDATE custom_material SET sentence_count=? WHERE id=?", (n, row["id"]))
+        # PK 对战：服务端校验后的逐词答案记录
+        pk_cols = [r["name"] for r in conn.execute("PRAGMA table_info(pk_result)").fetchall()]
+        if "answers" not in pk_cols:
+            conn.execute("ALTER TABLE pk_result ADD COLUMN answers TEXT")
         print("migrate ok")

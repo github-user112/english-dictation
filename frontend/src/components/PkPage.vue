@@ -56,6 +56,7 @@ let countdownTimer = null;
 let reconnectTimer = null;
 const ws = ref(null);
 const inputEl = ref(null);
+const answerLog = new Map();   // index → text：断线重连后整体重放补账
 
 const code = computed(() => snap.value?.code || roomParam || joinCode.value.toUpperCase());
 const phase = computed(() => snap.value?.phase || (connecting.value ? "connecting" : "lobby"));
@@ -66,11 +67,12 @@ const item = computed(() => {
   return s.items[idx.value] || null;
 });
 
-/* HUD：我方（本地即时）与对方（服务端）合并渲染；旁观者纯服务端 */
+/* HUD：我方（本地即时）与对方（服务端）合并渲染；旁观者纯服务端。
+ * 结算屏除外——结算要显示服务端盖章后的权威分数，本地计数可能落后一帧。 */
 const displayPlayers = computed(() => {
   const s = snap.value;
   if (!s) return [];
-  if (s.role !== "spectator") {
+  if (s.role !== "spectator" && s.phase !== "finished") {
     return s.players.map((p) => (p.seat === s.role
       ? { ...p, score: myScore.value, combo: myCombo.value, answered: myAnswered.value }
       : p));
@@ -133,6 +135,7 @@ function openWs(room) {
     connecting.value = false;
     reconnectAttempts = 0;
     sock.send(JSON.stringify({ type: "join" }));
+    replay();
   };
   sock.onmessage = (ev) => {
     let msg;
@@ -170,6 +173,7 @@ function handleMsg(msg) {
 function initLocal(msg) {
   localInit.value = true;
   localDone.value = false;
+  answerLog.clear();      // 新局换词流，旧局的重放账本已失效
   idx.value = 0;
   input.value = "";
   const meP = msg.players.find((p) => p.seat === msg.role);
@@ -198,11 +202,17 @@ function scheduleReconnect(room) {
 function send(obj) {
   const s = ws.value;
   if (s && s.readyState === WebSocket.OPEN) {
-    try { s.send(JSON.stringify(obj)); } catch { /* 发送失败忽略，下一帧补齐 */ }
+    try { s.send(JSON.stringify(obj)); } catch { /* 发送失败：answer 帧靠重连后的 replay() 补账 */ }
   }
 }
-function sendProgress() {
-  send({ type: "progress", score: myScore.value, combo: myCombo.value, answered: myAnswered.value });
+function sendAnswer(index, text) {
+  answerLog.set(index, text);
+  send({ type: "answer", index, text });
+}
+/* 断线窗口内丢掉的 answer 帧在此补账：服务端按 index 幂等去重，重放零成本。 */
+function replay() {
+  for (const [index, text] of answerLog) send({ type: "answer", index, text });
+  if (localDone.value) send({ type: "finish" });
 }
 
 function startGame() { send({ type: "start" }); }
@@ -221,14 +231,14 @@ function submitWord() {
   revealed.value = false;
   if (guess === ans) {
     myScore.value++; myCombo.value++; myAnswered.value++;
-    sendProgress();
+    sendAnswer(idx.value, guess);
     input.value = "";
     if (idx.value + 1 >= total.value) finishLocal();
     else { idx.value++; playCurrent(); focusInput(); }
   } else {
     myCombo.value = 0;
     myAnswered.value++;
-    sendProgress();
+    sendAnswer(idx.value, guess);
     revealed.value = true;
     input.value = "";
     playCurrent();
@@ -239,7 +249,7 @@ function submitWord() {
 function skipWord() {
   if (snap.value?.phase !== "playing" || localDone.value) return;
   myAnswered.value++;
-  sendProgress();
+  sendAnswer(idx.value, "");
   revealed.value = false;
   input.value = "";
   if (idx.value + 1 >= total.value) finishLocal();
@@ -249,7 +259,7 @@ function skipWord() {
 function finishLocal() {
   if (localDone.value) return;
   localDone.value = true;
-  send({ type: "finish", score: myScore.value, combo: myCombo.value, answered: myAnswered.value });
+  send({ type: "finish" });
   // 等待服务端 state 推进到 finished；若对手仍在打，HUD 继续直播对手进度
 }
 

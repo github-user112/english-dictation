@@ -9,8 +9,8 @@
 - 每 25s 强制发一帧业务外心跳，防 nginx 的 30s read timeout 断链。
 
 帧协议（JSON）：
-  C→S  {"type":"join"} | {"type":"start"} | {"type":"progress",score,combo,answered}
-       | {"type":"finish",score,combo,answered}
+  C→S  {"type":"join"} | {"type":"start"} | {"type":"answer",index,text}
+       | {"type":"finish"}
   S→C  {"type":"state", ...}（含 phase/winner/role/items/players）、
        {"type":"ping"}、{"type":"gone"}
 
@@ -26,8 +26,8 @@ from flask import Blueprint, request
 from flask_sock import Sock
 from simple_websocket import ConnectionClosed
 
-from .auth import display_name, display_names, get_cookie_identity, resp
-from .catalog import clamp_int, now
+from .auth import display_name, get_cookie_identity, resp
+from .catalog import now
 from .challenge import sprint_items
 from .config import MATERIALS
 from .db import db
@@ -127,6 +127,22 @@ def _finalize_room(conn, code):
                  "WHERE room_code=?", (stamp, code))
 
 
+def _compute_score(correct):
+    """从逐词答案推导 score / combo / answered。combo = 末尾连续正确的个数。
+
+    键是 index 的字符串形式，必须按 int 排序：字典序下 "9" > "29"，11 词以上
+    的局连击会被错序截断。
+    """
+    score = sum(1 for v in correct.values() if v)
+    combo = 0
+    for idx in sorted(correct, key=int, reverse=True):
+        if correct[idx]:
+            combo += 1
+        else:
+            break
+    return score, combo, len(correct)
+
+
 def _upsert_result(conn, code, user, name, score, combo, answered, finished):
     """作答进度的单调合并：乱序/重传帧只会抬高各项数值，不会倒退。"""
     conn.execute(
@@ -138,6 +154,42 @@ def _upsert_result(conn, code, user, name, score, combo, answered, finished):
              answered=MAX(pk_result.answered, excluded.answered),
              finished_at=COALESCE(excluded.finished_at, pk_result.finished_at)""",
         (code, user, name, score, combo, answered, now() if finished else None))
+
+
+def _record_answer(conn, code, user, name, items, index, text):
+    """服务端校验一次作答：判分、落 answers JSON、重算 score/combo/answered。
+
+    返回 True 表示本次计入（有效作答或纠错重试），False 表示忽略
+    （index 非法/答对的词重复提交/已交卷）。分数完全由服务端推导。
+    答错的词允许重试改分——拼错了再改对是听写游戏的主循环；答对的词
+    不可被后续提交翻案。调用方须用 db(immediate=True)，读-改-写在多
+    worker 下才原子。
+    """
+    if not isinstance(index, int) or isinstance(index, bool) or not (0 <= index < len(items)):
+        return False   # index 越界一律拒收，不 clamp：clamp 会把错帧写进槽位 0
+    row = conn.execute(
+        "SELECT answers, finished_at FROM pk_result WHERE room_code=? AND user=?",
+        (code, user)).fetchone()
+    if row and row["finished_at"]:
+        return False   # 已交卷的座位不再接收新答案
+    try:
+        answers = json.loads(row["answers"]) if (row and row["answers"]) else {}
+    except (ValueError, TypeError):
+        answers = {}
+    if answers.get(str(index)) is True:
+        return False   # 已答对的词不再接收提交
+    expected = str(items[index].get("text", ""))
+    answers[str(index)] = text.strip().lower() == expected.strip().lower()
+    score, combo, answered = _compute_score(answers)
+    conn.execute(
+        """INSERT INTO pk_result(room_code, user, name, score, combo, answered, answers)
+           VALUES(?,?,?,?,?,?,?)
+           ON CONFLICT(room_code, user) DO UPDATE SET
+             score=excluded.score, combo=excluded.combo, answered=excluded.answered,
+             answers=excluded.answers""",
+        (code, user, name, score, combo, answered,
+         json.dumps(answers, ensure_ascii=False)))
+    return True
 
 
 def _roles(row, me):
@@ -206,7 +258,7 @@ def _handle_message(code, me, raw):
         return
     kind = msg.get("type")
 
-    with db() as conn:
+    with db(immediate=True) as conn:
         row = conn.execute("SELECT * FROM pk_room WHERE code=?", (code,)).fetchone()
         if row is None:
             return
@@ -219,28 +271,36 @@ def _handle_message(code, me, raw):
                              "version=version+1 WHERE code=?", (now(), code))
             return
 
-        if kind not in {"progress", "finish"} or role == "spectator":
-            return   # 旁观者没有成绩可上报；未认知的帧类型静默忽略
+        if kind == "answer":
+            # 服务端判分：客户端只报 index+文本，不报任何分数
+            if role == "spectator" or row["state"] != "playing":
+                return
+            if _record_answer(conn, code, me, display_name(conn, me),
+                              json.loads(row["items"]), msg.get("index"),
+                              str(msg.get("text", ""))):
+                conn.execute("UPDATE pk_room SET version=version+1 WHERE code=?", (code,))
+            return
+
+        if kind != "finish" or role == "spectator":
+            return   # 成绩只认服务端判过的 answer 帧；旧 progress 帧已退役
         if row["state"] != "playing":
             return   # 未开局或已关局的提交一律忽略
-        sealed = conn.execute("SELECT finished_at FROM pk_result WHERE room_code=? AND user=?",
-                              (code, me)).fetchone()
+        sealed = conn.execute(
+            "SELECT finished_at, score, combo, answered FROM pk_result "
+            "WHERE room_code=? AND user=?", (code, me)).fetchone()
         if sealed and sealed["finished_at"]:
             return   # 已交卷的座位不得再改写成绩，迟到的重放帧不能抬高战报
-
-        limit = max(1, len(json.loads(row["items"])))
-        score = clamp_int(msg.get("score"), 0, 0, limit)
-        combo = clamp_int(msg.get("combo"), 0, 0, limit)
-        answered = clamp_int(msg.get("answered"), 0, 0, 9999)
-        finished = kind == "finish"
+        # 交卷只盖章：分数取服务端从 answers 推导出的列，帧内数字一律不信
         _upsert_result(conn, code, me, display_name(conn, me),
-                       score, combo, answered, finished)
+                       sealed["score"] if sealed else 0,
+                       sealed["combo"] if sealed else 0,
+                       sealed["answered"] if sealed else 0, True)
         conn.execute("UPDATE pk_room SET version=version+1 WHERE code=?", (code,))
         done_count = conn.execute(
             "SELECT COUNT(*) c FROM pk_result WHERE room_code=? AND finished_at IS NOT NULL",
             (code,)).fetchone()["c"]
         seats_taken = 2 if row["opponent"] else 1
-        if finished and done_count >= seats_taken:
+        if done_count >= seats_taken:
             _finalize_room(conn, code)
 
 
@@ -250,7 +310,7 @@ def ws_pk(ws, code):
     座位身份只认会话/Cookie（get_cookie_identity），URL 参数一律不作为归属依据。"""
     me = get_cookie_identity()["user_id"]
     origin = request.headers.get("Origin")
-    if origin and urlparse(origin).netloc != request.host:
+    if not origin or urlparse(origin).netloc != request.host:
         ws.close(reason="origin rejected")
         return
 
@@ -272,7 +332,8 @@ def ws_pk(ws, code):
                 ws.close(reason="房间不存在或已过期")
                 return
             if me != row["creator"] and row["opponent"] is None:
-                conn.execute("UPDATE pk_room SET opponent=?, version=version+1 WHERE code=?",
+                conn.execute("UPDATE pk_room SET opponent=?, version=version+1 "
+                             "WHERE code=? AND opponent IS NULL",
                              (me, code))
 
         while True:
