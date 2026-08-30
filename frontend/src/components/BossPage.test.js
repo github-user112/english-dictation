@@ -87,7 +87,8 @@ describe("BossPage", () => {
 
     expect(bossPosts).toHaveLength(1);
     expect(bossPosts[0].answers).toStrictEqual([
-      { id: "hello", right: true }, { id: "world", right: true },
+      { id: "hello", list: "test_words", right: true },
+      { id: "world", list: "test_words", right: true },
     ]);
     expect(spy.mock.calls.some((c) => c[0].type === "profile-changed")).toBe(true);
     expect(wrapper.find(".boss-verdict.win").exists()).toBe(true);

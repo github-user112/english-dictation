@@ -414,19 +414,21 @@ def api_result():
     if raw_id is None:
         return jsonify({"error": "缺少 id 参数"}), 400
     item_id = str(raw_id)
-    outcome = data.get("outcome", "completed" if data.get("right") else "skipped")
+    # right 必须是严格布尔；非布尔（含 "no"/1/""）会被 bool() 误判
+    raw_right = data.get("right")
+    if raw_right is not None and not isinstance(raw_right, bool):
+        return jsonify({"error": "right 必须是布尔值"}), 400
+    outcome = data.get("outcome", "completed" if raw_right else "skipped")
     if outcome not in {"attempt", "completed", "skipped"}:
         return jsonify({"error": "outcome 无效"}), 400
     if "first_right" in data:
         first_right = _opt_bool(data["first_right"])
     else:
-        r = data.get("right")
-        first_right = None if r is None else bool(r and not data.get("retried"))
+        first_right = None if raw_right is None else bool(raw_right and not data.get("retried"))
     if "final_right" in data:
         final_right = _opt_bool(data["final_right"])
     else:
-        r = data.get("right")
-        final_right = None if r is None else bool(r)
+        final_right = None if raw_right is None else bool(raw_right)
     try:
         attempt_count = int(data.get("attempt_count", 1))
     except (TypeError, ValueError):

@@ -236,6 +236,14 @@ def api_accept():
                            pair).fetchone()
         if row is None or row["status"] != "pending" or row["requested_by"] == me:
             return jsonify({"error": "没有待通过的好友申请"}), 404
+        # 通过前校验双方好友数是否已达上限（与 api_request 同口径）
+        for uid in pair:
+            cnt = conn.execute(
+                "SELECT COUNT(*) c FROM friend_relation "
+                "WHERE (user_a=? OR user_b=?) AND status='accepted'",
+                (uid, uid)).fetchone()["c"]
+            if cnt >= FRIENDS_MAX:
+                return jsonify({"error": f"好友数已达上限（{FRIENDS_MAX}）"}), 400
         conn.execute("UPDATE friend_relation SET status='accepted', updated_at=? "
                      "WHERE user_a=? AND user_b=?", (now_iso(), *pair))
         record_activity(conn, me, "friend_join", {"with": other})

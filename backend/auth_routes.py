@@ -141,25 +141,29 @@ def register():
             return jsonify({"error": "用户名已被使用"}), 409
         conn.execute("""
             INSERT INTO account(user_id, username, password_hash, created_at)
-            VALUES (?, ?, ?, datetime('now'))
-        """, (user_id, username, generate_password_hash(password, method="scrypt")))
+            VALUES (?, ?, ?, ?)
+        """, (user_id, username, generate_password_hash(password, method="scrypt"), now_iso()))
         raw_token, csrf_token = issue_session(conn, user_id)
         _record_failure(conn, "register-ip", ip_key)
         # 邀请链接：注册即与邀请人结为好友（含把对方此前的单向申请一并确认）
         inviter = data.get("inviter")
         if isinstance(inviter, str) and valid_user_id(inviter):
-            pair = (user_id, inviter) if user_id < inviter else (inviter, user_id)
-            if pair[0] != pair[1]:
-                conn.execute(
-                    """INSERT INTO friend_relation(user_a,user_b,status,requested_by,
-                                                  created_at,updated_at)
-                       VALUES(?,?, 'accepted', ?, ?, ?)
-                       ON CONFLICT(user_a,user_b) DO UPDATE SET
-                           status='accepted', updated_at=excluded.updated_at""",
-                    (*pair, inviter, now_iso(), now_iso()))
-                for who in (user_id, inviter):
-                    record_activity(conn, who, "friend_join",
-                                    {"with": inviter if who == user_id else user_id})
+            inviter_row = conn.execute(
+                "SELECT 1 FROM account WHERE user_id=? AND disabled_at IS NULL",
+                (inviter,)).fetchone()
+            if inviter_row:
+                pair = (user_id, inviter) if user_id < inviter else (inviter, user_id)
+                if pair[0] != pair[1]:
+                    conn.execute(
+                        """INSERT INTO friend_relation(user_a,user_b,status,requested_by,
+                                                      created_at,updated_at)
+                           VALUES(?,?, 'accepted', ?, ?, ?)
+                           ON CONFLICT(user_a,user_b) DO UPDATE SET
+                               status='accepted', updated_at=excluded.updated_at""",
+                        (*pair, inviter, now_iso(), now_iso()))
+                    for who in (user_id, inviter):
+                        record_activity(conn, who, "friend_join",
+                                        {"with": inviter if who == user_id else user_id})
 
     response = jsonify({"authenticated": True, "guest": False, "username": username})
     response.delete_cookie(COOKIE, samesite="Lax")
@@ -185,7 +189,7 @@ def login():
             _record_failure(conn, "login-user", username_key)
             return _invalid_credentials()
         raw_token, csrf_token = issue_session(conn, row["user_id"])
-        conn.execute("UPDATE account SET last_login_at=datetime('now') WHERE user_id=?", (row["user_id"],))
+        conn.execute("UPDATE account SET last_login_at=? WHERE user_id=?", (now_iso(), row["user_id"]))
         _clear_failures(conn, "login-ip", ip_key)
         _clear_failures(conn, "login-user", username_key)
 

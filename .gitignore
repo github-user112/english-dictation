@@ -18,11 +18,12 @@ sentences/*.json
 # Markdown 文档不入库（README.md 除外，已在仓库中跟踪）
 *.md
 !README.md
+!BUG_REPORT.md
+!REVIEW_*.md
+!MIGRATION_PLAN.md
 
-# 音频切分/抓取本地工具（依赖本地数据 /tmp/opencode/nce_files.json，不入库）
-scripts/ingest_nce_audio.py
-scripts/split_nce_audio.py
-scripts/fix_nce_last_sentences.py
+# 音频切分/抓取脚本依赖本地数据 /tmp/opencode/nce_files.json，不入库
+# （脚本本身入库，运行时需自行准备数据）
 
 # 设计稿本地字体（Noto SC 可变字体，体积大，不入库；打开 mockups 前自行放置或忽略）
 design/mockups/fonts/

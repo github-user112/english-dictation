@@ -61,8 +61,9 @@ def test_boss_session_skips_ghost_rows_and_filters_list(client):
 def test_boss_result_clears_slain_words_only(client):
     _seed_wrong([("test_words", "hello", 6), ("test_words", "world", 4),
                  ("test_words", "apple", 2)])
-    answers = [{"id": "hello", "right": True}, {"id": "world", "right": False},
-               {"id": "apple", "right": True}]
+    answers = [{"id": "hello", "list": "test_words", "right": True},
+               {"id": "world", "list": "test_words", "right": False},
+               {"id": "apple", "list": "test_words", "right": True}]
     r = client.post(f"/api/boss/result?u={USER}", json={"answers": answers})
     assert r.status_code == 200
     body = r.get_json()
@@ -89,7 +90,7 @@ def test_boss_result_clears_slain_words_only(client):
 
     # 全歼后 Boss 无兵可点
     followup = client.post(f"/api/boss/result?u={USER}",
-                           json={"answers": [{"id": "world", "right": True}]})
+                           json={"answers": [{"id": "world", "list": "test_words", "right": True}]})
     assert followup.get_json()["wrong_remaining"] == 0
     assert get(client, "/api/boss/session").get_json()["total"] == 0
 
@@ -98,19 +99,21 @@ def test_boss_result_rejects_forged_or_malformed_answers(client):
     _seed_wrong([("test_words", "hello", 3), ("test_words", "world", 1)])
     ok = lambda answers: client.post(  # noqa: E731
         f"/api/boss/result?u={USER}", json={"answers": answers}).status_code
+    L = "test_words"
     # 素材里存在但不在错词本 → 拒；重复 id → 拒；right 非严格布尔 → 拒
-    assert ok([{"id": "abandon", "right": True}]) == 400
-    assert ok([{"id": "hello", "right": True}, {"id": "hello", "right": True}]) == 400
-    assert ok([{"id": "hello", "right": 1}]) == 400
-    assert ok([{"id": "hello", "right": "yes"}]) == 400
-    assert ok([{"id": "hello"}]) == 400
+    assert ok([{"id": "abandon", "list": L, "right": True}]) == 400
+    assert ok([{"id": "hello", "list": L, "right": True},
+               {"id": "hello", "list": L, "right": True}]) == 400
+    assert ok([{"id": "hello", "list": L, "right": 1}]) == 400
+    assert ok([{"id": "hello", "list": L, "right": "yes"}]) == 400
+    assert ok([{"id": "hello", "list": L}]) == 400
     assert ok(["hello"]) == 400
     assert ok([]) == 400
     assert client.post(f"/api/boss/result?u={USER}",
                        json={}).status_code == 400
     assert client.post(f"/api/boss/result?u={USER}", data="not json",
                        content_type="application/json").status_code == 400
-    big = [{"id": "hello", "right": True}] * 61
+    big = [{"id": "hello", "list": L, "right": True}] * 61
     assert ok(big) == 400
     # 以上全部被拒后错词本分毫未动
     with db() as conn:

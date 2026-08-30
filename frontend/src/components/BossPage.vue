@@ -134,7 +134,7 @@ function submit() {
   if (!cells.value || revealing.value || locked) return;
   locked = true;   // 从提交到切词之间封死重复入口（长按 Enter / 满格续敲）
   const right = cells.value.isCorrect();
-  answers.value.push({ id: item.value.id, right });
+  answers.value.push({ id: item.value.id, list: item.value.list, right });
   if (right) {
     score.value++; combo.value++; hp.value--;
     cells.value.paint(true);

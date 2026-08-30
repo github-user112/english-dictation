@@ -75,21 +75,22 @@ def api_boss_result():
 
     today = date.today().isoformat()
     with db() as conn:
-        wrong_ids = {r["item_id"] for r in conn.execute(
-            "SELECT item_id FROM word_state WHERE user=? AND wrong_count>0", (user,))}
+        wrong_ids = {(r["list"], r["item_id"]) for r in conn.execute(
+            "SELECT list, item_id FROM word_state WHERE user=? AND wrong_count>0", (user,))}
         graded, seen = [], set()
         for a in answers:
             # 严格校验：id 必须仍在错词本内、不重复、right 是真布尔
             if not isinstance(a, dict):
                 return jsonify({"error": "答案格式无效"}), 400
-            qid, right = a.get("id"), a.get("right")
-            if qid not in wrong_ids or qid in seen or not isinstance(right, bool):
+            qid, right, lkey = a.get("id"), a.get("right"), a.get("list")
+            key = (lkey, qid)
+            if key not in wrong_ids or key in seen or not isinstance(right, bool):
                 return jsonify({"error": "答案与错词本不符"}), 400
-            seen.add(qid)
-            graded.append((qid, right))
+            seen.add(key)
+            graded.append((qid, right, lkey))
 
         cleared = 0
-        for qid, right in graded:
+        for qid, right, lkey in graded:
             # 只记模式统计（经验/浇水/首答正确率），不动记忆状态与错词次数
             conn.execute(
                 """INSERT INTO daily_practice_log(day,user,practice_mode,new_count,review_count,
@@ -104,7 +105,7 @@ def api_boss_result():
                 # 与 /api/wrong/remove 同款清除语义：斩落即重置回新词流
                 conn.execute(
                     "UPDATE word_state SET wrong_count=0,status='new',next_review=NULL "
-                    "WHERE user=? AND item_id=?", (user, qid))
+                    "WHERE user=? AND item_id=? AND list=?", (user, qid, lkey))
                 cleared += 1
         notify_level(conn, user)
         remaining = conn.execute(
@@ -112,6 +113,6 @@ def api_boss_result():
             (user,)).fetchone()["c"]
         profile = derive_profile(conn, user)
 
-    return resp({"score": sum(1 for _, right in graded if right),
+    return resp({"score": sum(1 for _, right, _ in graded if right),
                  "total": len(graded), "cleared": cleared,
                  "wrong_remaining": remaining, "profile": profile})
