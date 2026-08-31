@@ -291,6 +291,38 @@ def test_friend_cap_blocks_new_relations(app):
     assert r.status_code == 400 and str(FRIENDS_MAX) in r.json["error"]
 
 
+def test_friend_cap_blocks_auto_accept_and_invite(app):
+    """自动通过分支与注册邀请也受好友上限约束——只查申请人自己会让对方超限。"""
+    trent = browser(app, "trent_full")
+    trent_id = uid_of(trent)
+    alice = browser(app, "peggy_full")
+    alice_id = uid_of(alice)
+    with db() as conn:
+        for i in range(FRIENDS_MAX):
+            other = ("ff%02d" % i).ljust(32, "0")
+            conn.execute("INSERT INTO friend_relation(user_a,user_b,status,requested_by,created_at) "
+                         "VALUES(?,?,?,?,?)", (*sorted((trent_id, other)), "accepted",
+                                               trent_id, now_iso()))
+        # trent 先向 alice 申请过：alice 这次添加走双向确认（自动通过）分支
+        conn.execute("INSERT INTO friend_relation(user_a,user_b,status,requested_by,created_at,updated_at) "
+                     "VALUES(?,?,?,?,?,?)", (*sorted((trent_id, alice_id)), "pending",
+                                             trent_id, now_iso(), now_iso()))
+    r = alice.post("/api/friends/add", json={"user_id": trent_id})
+    assert r.status_code == 400 and "上限" in r.json["error"]
+
+    # 邀请人满员：被邀请人注册照常成功，但不建关系
+    r = SocialBrowser(app).post("/api/auth/register",
+                               json={"username": "invitee_full", "password": PASS,
+                                     "inviter": trent_id})
+    assert r.status_code == 200, r.json
+    with db() as conn:
+        accepted = conn.execute(
+            "SELECT COUNT(*) c FROM friend_relation "
+            "WHERE (user_a=? OR user_b=?) AND status='accepted'",
+            (trent_id, trent_id)).fetchone()["c"]
+    assert accepted == FRIENDS_MAX
+
+
 # ---------------- 小组 ----------------
 
 def test_groups_require_login(app):

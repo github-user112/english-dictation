@@ -8,6 +8,7 @@ import argparse
 import json
 import re
 import sys
+import os
 import time
 import urllib.parse
 import urllib.request
@@ -16,6 +17,13 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
 OUT = BASE / "sentences"
 ROOT = "https://nce.mleo.site"
+
+
+def _atomic_write(path, data):
+    """原子写入：先写临时文件再 os.replace，避免中断留下损坏 JSON。"""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+    os.replace(tmp, path)
 
 TITLES = {1: "新概念英语1册", 2: "新概念英语2册", 3: "新概念英语3册", 4: "新概念英语4册"}
 
@@ -73,7 +81,7 @@ def main():
                 items.append({**it, "id": f"nce{book}-{idx}-{j}", "lesson": idx})
             print(f"  NCE{book} 单元 {idx}/{len(meta['units'])} 累计 {len(items)} 句")
         data = {"name": TITLES[book], "type": "sentences", "items": items}
-        out.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+        _atomic_write(out, data)
         print(f"nc{book}: {len(items)} 句 -> {out.name}")
 
 

@@ -72,15 +72,47 @@ describe("FriendsPage", () => {
   });
 
   it("reloads friends after addFriend", async () => {
+    // 保存原实现，测试后恢复，避免影响后续测试
+    const originalImpl = mockApi.getMockImplementation();
+    // 搜索 mock：返回一个可添加的用户
+    mockApi.mockImplementation(async (path, opts) => {
+      if (path === "/auth/me") return { user: "me123" };
+      if (path.startsWith("/friends/search")) return {
+        users: [{ user_id: "new1", username: "Eve", relation: "none" }],
+      };
+      if (path === "/friends") return {
+        friends: [], requests: { incoming: [], outgoing: [] }, max: 50,
+      };
+      if (path === "/friends/activity") return { events: [] };
+      if (path === "/friends/add") return { ok: true };
+      return {};
+    });
     const w = mount(FriendsPage);
     await flushPromises();
-    const friendsCallCount = mockApi.mock.calls.filter((c) => c[0] === "/friends").length;
-    // Trigger addFriend by finding a search result with relation=none — not available yet,
-    // so verify the reload path via calling reloadFriends indirectly through addFriend
-    await mockApi("/friends/add", { method: "POST", body: JSON.stringify({ user_id: "new1" }) });
-    await mockApi("/friends");
-    await mockApi("/friends/activity");
-    expect(mockApi.mock.calls.filter((c) => c[0] === "/friends").length).toBeGreaterThan(friendsCallCount);
+    const friendsCallsBefore = mockApi.mock.calls.filter((c) => c[0] === "/friends").length;
+
+    // 模拟搜索输入
+    const searchInput = w.find("input[placeholder*='搜索']").exists()
+      ? w.find("input[placeholder*='搜索']")
+      : w.find("input");
+    await searchInput.setValue("Eve");
+    // 等待 350ms debounce
+    await new Promise((r) => setTimeout(r, 400));
+    await flushPromises();
+
+    // 点击搜索结果中的添加按钮
+    const addBtn = w.findAll("button").find((b) =>
+      b.text().includes("加好友") || b.text().includes("添加"));
+    expect(addBtn).toBeTruthy();
+    await addBtn.trigger("click");
+    await flushPromises();
+
+    // addFriend 成功后应调用 reloadFriends → 重新拉取 /friends 和 /friends/activity
+    const friendsCallsAfter = mockApi.mock.calls.filter((c) => c[0] === "/friends").length;
+    expect(friendsCallsAfter).toBeGreaterThan(friendsCallsBefore);
+    expect(mockApi.mock.calls.some((c) => c[0] === "/friends/add")).toBe(true);
+    // 恢复原实现
+    mockApi.mockImplementation(originalImpl);
   });
 
   it("renders activity events", async () => {

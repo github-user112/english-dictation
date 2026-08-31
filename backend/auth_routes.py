@@ -20,7 +20,7 @@ from .auth import (
 )
 from .config import AUTH_RATE_LIMIT_ATTEMPTS, AUTH_RATE_LIMIT_SECONDS, COOKIE
 from .db import db
-from .friends import record_activity
+from .friends import at_friends_cap, record_activity
 
 bp = Blueprint("auth_routes", __name__, url_prefix="/api/auth")
 _USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,32}$")
@@ -153,7 +153,8 @@ def register():
                 (inviter,)).fetchone()
             if inviter_row:
                 pair = (user_id, inviter) if user_id < inviter else (inviter, user_id)
-                if pair[0] != pair[1]:
+                # 邀请人好友已满则不建关系，注册本身照常成功
+                if pair[0] != pair[1] and not at_friends_cap(conn, inviter):
                     conn.execute(
                         """INSERT INTO friend_relation(user_a,user_b,status,requested_by,
                                                       created_at,updated_at)

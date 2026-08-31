@@ -332,3 +332,34 @@ def test_assets_are_served_from_test_static_output(client):
     response = client.get(f"/assets/{asset}")
     assert response.status_code == 200
     assert response.get_data()
+
+
+def test_completed_requires_both_results(client):
+    """completed 缺作答结果会落成 0：ghost 错答进 daily_log.wrong_count，
+    但 update_word_state 被 None 挡下——四处口径对不上，须直接拒掉。"""
+    from backend.db import db
+
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    session_id, item = session["session"]["id"], session["items"][0]["id"]
+    for payload in ({"outcome": "completed"}, {"outcome": "completed", "final_right": True}):
+        response = post(client, "/api/result", {"session_id": session_id, "id": item, **payload})
+        assert response.status_code == 400, response.json
+    with db() as conn:
+        row = conn.execute("SELECT state FROM study_session_item WHERE session_id=? AND item_id=?",
+                           (session_id, item)).fetchone()
+    assert row["state"] == "pending"
+    done = {"session_id": session_id, "id": item, "first_right": False,
+            "final_right": True, "attempt_count": 2, "outcome": "completed"}
+    assert post(client, "/api/result", done).json["duplicate"] is False
+
+
+def test_result_bool_fields_must_be_real_booleans(client):
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    session_id, item = session["session"]["id"], session["items"][0]["id"]
+    for field in ("right", "first_right", "final_right"):
+        for bad in (1, 0, "yes", "", 2.5):
+            response = post(client, "/api/result", {
+                "session_id": session_id, "id": item, field: bad, "outcome": "attempt",
+            })
+            assert response.status_code == 400, (field, bad, response.json)
+            assert field in response.json["error"]

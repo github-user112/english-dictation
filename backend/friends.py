@@ -41,6 +41,13 @@ def _pair(me, other):
     return (me, other) if me < other else (other, me)
 
 
+def at_friends_cap(conn, user_id):
+    """已接受的好友数是否已达上限。申请/通过/邀请共用这一份口径，避免各写一份漂移。"""
+    return conn.execute(
+        "SELECT COUNT(*) c FROM friend_relation "
+        "WHERE (user_a=? OR user_b=?) AND status='accepted'", (user_id, user_id)).fetchone()["c"] >= FRIENDS_MAX
+
+
 def _relation_state(row, me):
     """把规范化行翻译成以我为视角的状态。"""
     if row is None:
@@ -189,10 +196,8 @@ def api_add():
         pair = _pair(me, other)
         if pair is None:
             return jsonify({"error": "不能添加自己为好友"}), 400
-        count = conn.execute(
-            "SELECT COUNT(*) c FROM friend_relation "
-            "WHERE (user_a=? OR user_b=?) AND status='accepted'", (me, me)).fetchone()["c"]
-        if count >= FRIENDS_MAX:
+        # 添加或自动通过都会新建关系，双方都要有空位
+        if any(at_friends_cap(conn, uid) for uid in pair):
             return jsonify({"error": f"好友数已达上限（{FRIENDS_MAX}）"}), 400
 
         stamp = now_iso()
@@ -210,11 +215,12 @@ def api_add():
         if state == "outgoing":
             return resp({"relation": "outgoing"})
         # 对方先发起过申请：这次添加即双向确认
-        conn.execute(
+        cur = conn.execute(
             "UPDATE friend_relation SET status='accepted', updated_at=? "
-            "WHERE user_a=? AND user_b=?", (stamp, *pair))
-        record_activity(conn, me, "friend_join", {"with": other})
-        record_activity(conn, other, "friend_join", {"with": me})
+            "WHERE user_a=? AND user_b=? AND status='pending'", (stamp, *pair))
+        if cur.rowcount:   # 并发下第二个 UPDATE 命中 0 行，不重复发动态
+            record_activity(conn, me, "friend_join", {"with": other})
+            record_activity(conn, other, "friend_join", {"with": me})
         return resp({"relation": "friends"})
 
 
@@ -236,18 +242,14 @@ def api_accept():
                            pair).fetchone()
         if row is None or row["status"] != "pending" or row["requested_by"] == me:
             return jsonify({"error": "没有待通过的好友申请"}), 404
-        # 通过前校验双方好友数是否已达上限（与 api_request 同口径）
-        for uid in pair:
-            cnt = conn.execute(
-                "SELECT COUNT(*) c FROM friend_relation "
-                "WHERE (user_a=? OR user_b=?) AND status='accepted'",
-                (uid, uid)).fetchone()["c"]
-            if cnt >= FRIENDS_MAX:
-                return jsonify({"error": f"好友数已达上限（{FRIENDS_MAX}）"}), 400
-        conn.execute("UPDATE friend_relation SET status='accepted', updated_at=? "
-                     "WHERE user_a=? AND user_b=?", (now_iso(), *pair))
-        record_activity(conn, me, "friend_join", {"with": other})
-        record_activity(conn, other, "friend_join", {"with": me})
+        # 通过前校验双方好友数是否已达上限（与 api_add 同口径）
+        if any(at_friends_cap(conn, uid) for uid in pair):
+            return jsonify({"error": f"好友数已达上限（{FRIENDS_MAX}）"}), 400
+        cur = conn.execute("UPDATE friend_relation SET status='accepted', updated_at=? "
+                     "WHERE user_a=? AND user_b=? AND status='pending'", (now_iso(), *pair))
+        if cur.rowcount:   # 并发下第二个 UPDATE 命中 0 行，不重复发动态
+            record_activity(conn, me, "friend_join", {"with": other})
+            record_activity(conn, other, "friend_join", {"with": me})
     return resp({"relation": "friends"})
 
 
@@ -334,12 +336,15 @@ def notify_level(conn, user):
     level_now = level_of(xp_of(conn, user))
     if level_now <= row["level"]:
         return
-    conn.execute("""INSERT INTO friend_level_seen(user, level, updated_at) VALUES(?,?,?)
+    # 条件推进基线：只有 level 确实推进时才命中 1 行；并发下第二个 UPDATE 命中 0 行
+    cur = conn.execute("""INSERT INTO friend_level_seen(user, level, updated_at) VALUES(?,?,?)
                     ON CONFLICT(user) DO UPDATE SET level=excluded.level,
-                        updated_at=excluded.updated_at""",
+                        updated_at=excluded.updated_at
+                    WHERE friend_level_seen.level < excluded.level""",
                  (user, level_now, now_iso()))
-    record_activity(conn, user, "level_up",
-                    {"level": level_now, "title": LEVELS[level_now - 1][1]})
+    if cur.rowcount:
+        record_activity(conn, user, "level_up",
+                        {"level": level_now, "title": LEVELS[level_now - 1][1]})
 
 
 def record_silent_baseline(conn, user):

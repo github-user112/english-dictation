@@ -1,7 +1,7 @@
 """素材目录 / 稳定学习会话 / 首答与最终结果。"""
 import random
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -48,7 +48,8 @@ def _audio_done(list_key):
 
 
 def now():
-    return datetime.now().isoformat(timespec="seconds")
+    """统一时间戳：UTC ISO 带时区，与 auth.now_iso() 一致。"""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def clamp_int(raw, default, minimum=0, maximum=100):
@@ -400,11 +401,6 @@ def update_word_state(conn, user, list_key, item_id, first_right, final_right, m
          state.get("last_memorize", ""), state["stability"], state["difficulty"]))
 
 
-def _opt_bool(v):
-    """显式 null 表示"没有作答"，不能与 False（答错）混为一谈。"""
-    return None if v is None else bool(v)
-
-
 @bp.post("/api/result")
 def api_result():
     user = get_user()
@@ -414,21 +410,23 @@ def api_result():
     if raw_id is None:
         return jsonify({"error": "缺少 id 参数"}), 400
     item_id = str(raw_id)
-    # right 必须是严格布尔；非布尔（含 "no"/1/""）会被 bool() 误判
+    # 三个布尔字段都必须严格布尔；bool() 会把 "no"/1/"" 误判，把没作答记成答错
+    for field in ("right", "first_right", "final_right"):
+        value = data.get(field)
+        if value is not None and not isinstance(value, bool):
+            return jsonify({"error": f"{field} 必须是布尔值"}), 400
     raw_right = data.get("right")
-    if raw_right is not None and not isinstance(raw_right, bool):
-        return jsonify({"error": "right 必须是布尔值"}), 400
     outcome = data.get("outcome", "completed" if raw_right else "skipped")
     if outcome not in {"attempt", "completed", "skipped"}:
         return jsonify({"error": "outcome 无效"}), 400
     if "first_right" in data:
-        first_right = _opt_bool(data["first_right"])
+        first_right = data["first_right"]
     else:
-        first_right = None if raw_right is None else bool(raw_right and not data.get("retried"))
+        first_right = None if raw_right is None else not data.get("retried")
     if "final_right" in data:
-        final_right = _opt_bool(data["final_right"])
+        final_right = data["final_right"]
     else:
-        final_right = None if raw_right is None else bool(raw_right)
+        final_right = raw_right
     try:
         attempt_count = int(data.get("attempt_count", 1))
     except (TypeError, ValueError):
@@ -449,6 +447,10 @@ def api_result():
     stamp = now()
     if not session_id:
         return legacy_result(user, data, item_id, first_right, final_right, outcome, today)
+    # completed 缺任一作答结果时，缺口会落成 0：本题被记成答错进 daily_log，
+    # 但 update_word_state 又被 None 挡下——同一作答在四处口径对不上
+    if outcome == "completed" and (first_right is None or final_right is None):
+        return jsonify({"error": "completed 需要 first_right 和 final_right"}), 400
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = conn.execute(

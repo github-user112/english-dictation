@@ -1,11 +1,19 @@
 """拉取并转换词库/句子素材为统一 JSON 格式"""
 import json
+import os
 import string
 import sys
 import time
 import urllib.request
 import urllib.parse
 from pathlib import Path
+
+
+def _atomic_write(path, data):
+    """原子写入：先写临时文件再 os.replace，避免中断留下损坏 JSON。"""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+    os.replace(tmp, path)
 
 BASE = Path(__file__).resolve().parent.parent
 WORDLIST_DIR = BASE / "wordlists"
@@ -140,7 +148,7 @@ def main():
             print(f"  {key} 失败: {e}")
             continue
         data = {"name": key.upper(), "type": "words", "words": words}
-        out.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+        _atomic_write(out, data)
         print(f"  {key}: {len(words)} 词 -> {out.name}")
 
     out = SENTENCE_DIR / "oral900.json"
@@ -150,7 +158,7 @@ def main():
         try:
             sentences = fetch_oral900()
             data = {"name": "口语900句", "type": "sentences", "items": sentences}
-            out.write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+            _atomic_write(out, data)
             print(f"oral900: {len(sentences)} 句 -> {out.name}")
         except Exception as e:
             print(f"  oral900 失败: {e}")

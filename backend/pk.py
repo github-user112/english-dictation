@@ -19,7 +19,7 @@ version 单调递增保证多 worker 下不丢事件；游客身份取 Cookie，
 """
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from flask import Blueprint, request
@@ -99,7 +99,11 @@ def _new_code(conn):
 
 
 def _elapsed_seconds(iso_start):
-    return (datetime.now() - datetime.fromisoformat(iso_start)).total_seconds()
+    """计算经过秒数。兼容旧 naive 本地时间数据（假设为本地时区）。"""
+    dt = datetime.fromisoformat(iso_start)
+    if dt.tzinfo is None:
+        dt = dt.astimezone()
+    return (datetime.now(timezone.utc).astimezone() - dt).total_seconds()
 
 
 def _deadline_iso(started_at):
@@ -112,9 +116,9 @@ def _sweep_rooms(conn):
             "SELECT code, started_at FROM pk_room WHERE state='playing'").fetchall():
         if _elapsed_seconds(row["started_at"]) >= GAME_SECONDS + GRACE_SECONDS:
             _finalize_room(conn, row["code"])
-    cutoff_wait = (datetime.now() - timedelta(minutes=WAITING_ROOM_TTL_MINUTES)).isoformat()
+    cutoff_wait = (datetime.now(timezone.utc) - timedelta(minutes=WAITING_ROOM_TTL_MINUTES)).isoformat()
     conn.execute("DELETE FROM pk_room WHERE state='waiting' AND created_at < ?", (cutoff_wait,))
-    cutoff_done = (datetime.now() - timedelta(days=FINISHED_ROOM_TTL_DAYS)).isoformat()
+    cutoff_done = (datetime.now(timezone.utc) - timedelta(days=FINISHED_ROOM_TTL_DAYS)).isoformat()
     conn.execute("DELETE FROM pk_room WHERE state='finished' AND finished_at < ?", (cutoff_done,))
 
 
@@ -310,18 +314,18 @@ def ws_pk(ws, code):
     座位身份只认会话/Cookie（get_cookie_identity），URL 参数一律不作为归属依据。"""
     me = get_cookie_identity()["user_id"]
     origin = request.headers.get("Origin")
-    if not origin or urlparse(origin).netloc != request.host:
+    if not origin or urlparse(origin).hostname != request.host.split(":")[0]:
         ws.close(reason="origin rejected")
         return
 
     code = code.upper()
     pushed_version = -1     # 未推送过任何快照
-    last_outbound = datetime.now()
+    last_outbound = datetime.now(timezone.utc)
     finalized_seen = False
 
     def send(payload):
         nonlocal last_outbound
-        last_outbound = datetime.now()
+        last_outbound = datetime.now(timezone.utc)
         ws.send(json.dumps(payload, ensure_ascii=False))
 
     try:
@@ -353,16 +357,16 @@ def ws_pk(ws, code):
                 _maybe_autofinish(conn, room)
                 fresh = conn.execute(
                     "SELECT * FROM pk_room WHERE code=?", (code,)).fetchone()
-                if room["version"] > pushed_version:
+                if fresh["version"] > pushed_version:
                     send(_snapshot(conn, code, viewer=me))
-                    pushed_version = room["version"]
+                    pushed_version = fresh["version"]
                     if fresh["state"] == "finished":
                         finalized_seen = True
-                        final_push_at = datetime.now()
-                elif (datetime.now() - last_outbound).total_seconds() >= HEARTBEAT_SECONDS:
+                        final_push_at = datetime.now(timezone.utc)
+                elif (datetime.now(timezone.utc) - last_outbound).total_seconds() >= HEARTBEAT_SECONDS:
                     send({"type": "ping"})
             if finalized_seen:
-                linger = (datetime.now() - final_push_at).total_seconds()
+                linger = (datetime.now(timezone.utc) - final_push_at).total_seconds()
                 if linger >= FINISHED_LINGER_SECONDS:
                     break   # 终局快照已送达，释放工作线程给下一个对局
     except ConnectionClosed:
