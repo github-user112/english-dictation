@@ -406,6 +406,7 @@ async function loadSession() {
 }
 function toggleScope() {
   if (custom.value || mode.value !== "word") return;
+  if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   playToken.value++;
   clearReplay();
   audioEl.pause();

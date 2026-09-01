@@ -337,6 +337,7 @@ async function retrySave() {
   finishAnswer(lastRight.value, result);
 }
 function quizNext() {
+  if (saving.value) return;
   playToken.value++;
   audioEl.pause();
   quizRound.value++;

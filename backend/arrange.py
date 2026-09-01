@@ -16,6 +16,7 @@ from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
 from .db import db
+from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item, load_material
 from .profile import derive_profile
 
@@ -103,7 +104,6 @@ def api_arrange_answer():
     order = data.get("order")
     chunks = build_chunks(item["text"])
     k = len(chunks)
-    # order 必须是 0..k-1 的严格排列；bool 是 int 的子类，须显式排除
     if not isinstance(order, list):
         return jsonify({"error": "排句顺序无效"}), 400
     seen = set()
@@ -118,8 +118,20 @@ def api_arrange_answer():
     built = " ".join(display[p] for p in order)
     right = built == " ".join(item["text"].split())
 
+    attempt_id, err = validate_attempt_id(data.get("attempt_id"))
+    if err:
+        attempt_id = None  # 老客户端兼容
+
     today = date.today().isoformat()
-    with db() as conn:
+    with db(immediate=True) as conn:
+        if attempt_id:
+            status, capped = check_and_mark(conn, user, "arrange", attempt_id)
+            if status == "duplicate":
+                return resp({"ok": True, "duplicate": True, "right": right,
+                             "score": 1 if right else 0, "text": item["text"]})
+            if status == "capped":
+                return capped
+
         conn.execute(
             """INSERT INTO daily_practice_log(day,user,practice_mode,new_count,review_count,
                    first_right_count,first_wrong_count,final_right_count,skipped_count)
@@ -132,6 +144,8 @@ def api_arrange_answer():
              0 if right else 1, 1 if right else 0, 0))
         notify_level(conn, user)
         profile = derive_profile(conn, user)
+        if attempt_id:
+            mark_done(conn, user, "arrange", attempt_id)
 
     return resp({"right": right, "score": 1 if right else 0,
                  "text": item["text"], "profile": profile})

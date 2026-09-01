@@ -1,46 +1,82 @@
 <script setup>
-/* 社交分享弹层：统一三张卡片（sprint 成绩 / pk 战报 / badge 徽章）的
- * 预览、PNG 下载与文案复制入口；绘制与文案全部来自 lib/cards.js，
- * 本组件只负责开合状态、画布挂载和操作反馈。 */
-import { computed, nextTick, ref, watch } from "vue";
+/* 社交分享弹层：统一 pk 战报 / badge 徽章的预览、PNG 下载与文案复制入口；
+ * 绘制与文案全部来自 lib/cards.js。本组件负责开合、画布挂载、操作反馈。 */
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { PALETTES, currentTheme } from "../lib/poster";
 import {
-  badgeShareText, paintBadgeCard, paintPkCard, paintSprintCard,
-  pkShareText, sprintShareText,
+  badgeShareText, paintBadgeCard, paintPkCard,
+  pkShareText,
 } from "../lib/cards";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
-  kind: { type: String, required: true },       // sprint | pk | badge
-  payload: { type: Object, required: true },    // 与 cards.js 各 painter 的 m 一致（含 link）
+  kind: { type: String, required: true },       // pk | badge
+  payload: { type: Object, required: true },
 });
 
 const emit = defineEmits(["close"]);
 
-const PAINTER = {
-  sprint: paintSprintCard,
-  pk: paintPkCard,
-  badge: paintBadgeCard,
-};
-const TEXT = {
-  sprint: sprintShareText,
-  pk: pkShareText,
-  badge: badgeShareText,
-};
-const FILENAME = { sprint: "冲刺成绩卡", pk: "对战战报", badge: "成就徽章" };
+const PAINTER = { pk: paintPkCard, badge: paintBadgeCard };
+const TEXT = { pk: pkShareText, badge: badgeShareText };
+const FILENAME = { pk: "对战战报", badge: "成就徽章" };
 
 const poster = ref(null);
 const copied = ref(false);
+const box = ref(null);
+const lastFocused = ref(null);
 const shareText = computed(() => (TEXT[props.kind] || (() => ""))(props.payload));
 
+/* ponytail: L3 — watcher 以 payload 对象身份为键会随父组件重渲反复触发；
+ * 改为字符串化稳定值，payload 内容不变时不重画。 */
+const stableKey = computed(() => props.open ? `${props.kind}:${JSON.stringify(props.payload)}` : "");
+
 watch(
-  () => [props.open, props.kind, props.payload],
+  () => stableKey.value,
   async () => {
     if (!props.open) return;
-    await nextTick();                       // 等 <canvas> 挂回 DOM 再预览
+    await nextTick();
     drawPreview();
   },
   { immediate: false },
+);
+
+onMounted(() => {
+  window.addEventListener("keydown", onKey);
+});
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKey);
+});
+
+function onKey(e) {
+  if (e.key === "Escape" && props.open) {
+    e.preventDefault();
+    emit("close");
+    lastFocused.value?.focus?.();
+  }
+}
+
+function openDialog() {
+  if (!props.open) return;
+  lastFocused.value = document.activeElement;
+  // ponytail: M3 焦点陷阱的最小实现——只把焦点圈在 modal-box 内，
+  // 复杂 Tab 轮转对 canvas 分享卡无实际意义（用户只点按钮）。
+  document.addEventListener("focusin", trapFocus);
+}
+function closeDialog() {
+  if (props.open) return;
+  document.removeEventListener("focusin", trapFocus);
+  lastFocused.value?.focus?.();
+}
+function trapFocus(e) {
+  if (box.value && !box.value.contains(e.target)) {
+    e.preventDefault();
+    box.value.focus({ preventScroll: true });
+  }
+}
+
+watch(
+  () => props.open,
+  (o) => o ? nextTick(openDialog) : closeDialog(),
 );
 
 function drawPreview() {
@@ -72,9 +108,9 @@ async function copyText() {
 </script>
 
 <template>
-  <div v-if="open" class="modal share-modal" role="dialog" aria-label="分享卡片"
-       @click.self="emit('close')">
-    <div class="modal-box share-box">
+  <div v-if="open" class="modal share-modal" role="dialog" aria-modal="true"
+       aria-label="分享卡片" @click.self="emit('close')">
+    <div ref="box" class="modal-box share-box" tabindex="-1">
       <h3 class="share-title">{{ FILENAME[kind] }}</h3>
       <canvas ref="poster" class="share-canvas" aria-label="分享卡片预览"></canvas>
       <pre class="share-text" aria-label="分享文本">{{ shareText }}</pre>

@@ -51,8 +51,12 @@ function goBoss() {
   location.hash = "#/boss";
 }
 async function remove(item) {
-  await api("/wrong/remove", { method: "POST", body: JSON.stringify({ list: item.list, id: item.id }) });
-  location.reload();
+  try {
+    await api("/wrong/remove", { method: "POST", body: JSON.stringify({ list: item.list, id: item.id }) });
+    location.reload();
+  } catch (err) {
+    alert(err.message || "删除失败，请检查网络");
+  }
 }
 function grouped() {
   const g = {};

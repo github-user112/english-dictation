@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>09 · 浅色主题预览</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a class="on" href="#">素材库</a><a href="#">听打</a><a href="#">背单词</a><a href="#">选词</a><a href="#">冲刺</a><a href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2v2.6M12 19.4V22M4.9 4.9l1.9 1.9M17.2 17.2l1.9 1.9M2 12h2.6M19.4 12H22M4.9 19.1l1.9-1.9M17.2 6.8l1.9-1.9"/></svg></button>
+    <span class="avatar" style="color:#fff;background:linear-gradient(135deg,#8a97c9,#556be0)">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <!-- 浅色 Hero -->
+  <section class="hero rv" style="margin-top:30px;grid-template-columns:1.5fr .9fr;padding:40px 44px 38px">
+    <div>
+      <span class="eyebrow">DAILY LISTENING PRACTICE</span>
+      <h1 class="page-h1" style="font-size:clamp(30px,3.6vw,42px);margin:12px 0 10px">听清每一个词，<em>写下每一句。</em></h1>
+      <p class="sub">浅色「暖纸」主题：晨间与强光环境使用，对比度按 WCAG AA 校准。</p>
+      <div class="cta">
+        <button class="btn primary big"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>开始今日练习</button>
+        <button class="btn ghost big">浏览全部词库</button>
+      </div>
+    </div>
+    <div class="hero-stats rv d2">
+      <div><b>32 <i>↑12</i></b><span>今日练习</span></div>
+      <div><b>87<i>%</i></b><span>首答正确率</span></div>
+      <div><b>7 <i>天</i></b><span>连续打卡</span></div>
+    </div>
+  </section>
+
+  <!-- 浅色判对态 -->
+  <div class="sec rv d1"><b>听打练习 · 判对瞬间</b><small>浅色下的波浪扫色同样以绿为唯一成功语义</small></div>
+  <section class="stage rv d2" style="max-width:760px">
+    <div class="tagline">LISTEN · TYPE · LEARN</div>
+    <div class="pbar"><i></i></div>
+
+    <div class="info-line">
+      <span class="ph">/əˈbændən/</span>
+      <span class="mn">v. 放弃；抛弃</span>
+    </div>
+
+    <div class="cells win">
+      <span class="burst" style="left:calc(50% - 168px);top:-26px;width:20px;height:20px;opacity:.85"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="burst" style="left:calc(50% - 13px);top:-46px;width:28px;height:28px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+
+      <span class="cell right">a</span>
+      <span class="cell right">b</span>
+      <span class="cell right">a</span>
+      <span class="cell right">n</span>
+      <span class="cell right fresh">d</span>
+      <span class="cell right fresh">o</span>
+      <span class="cell right fresh">n</span>
+    </div>
+
+    <div class="verdict ok">✔ 拼写全对，正在进入下一题…</div>
+
+    <div class="controls">
+      <button class="ctrl-ghost">再听一次<kbd>Esc</kbd></button>
+      <div class="play-wrap">
+        <button class="play" aria-label="播放发音">
+          <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9.4 9.4 0 0 1 0 13.6"/></svg>
+        </button>
+      </div>
+      <button class="ctrl-ghost">跳过</button>
+    </div>
+  </section>
+
+  <p class="sub rv d3" style="text-align:center;margin-top:26px;color:var(--text-3)">两套主题共享同一组 tokens 与动效曲线，仅色彩层替换 —— 切换零成本。</p>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 09 LIGHT THEME</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

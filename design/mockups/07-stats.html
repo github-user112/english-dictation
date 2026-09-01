@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>07 · 统计</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a href="#">素材库</a><a href="#">听打</a><a href="#">背单词</a><a href="#">选词</a><a href="#">冲刺</a><a class="on" href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <span class="avatar">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <div class="sec rv" style="margin-top:34px"><b>学习统计</b><small>数据实时同步 · 首答结果不可被重输覆盖</small></div>
+
+  <div class="stat-grid">
+    <div class="stat rv d1">
+      <div class="num">7 <small>天</small></div>
+      <div class="lab"><svg viewBox="0 0 24 24" width="13" height="13" fill="var(--amber)"><path d="M12 22c4.4 0 7.5-3 7.5-7 0-4.4-3.4-6.6-5-10-2 2.6-2.9 4.4-2.9 6.4 0 0-.8-1.6-2.6-3.4C7.4 10.6 4.5 12.4 4.5 15c0 4 3.1 7 7.5 7z"/></svg>连续打卡<span class="trend">+1</span></div>
+    </div>
+    <div class="stat rv d2">
+      <div class="num">32 <small>词</small></div>
+      <div class="lab"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>今日练习<span class="trend">↑12</span></div>
+    </div>
+    <div class="stat rv d3">
+      <div class="num">87<small>%</small></div>
+      <div class="lab"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--indigo)" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>首答正确率<span class="trend">+2.4%</span></div>
+    </div>
+    <div class="stat rv d4">
+      <div class="num">1,208</div>
+      <div class="lab"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-4.5"/></svg>累计词量<span class="trend" style="color:var(--text-3)">本周 +186</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2 rv" style="margin-top:18px">
+    <!-- 近 14 日练习量 -->
+    <section class="chart rv d1">
+      <h4>近 14 日练习量</h4>
+      <p class="cap">柱体自底部生长入场（stagger 20ms）· 今日高亮</p>
+      <div class="bars">
+        <div class="b"><i style="height:32%;opacity:.55"></i></div>
+        <div class="b"><i style="height:45%;opacity:.55"></i></div>
+        <div class="b"><i style="height:28%;opacity:.55"></i></div>
+        <div class="b"><i style="height:52%;opacity:.55"></i></div>
+        <div class="b"><i style="height:47%;opacity:.55"></i></div>
+        <div class="b"><i style="height:9%;opacity:.55"></i></div>
+        <div class="b"><i style="height:40%;opacity:.55"></i></div>
+        <div class="b"><i style="height:57%;opacity:.55"></i></div>
+        <div class="b"><i style="height:49%;opacity:.55"></i></div>
+        <div class="b"><i style="height:63%;opacity:.55"></i></div>
+        <div class="b"><i style="height:45%;opacity:.55"></i></div>
+        <div class="b"><i style="height:55%;opacity:.55"></i></div>
+        <div class="b"><i style="height:69%;opacity:.55"></i></div>
+        <div class="b today"><i style="height:27%"></i></div>
+      </div>
+      <div class="x">
+        <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span>
+        <span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span style="color:var(--amber)">今</span>
+      </div>
+    </section>
+
+    <!-- 正确率环 -->
+    <section class="chart rv d2" style="display:flex;flex-direction:column">
+      <h4>首答正确率</h4>
+      <p class="cap">圆环自 0° 生长（ease-out 600ms）· 数字随之滚动</p>
+      <div class="donut" style="margin:auto">
+        <svg width="148" height="148" viewBox="0 0 148 148" style="transform:rotate(-90deg)">
+          <circle cx="74" cy="74" r="58" fill="none" stroke="var(--panel-3)" stroke-width="13"/>
+          <circle cx="74" cy="74" r="58" fill="none" stroke="var(--amber)" stroke-width="13"
+                  stroke-linecap="round" stroke-dasharray="317 47"/>
+        </svg>
+        <b>87%</b>
+        <small>FIRST TRY</small>
+      </div>
+      <div style="display:flex;justify-content:center;gap:10px;margin-top:16px">
+        <span class="chip audio">本周 87%</span>
+        <span class="chip type">上周 84.6%</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="rv d3" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border:1px dashed var(--line-strong);border-radius:var(--r-md);color:var(--text-2)">
+    <span style="font-size:13px">🔥 已连续打卡 7 天，今天还差 <b style="color:var(--amber-hi)">12 词</b> 完成目标</span>
+    <button class="btn primary sm">继续今日任务</button>
+  </div>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 07 STATS</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

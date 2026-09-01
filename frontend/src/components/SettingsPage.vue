@@ -6,6 +6,10 @@ import { Account } from "../lib/account";
 const s = ref(Settings.get());
 
 function set(key, val) {
+  // L1: 数值设置钳制（HTML min/max 不限制输入内容）
+  if (key === "newPerDay") val = Math.max(5, Math.min(50, val)) || 10;
+  if (key === "replayInterval") val = Math.max(1, Math.min(30, val)) || 5;
+  if (key === "replayTimes") val = Math.max(0, Math.min(5, val)) || 0;
   Settings.set({ [key]: val });
   s.value = Settings.get();
 }

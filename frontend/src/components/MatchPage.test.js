@@ -85,9 +85,10 @@ describe("MatchPage", () => {
 
     expect(matchPosts).toHaveLength(1);
     // 配错涉及双方：apple 与 狗(dog) 都失去"首配即中"，只有 cat 满额
-    expect(matchPosts[0]).toStrictEqual({ list: "test_words", answers: [
+    expect(matchPosts[0]).toMatchObject({ list: "test_words", answers: [
       { id: "apple", right: false }, { id: "dog", right: false }, { id: "cat", right: true },
     ] });
+    expect(typeof matchPosts[0].attempt_id).toBe("string");
     expect(spy.mock.calls.some((c) => c[0].type === "profile-changed")).toBe(true);
     expect(wrapper.text()).toContain("桌面清空");
     expect(wrapper.text()).toContain("首配即中 1/3");

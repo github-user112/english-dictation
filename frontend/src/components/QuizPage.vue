@@ -114,10 +114,15 @@ function answer(opt) {
   }
   // 只计模式统计，不动听写掌握度/错词本/FSRS（选词是再认，拼写口径不同）：
   // 走旧版结果通道，失败静默（练习数据不阻塞下一题）
+  const _aid = (() => {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+  })();
   api("/result", { method: "POST", body: JSON.stringify({
     list: list.value, id: q.value.id, mode: "quiz",
     first_right: lastRight.value, final_right: lastRight.value,
     right: lastRight.value, outcome: "completed",
+    attempt_id: _aid,
   }) }).catch(() => {});
 }
 

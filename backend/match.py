@@ -16,6 +16,7 @@ from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
 from .db import db
+from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import _material_index, audio_url, load_material
 from .profile import derive_profile
 
@@ -77,13 +78,29 @@ def api_match_result():
         if not isinstance(a, dict):
             return jsonify({"error": "答案格式无效"}), 400
         qid, right = a.get("id"), a.get("right")
-        if qid not in index or qid in seen or not isinstance(right, bool):
+        # 先查类型再进 dict：dict/list 当 id 会在哈希查找时抛 TypeError 打成 500
+        if not isinstance(qid, str) or not isinstance(right, bool):
+            return jsonify({"error": "答案与素材不符"}), 400
+        if qid not in index or qid in seen:
             return jsonify({"error": "答案与素材不符"}), 400
         seen.add(qid)
         graded.append((qid, right))
 
+    attempt_id, err = validate_attempt_id(data.get("attempt_id"))
+    if err:
+        attempt_id = None  # 老客户端兼容
+
     today = date.today().isoformat()
-    with db() as conn:
+    with db(immediate=True) as conn:
+        if attempt_id:
+            status, capped = check_and_mark(conn, user, "match", attempt_id)
+            if status == "duplicate":
+                return resp({"ok": True, "duplicate": True,
+                             "total": len(graded),
+                             "perfect": sum(1 for _, r in graded if r)})
+            if status == "capped":
+                return capped
+
         conn.execute(
             """INSERT INTO daily_practice_log(day,user,practice_mode,new_count,review_count,
                    first_right_count,first_wrong_count,final_right_count,skipped_count)
@@ -91,13 +108,15 @@ def api_match_result():
                ON CONFLICT(day,user,practice_mode) DO UPDATE SET
                first_right_count=first_right_count+excluded.first_right_count,
                first_wrong_count=first_wrong_count+excluded.first_wrong_count,
-               final_right_count=final_right_count+excluded.final_right_count""",
+               final_right_count=first_right_count+excluded.final_right_count""",
             (today, user, "match", 0, 0,
              sum(1 for _, right in graded if right),
              sum(1 for _, right in graded if not right),
              sum(1 for _, right in graded if right), 0))
         notify_level(conn, user)
         profile = derive_profile(conn, user)
+        if attempt_id:
+            mark_done(conn, user, "match", attempt_id)
 
     return resp({"total": len(graded),
                  "perfect": sum(1 for _, right in graded if right),

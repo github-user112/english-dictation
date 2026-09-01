@@ -15,6 +15,7 @@ from .auth import get_user, resp
 from .catalog import clamp_int
 from .config import MATERIALS
 from .db import db
+from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item
 from .profile import derive_profile
 
@@ -73,8 +74,26 @@ def api_boss_result():
     if not isinstance(answers, list) or not answers or len(answers) > BOSS_MAX_WORDS * 2:
         return jsonify({"error": "answers 无效"}), 400
 
+    attempt_id, err = validate_attempt_id(data.get("attempt_id"))
+    if err:
+        attempt_id = None  # 老客户端兼容
+
     today = date.today().isoformat()
-    with db() as conn:
+    with db(immediate=True) as conn:
+        # 幂等优先于答案校验：重放不重复校验，避免首次已清除的错词导致重放 400
+        if attempt_id:
+            status, capped = check_and_mark(conn, user, "boss", attempt_id)
+            if status == "duplicate":
+                _score = sum(1 for a in answers if isinstance(a, dict) and a.get("right") is True)
+                remaining = conn.execute(
+                    "SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0",
+                    (user,)).fetchone()["c"]
+                return resp({"ok": True, "duplicate": True,
+                             "score": _score, "total": len(answers),
+                             "cleared": _score, "wrong_remaining": remaining})
+            if status == "capped":
+                return capped
+
         wrong_ids = {(r["list"], r["item_id"]) for r in conn.execute(
             "SELECT list, item_id FROM word_state WHERE user=? AND wrong_count>0", (user,))}
         graded, seen = [], set()
@@ -83,8 +102,12 @@ def api_boss_result():
             if not isinstance(a, dict):
                 return jsonify({"error": "答案格式无效"}), 400
             qid, right, lkey = a.get("id"), a.get("right"), a.get("list")
+            # 先查类型再进集合：dict/list 当 id 会在 key 哈希时抛 TypeError 打成 500
+            if not isinstance(qid, str) or not isinstance(lkey, str) \
+                    or not isinstance(right, bool):
+                return jsonify({"error": "答案与错词本不符"}), 400
             key = (lkey, qid)
-            if key not in wrong_ids or key in seen or not isinstance(right, bool):
+            if key not in wrong_ids or key in seen:
                 return jsonify({"error": "答案与错词本不符"}), 400
             seen.add(key)
             graded.append((qid, right, lkey))
@@ -112,6 +135,8 @@ def api_boss_result():
             "SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0",
             (user,)).fetchone()["c"]
         profile = derive_profile(conn, user)
+        if attempt_id:
+            mark_done(conn, user, "boss", attempt_id)
 
     return resp({"score": sum(1 for _, right, _ in graded if right),
                  "total": len(graded), "cleared": cleared,

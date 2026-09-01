@@ -146,7 +146,7 @@ def api_sprint_best_post():
     combo = clamp_int(data.get("combo"), 0, 0, 999)
     total = clamp_int(data.get("total"), 0, 0, 9999)
 
-    stamp = date.today().isoformat()
+    stamp = now()   # 完整时间戳而非日期串：同日多条 updated_at 排序不致坍缩
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT score, combo FROM sprint_best WHERE user=?", (user,)).fetchone()
@@ -218,6 +218,8 @@ def api_sprint_challenge_score(cid):
     total = clamp_int(data.get("total"), 0, 0, 9999)
 
     with db() as conn:
+        # BEGIN IMMEDIATE 把读-比-写串行化：并发提交时低分不会在检查后覆盖高分
+        conn.execute("BEGIN IMMEDIATE")
         if not conn.execute("SELECT 1 FROM sprint_challenge WHERE id=?", (cid,)).fetchone():
             return jsonify({"error": "挑战不存在或已过期"}), 404
         prev = conn.execute(

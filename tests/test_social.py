@@ -348,14 +348,16 @@ def test_group_create_validates_name_and_lists_membership(app):
     assert [g["id"] for g in mine] == [gid]
     assert mine[0]["role"] == "owner" and mine[0]["member_count"] == 1
 
-    # 详情对已登录的非成员开放（邀请链接先看组再决定加入）；游客仍被挡
+    # 详情对已登录的非成员开放公开预览（邀请链接先看组再决定加入），
+    # 但成员名单与挑战成绩属组内信息，与 /challenges 的 403 口径一致不随详情泄露；游客仍被挡
     outsider = browser(app, "walker_grp")
     member_view = outsider.get(f"/api/groups/{gid}")
     assert member_view.status_code == 200
     detail = member_view.json
     assert detail["is_member"] is False and detail["role"] is None
     assert detail["member_count"] == 1
-    assert len(detail["members"]) == 1 and detail["members"][0]["role"] == "owner"
+    assert detail["members"] == [] and detail["challenges"] == []
+    assert "creator" not in detail   # 预览不暴露创建者 user_id
     assert browser(app).get(f"/api/groups/{gid}").status_code == 401
     assert outsider.get("/api/groups/nope404").status_code == 404
 

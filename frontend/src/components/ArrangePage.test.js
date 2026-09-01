@@ -107,7 +107,8 @@ describe("ArrangePage", () => {
     await flushPromises();
     expect(answers).toHaveLength(1);
     // 无 ?list= 参数时回退到第一个句子素材
-    expect(answers[0]).toStrictEqual({ list: "test_sents", id: "9", order: [0, 1, 2] });
+    expect(answers[0]).toMatchObject({ list: "test_sents", id: "9", order: [0, 1, 2] });
+    expect(typeof answers[0].attempt_id).toBe("string");
     expect(wrapper.text()).toContain("拼对了");
 
     await vi.advanceTimersByTimeAsync(1200);   // 答对 1.1s 自动进结算

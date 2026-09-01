@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>03 · 听打练习 — 判对</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a href="#">素材库</a><a class="on" href="#">听打</a><a href="#">背单词</a><a href="#">选词</a><a href="#">冲刺</a><a href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <span class="avatar">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <div class="p-top rv" style="margin-top:28px">
+    <span class="prog-line">07 / 20<span class="bar amber"><i style="width:35%"></i></span>CET-4 核心词汇</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="chip type">辅助听写</span>
+      <div class="seg"><button class="on">全部</button><button>已背</button></div>
+      <button class="btn ghost sm">1.0×</button>
+    </div>
+  </div>
+
+  <section class="stage rv d1">
+    <div class="tagline">LISTEN · TYPE · LEARN</div>
+    <div class="pbar"><i></i></div>
+
+    <div class="info-line">
+      <span class="ph">/əˈbændən/</span>
+      <span class="mn">v. 放弃；抛弃</span>
+    </div>
+
+    <!-- 判对波浪定格：前四格已落定，后三格正在被波浪扫过 -->
+    <div class="cells win">
+      <span class="burst" style="left:calc(50% - 178px);top:-26px;width:20px;height:20px;opacity:.85"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="burst" style="left:calc(50% - 13px);top:-46px;width:28px;height:28px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="burst amber" style="left:calc(50% + 158px);top:-18px;width:17px;height:17px;opacity:.7"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+
+      <span class="cell right">a</span>
+      <span class="cell right">b</span>
+      <span class="cell right">a</span>
+      <span class="cell right">n</span>
+      <span class="cell right fresh">d</span>
+      <span class="cell right fresh">o</span>
+      <span class="cell right fresh">n</span>
+    </div>
+
+    <div class="verdict ok">✔ 拼写全对，正在进入下一题…</div>
+
+    <!-- 跟读打分（提交后出现） -->
+    <div class="drill rv d2">
+      <span class="mic"><span class="dot"></span>跟读试试</span>
+      <small>说出 “abandon” · 实时相似度打分</small>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-ghost"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>再听一次<kbd>Esc</kbd></button>
+      <div class="play-wrap">
+        <button class="play" aria-label="播放发音">
+          <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9.4 9.4 0 0 1 0 13.6"/></svg>
+        </button>
+      </div>
+      <button class="ctrl-ghost">跳过<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 8 7-8 7zM15 5l6 7-6 7z"/></svg></button>
+    </div>
+
+    <p class="hint">首答正确率已记录 · 答错过的词会自动进入错词本，按 1 / 3 / 7 天安排复习</p>
+  </section>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 03 PRACTICE / CORRECT</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

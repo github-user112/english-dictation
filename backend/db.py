@@ -124,6 +124,16 @@ def init_db():
             created_at TEXT NOT NULL,
             PRIMARY KEY(user, attempt_id)
         );
+        CREATE TABLE IF NOT EXISTS score_attempt (
+            user TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            attempt_id TEXT NOT NULL,
+            day TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY(user, endpoint, attempt_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_score_attempt_user_day
+            ON score_attempt(user, endpoint, day);
         CREATE TABLE IF NOT EXISTS sprint_best (
             user TEXT PRIMARY KEY,
             score INTEGER NOT NULL DEFAULT 0,
@@ -347,4 +357,16 @@ def migrate():
         pk_cols = [r["name"] for r in conn.execute("PRAGMA table_info(pk_result)").fetchall()]
         if "answers" not in pk_cols:
             conn.execute("ALTER TABLE pk_result ADD COLUMN answers TEXT")
+        # 计分接口幂等：跨 sprint/quiz/wrong/match/boss/arrange 的去重+封顶
+        if "score_attempt" not in [r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+            conn.execute("""
+                CREATE TABLE score_attempt (
+                    user TEXT NOT NULL,
+                    endpoint TEXT NOT NULL,
+                    attempt_id TEXT NOT NULL,
+                    day TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(user, endpoint, attempt_id)
+                )""")
+            conn.execute("CREATE INDEX idx_score_attempt_user_day ON score_attempt(user, endpoint, day)")
         print("migrate ok")

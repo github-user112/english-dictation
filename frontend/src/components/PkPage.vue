@@ -45,6 +45,8 @@ const myCombo = ref(0);
 const myAnswered = ref(0);
 const localDone = ref(false);    // 是否已交卷（本地停笔）
 const localInit = ref(false);    // 本局本地计数是否已用服务端校准
+const pending = ref(false);      // 已提交待服务端 verdict；判权在服务端，本地不再自判
+const pendingSkip = ref(false);  // 本次 pending 是跳过（verdict 必然 wrong，但要前进）
 const remain = ref(0);
 const shareOpen = ref(false);
 
@@ -134,6 +136,7 @@ function openWs(room) {
     if (!mounted) { sock.close(); return; }
     connecting.value = false;
     reconnectAttempts = 0;
+    pending.value = false;   // 断线窗口丢掉的 verdict 靠 replay 重发答案后重新等判定
     sock.send(JSON.stringify({ type: "join" }));
     replay();
   };
@@ -161,6 +164,8 @@ function handleMsg(msg) {
       stopCountdown();
       if (msg.phase === "finished") closeWhenSettled();
     }
+  } else if (msg.type === "verdict") {
+    onVerdict(msg);
   } else if (msg.type === "gone") {
     errored.value = "房间已被清理或已过期";
     stopCountdown();
@@ -173,6 +178,8 @@ function handleMsg(msg) {
 function initLocal(msg) {
   localInit.value = true;
   localDone.value = false;
+  pending.value = false;
+  pendingSkip.value = false;
   answerLog.clear();      // 新局换词流，旧局的重放账本已失效
   idx.value = 0;
   input.value = "";
@@ -222,36 +229,49 @@ function focusInput() {
   nextTick(() => { try { inputEl.value?.focus({ preventScroll: true }); } catch { /* 聚焦失败忽略 */ } });
 }
 
+/* 判权在服务端：提交后等 verdict 帧再推进。pending 期间锁定输入防连点。 */
 function submitWord() {
   const it = item.value;
-  if (!it || snap.value?.phase !== "playing" || localDone.value) return;
+  if (!it || snap.value?.phase !== "playing" || localDone.value || pending.value) return;
   const guess = input.value.trim().toLowerCase();
-  const ans = it.text.trim().toLowerCase();
   if (!guess) return;
   revealed.value = false;
-  if (guess === ans) {
-    myScore.value++; myCombo.value++; myAnswered.value++;
-    sendAnswer(idx.value, guess);
-    input.value = "";
-    if (idx.value + 1 >= total.value) finishLocal();
-    else { idx.value++; playCurrent(); focusInput(); }
+  pending.value = true;
+  pendingSkip.value = false;
+  sendAnswer(idx.value, guess);
+}
+
+function skipWord() {
+  if (snap.value?.phase !== "playing" || localDone.value || pending.value) return;
+  revealed.value = false;
+  pending.value = true;
+  pendingSkip.value = true;
+  sendAnswer(idx.value, "");
+}
+
+function onVerdict(msg) {
+  if (localDone.value) { pending.value = false; return; }
+  // 只认当前题且在等的 verdict：断线重放/迟到帧不重复计数
+  if (msg.index !== idx.value || !pending.value) return;
+  const wasSkip = pendingSkip.value;
+  pending.value = false;
+  pendingSkip.value = false;
+  myAnswered.value++;
+  input.value = "";
+  if (msg.right) {
+    myScore.value++; myCombo.value++;
+    advance();
+  } else if (wasSkip) {
+    advance();
   } else {
     myCombo.value = 0;
-    myAnswered.value++;
-    sendAnswer(idx.value, guess);
     revealed.value = true;
-    input.value = "";
     playCurrent();
     focusInput();
   }
 }
 
-function skipWord() {
-  if (snap.value?.phase !== "playing" || localDone.value) return;
-  myAnswered.value++;
-  sendAnswer(idx.value, "");
-  revealed.value = false;
-  input.value = "";
+function advance() {
   if (idx.value + 1 >= total.value) finishLocal();
   else { idx.value++; playCurrent(); focusInput(); }
 }

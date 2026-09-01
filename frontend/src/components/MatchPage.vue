@@ -127,12 +127,17 @@ function speak(id) {
 async function win() {
   if (timer) { clearInterval(timer); timer = null; }
   phase.value = "done";
+  const attemptId = (() => {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+  })();
   try {
     const d = await api("/match/result", {
       method: "POST",
       body: JSON.stringify({
         list: list.value,
         answers: items.value.map((it) => ({ id: it.id, right: !dirtyIds.value.includes(it.id) })),
+        attempt_id: attemptId,
       }),
     });
     result.value = d;

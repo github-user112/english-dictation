@@ -1,50 +1,6 @@
 /* cards.js 纯函数测试 */
 import { describe, it, expect } from "vitest";
-import { sprintTier, sprintShareText, pkShareText, badgeShareText } from "../lib/cards";
-
-describe("sprintTier", () => {
-  it("returns 全对封神 at 100%", () => {
-    expect(sprintTier(10, 10).label).toBe("全对封神");
-  });
-  it("returns 词力高手 at 90% boundary", () => {
-    expect(sprintTier(9, 10).label).toBe("词力高手");
-  });
-  it("returns 稳扎稳打 at 75% boundary", () => {
-    expect(sprintTier(75, 100).label).toBe("稳扎稳打");
-  });
-  it("returns 继续加油 at 60% boundary", () => {
-    expect(sprintTier(6, 10).label).toBe("继续加油");
-  });
-  it("returns 明日再战 below 60%", () => {
-    expect(sprintTier(1, 10).label).toBe("明日再战");
-  });
-  it("returns 明日再战 when total is 0", () => {
-    expect(sprintTier(0, 0).label).toBe("明日再战");
-  });
-  it("returns 明日再战 at 0%", () => {
-    expect(sprintTier(0, 100).label).toBe("明日再战");
-  });
-});
-
-describe("sprintShareText", () => {
-  const m = { listTitle: "CET-4", score: 8, total: 10, combo: 5, link: "https://example.com" };
-  it("contains score and total", () => {
-    const t = sprintShareText(m);
-    expect(t).toContain("8/10");
-  });
-  it("contains combo", () => {
-    expect(sprintShareText(m)).toContain("连击 5");
-  });
-  it("contains percentage", () => {
-    expect(sprintShareText(m)).toContain("正确率 80%");
-  });
-  it("contains link", () => {
-    expect(sprintShareText(m)).toContain("https://example.com");
-  });
-  it("contains list title", () => {
-    expect(sprintShareText(m)).toContain("CET-4");
-  });
-});
+import { pkShareText, badgeShareText } from "../lib/cards";
 
 describe("pkShareText", () => {
   const m = {

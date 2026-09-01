@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>05 · 背单词 — 翻卡</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a href="#">素材库</a><a href="#">听打</a><a class="on" href="#">背单词</a><a href="#">选词</a><a href="#">冲刺</a><a href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <span class="avatar">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <div class="p-top rv" style="margin-top:28px">
+    <span class="prog-line">12 / 30<span class="bar amber"><i style="width:40%"></i></span>CET-4 核心词汇</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="chip warn">到期复习 8</span>
+      <span class="chip type">今日新词 4</span>
+      <button class="btn ghost sm">发音 自动</button>
+    </div>
+  </div>
+
+  <div class="grid-2 rv" style="max-width:980px;margin:6px auto 0" >
+    <!-- 正面 -->
+    <section class="deck rv d1">
+      <span class="under u2"></span>
+      <span class="under"></span>
+      <div class="flash" style="min-height:264px">
+        <span class="corner icon-btn" title="播放发音"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+        <span class="fw">abandon</span>
+        <span class="fp">/əˈbændən/</span>
+        <span class="flip-hint">点击卡片翻面 · SPACE</span>
+      </div>
+      <div class="deck-cap" style="margin-top:14px"><span class="chip type">正面 · 自测回忆</span></div>
+    </section>
+
+    <!-- 背面 -->
+    <section class="deck rv d2">
+      <span class="under u2"></span>
+      <span class="under"></span>
+      <div class="flash flipped" style="min-height:264px;background:linear-gradient(160deg,color-mix(in srgb,var(--panel-2),var(--amber) 5%),var(--panel))">
+        <span class="corner icon-btn" title="播放发音"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+        <span class="fm" style="font-size:13px;color:var(--text-3);letter-spacing:.06em">abandon /əˈbændən/</span>
+        <span class="fm" style="font-family:var(--serif);font-size:29px;font-weight:700;color:var(--text)">v. 放弃；抛弃</span>
+        <span class="fm" style="font-family:var(--serif);font-style:italic;font-size:15px;color:var(--text-2)">“Never abandon your dreams.”</span>
+        <span class="flip-hint">连续答对 2 次即标记已背</span>
+      </div>
+      <div class="deck-cap" style="margin-top:14px"><span class="chip audio">背面 · 释义确认</span></div>
+    </section>
+  </div>
+
+  <div class="deck-btns rv d3" style="max-width:980px;margin:18px auto 0">
+    <button class="btn no big"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>再想想（退回队列）</button>
+    <button class="btn ok big"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>想起来了</button>
+  </div>
+
+  <p class="hint rv d4" style="max-width:980px;margin:14px auto 40px">翻卡动效：rotateY 90° 换面衔接（避免半程镜像文字）· 认识 → 卡片右飞出列 · 再想想 → 左飞出并进错词本 · 新卡从牌堆底部弹入</p>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 05 MEMORIZE / FLASHCARD</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>06 · 限时冲刺 — 连击</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+<div class="urg"></div>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a href="#">素材库</a><a href="#">听打</a><a href="#">背单词</a><a href="#">选词</a><a class="on" href="#">冲刺</a><a href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <span class="avatar">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <!-- 计分 / 连击 / 倒计时 -->
+  <div class="sprint-head rv" style="margin-top:28px">
+    <div class="score-box">
+      <span class="num">128</span>
+      <span class="sub" style="font-size:12px">得分<br>个人最佳 156</span>
+      <span class="combo bump">
+        <svg class="fl" viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 22c4.4 0 7.5-3 7.5-7 0-4.4-3.4-6.6-5-10-2 2.6-2.9 4.4-2.9 6.4 0 0-.8-1.6-2.6-3.4C7.4 10.6 4.5 12.4 4.5 15c0 4 3.1 7 7.5 7z"/></svg>
+        ×12 连击
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span class="chip type">CET-4 词流</span>
+      <div class="timer-ring urgent">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle class="tr-bg" cx="26" cy="26" r="22" fill="none" stroke-width="4"/>
+          <circle class="tr-fg" cx="26" cy="26" r="22" fill="none" stroke-width="4"
+                  stroke-dasharray="18.4 120" stroke-dashoffset="0"/>
+        </svg>
+        <b>8<small style="font-size:10px">s</small></b>
+      </div>
+    </div>
+  </div>
+
+  <!-- 冲刺舞台：边缘红光随紧迫度增强 -->
+  <section class="stage rv d1" style="border-color:color-mix(in srgb, var(--red), transparent 66%)">
+    <div class="tagline">SPRINT · 60S CHALLENGE</div>
+    <div class="edge-glow red" style="box-shadow:0 0 54px -4px rgba(255,107,122,.36) inset"></div>
+
+    <div class="info-line"></div>
+
+    <div class="cells">
+      <span class="float-plus" style="position:absolute;left:calc(50% + 96px);top:-30px">+1</span>
+      <span class="cell hit">r</span>
+      <span class="cell hit">h</span>
+      <span class="cell hit">y</span>
+      <span class="cell cur"></span>
+      <span class="cell"></span>
+      <span class="cell"></span>
+    </div>
+
+    <div class="verdict"></div>
+
+    <div class="controls">
+      <button class="ctrl-ghost"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>重听<kbd>Esc</kbd></button>
+      <button class="btn primary big" style="min-width:132px">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        连击加速中
+      </button>
+      <button class="ctrl-ghost">跳过<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 8 7-8 7zM15 5l6 7-6 7z"/></svg></button>
+    </div>
+
+    <p class="hint">每答对一题 +1 分 · 连击每 +5 音调升一档、播放键光晕更亮 · 最后 10 秒倒计时转红并脉动、页面边缘泛起红晕</p>
+  </section>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 06 SPRINT / COMBO</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ from .auth import get_user, resp
 from .config import AUDIO, CONFIG, MATERIALS, PRACTICE_MODES
 from .db import db
 from .friends import notify_level
+from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item, iter_material, load_material
 from .scheduler import review as fsrs_review, days_between
 
@@ -422,7 +423,8 @@ def api_result():
     if "first_right" in data:
         first_right = data["first_right"]
     else:
-        first_right = None if raw_right is None else not data.get("retried")
+        # 首答正确必须同时满足"答对了"且"没重输过"：right=false 时绝不能推导出 True
+        first_right = None if raw_right is None else bool(raw_right) and not data.get("retried")
     if "final_right" in data:
         final_right = data["final_right"]
     else:
@@ -445,12 +447,12 @@ def api_result():
         typed = raw_typed.strip()[:64] or None
     today = date.today().isoformat()
     stamp = now()
-    if not session_id:
-        return legacy_result(user, data, item_id, first_right, final_right, outcome, today)
     # completed 缺任一作答结果时，缺口会落成 0：本题被记成答错进 daily_log，
-    # 但 update_word_state 又被 None 挡下——同一作答在四处口径对不上
+    # 但 update_word_state 又被 None 挡下——同一作答在四处口径对不上（legacy 路径同此守卫）
     if outcome == "completed" and (first_right is None or final_right is None):
         return jsonify({"error": "completed 需要 first_right 和 final_right"}), 400
+    if not session_id:
+        return legacy_result(user, data, item_id, first_right, final_right, outcome, today)
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = conn.execute(
@@ -548,17 +550,39 @@ def update_mode_log(conn, day, user, mode, phase, first_right, final_right, skip
 
 
 def legacy_result(user, data, item_id, first_right, final_right, outcome, today):
-    """兼容错词本自定义重练等旧调用；新练习页一律传 session_id。"""
+    """兼容错词本自定义重练等旧调用；新练习页一律传 session_id。
+
+    带 attempt_id 的请求按 (user, "result", attempt_id) 幂等去重，并受当日
+    SCORE_CAPS["result"] 上限约束：刷分/断线重放只计一次，超限直接 429。
+    老客户端未传 attempt_id 时照旧记（兼容），但标记 legacy_no_idempotency
+    以便观察；后续前端补传后此处改强制。
+    """
     list_key = data.get("list")
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
+    mode = data.get("mode", "assisted")
+    if not isinstance(mode, str) or mode not in PRACTICE_MODES:
+        return jsonify({"error": "练习模式无效"}), 400
     skipped = outcome == "skipped"
-    with db() as conn:
-        # 只为素材里真实存在的条目记听写状态：自定义文章的 s0/s1 等伪 id
-        # 在这里被挡下，不再生成幽灵 word_state 行污染错词数/到期复习统计
+
+    attempt_id, err = validate_attempt_id(data.get("attempt_id"))
+    if err:
+        # 老客户端走兼容：仍允许记录（不阻塞旧版页面）；前端补传后此处改强制 return
+        attempt_id = None
+
+    with db(immediate=True) as conn:
+        if attempt_id:
+            status, capped = check_and_mark(conn, user, "result", attempt_id)
+            if status == "duplicate":
+                return resp({"ok": True, "duplicate": True, "legacy": True})
+            if status == "capped":
+                return capped
+
         if not skipped and final_right is not None and find_item(list_key, item_id) is not None:
             update_word_state(conn, user, list_key, item_id, first_right, final_right,
-                              data.get("mode", "assisted"), today)
-        update_mode_log(conn, today, user, data.get("mode", "assisted"), "review",
+                              mode, today)
+        update_mode_log(conn, today, user, mode, "review",
                         None if skipped else first_right, None if skipped else final_right, skipped)
+        if attempt_id:
+            mark_done(conn, user, "result", attempt_id)
     return resp({"ok": True, "legacy": True})

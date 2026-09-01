@@ -206,7 +206,8 @@ export function playWord(item, onended = null) {
   blockedOnce = false;
   audioEl.playbackRate = Settings.get().speed;
   audioEl.onended = onended;
-  if (youdaoFailed.has(item.text)) {
+  // item.text 缺失（如 PK 进行中的裁剪词条）时直接走后端音频，不拼真人发音 URL
+  if (!item.text || youdaoFailed.has(item.text)) {
     audioEl.src = item.audio;
     audioEl.play().catch(markBlocked);
     return;

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>08 · 动效规范 Motion Spec</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+  body { background: var(--bg); }
+  .sheet { max-width: 1060px; margin: 0 auto; padding: 44px 26px 70px; }
+  .ms-h1 { font-family: var(--serif); font-size: 40px; font-weight: 650; letter-spacing: -.02em; margin: 12px 0 10px; }
+  .ms-h1 em { font-style: normal; color: var(--amber-hi); }
+  :root[data-theme="light"] .ms-h1 em { color: var(--amber); }
+  .lead { color: var(--text-2); font-size: 14px; max-width: 560px; }
+  .ms-sec { margin-top: 44px; }
+  .ms-sec > h3 { display: flex; align-items: baseline; gap: 10px; font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+  .ms-sec > h3 i { font-style: normal; color: var(--text-3); font-size: 11px; font-weight: 600; letter-spacing: .14em; }
+  .ms-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-top: 16px; }
+  .curve-card { padding: 18px 18px 15px; border: 1px solid var(--line); border-radius: var(--r-md);
+    background: linear-gradient(160deg, var(--panel), color-mix(in srgb, var(--panel), var(--bg) 14%)); box-shadow: var(--elev-1); }
+  .curve-card b { display: block; font-size: 13px; margin-top: 10px; }
+  .curve-card code { display: block; color: var(--amber-hi); font-family: var(--mono); font-size: 10.5px; margin-top: 3px; }
+  :root[data-theme="light"] .curve-card code { color: var(--amber); }
+  .curve-card p { color: var(--text-3); font-size: 11px; margin-top: 7px; line-height: 1.65; }
+  /* 时长标尺 */
+  .ladder { display: grid; gap: 9px; margin-top: 16px; }
+  .lad { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 16px;
+    padding: 11px 16px; border: 1px solid var(--line); border-radius: var(--r-sm); background: color-mix(in srgb, var(--panel) 62%, transparent); }
+  .lad b { font-family: var(--mono); font-size: 13px; }
+  .lad .track { position: relative; height: 22px; }
+  .lad .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--amber-grad); opacity: .92; }
+  .lad span { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); white-space: nowrap; color: var(--text-3); font-size: 11px; }
+  /* 编排 */
+  .choreo { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 16px; }
+  .cho { padding: 18px; border: 1px solid var(--line); border-radius: var(--r-md); background: linear-gradient(160deg, var(--panel), color-mix(in srgb, var(--panel), var(--bg) 14%)); }
+  .cho b { font-size: 12.5px; }
+  .cho small { display: block; color: var(--text-3); font-size: 10.5px; margin-top: 2px; }
+  .gantt { margin-top: 14px; display: grid; gap: 7px; }
+  .gantt div { height: 12px; width: 62%; border-radius: 4px; background: var(--indigo-tint); border-left: 2px solid var(--indigo); }
+  .lift-demo { position: relative; margin: 20px 6px 8px; height: 86px; }
+  .lift-demo .box { position: absolute; left: 12px; right: 12px; top: 8px; height: 52px; border-radius: 12px;
+    background: var(--panel-2); border: 1px solid var(--line-strong);
+    box-shadow: 0 18px 30px -14px rgba(0,0,0,.55); }
+  .lift-demo .ghost { top: 16px; opacity: .35; border-style: dashed; box-shadow: none; }
+  .lift-demo .arrow { position: absolute; right: 18px; top: -4px; color: var(--amber); font-family: var(--mono); font-size: 11px; }
+  .wave { display: flex; gap: 6px; margin-top: 16px; justify-content: center; }
+  .wave span { width: 26px; height: 34px; display: grid; place-items: center; border-radius: 7px; font-family: var(--mono); font-weight: 700; font-size: 13px;
+    border-bottom: 2px solid transparent; }
+  /* 清单表 */
+  table.spec { width: 100%; margin-top: 16px; border-collapse: collapse; font-size: 12px; }
+  table.spec th { text-align: left; color: var(--text-3); font-size: 10.5px; letter-spacing: .12em; font-weight: 700; padding: 8px 12px; border-bottom: 1px solid var(--line-strong); }
+  table.spec td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.spec tr:last-child td { border-bottom: 0; }
+  table.spec td:first-child { font-weight: 700; white-space: nowrap; }
+  table.spec td:nth-child(3), table.spec td:nth-child(4) { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
+  table.spec em { font-style: normal; color: var(--amber-hi); }
+  :root[data-theme="light"] table.spec em { color: var(--amber); }
+  .principles { margin-top: 26px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 22px; }
+  .principles li { list-style: none; color: var(--text-2); font-size: 12.5px; padding-left: 20px; position: relative; line-height: 1.7; }
+  .principles li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber-grad); }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <span class="eyebrow">MOTION SYSTEM · V1</span>
+  <h1 class="ms-h1">动效规范：<em>快而软，动必有因。</em></h1>
+  <p class="lead">设计原则只有一条：动效只做三件事 —— <b style="color:var(--text)">指引视线、确认操作、奖励进步</b>。所有动画从 tokens 取值，禁止随手写时长。</p>
+
+  <!-- A 缓动 -->
+  <section class="ms-sec">
+    <h3><i>A</i>缓动曲线 EASING <span style="font-weight:450;color:var(--text-3);font-size:11.5px">全站仅允许这四条曲线</span></h3>
+    <div class="ms-grid">
+      <div class="curve-card">
+        <svg viewBox="0 -6 120 96" width="100%" height="88">
+          <line x1="0" y1="80" x2="120" y2="80" stroke="var(--line-strong)"/><line x1="0" y1="0" x2="120" y2="0" stroke="var(--line)"/>
+          <path d="M0 80 C26.4 0, 43.2 0, 120 0" fill="none" stroke="var(--amber)" stroke-width="2.5"/>
+          <circle cx="63" cy="4" r="4" fill="var(--amber-hi)"/>
+        </svg>
+        <b>标准 · 出场</b><code>cubic-bezier(.22,1,.36,1)</code>
+        <p>默认曲线。起步干脆、落位柔和，用于悬浮、进出场、进度条。</p>
+      </div>
+      <div class="curve-card">
+        <svg viewBox="0 -6 120 96" width="100%" height="88">
+          <line x1="0" y1="80" x2="120" y2="80" stroke="var(--line-strong)"/><line x1="0" y1="0" x2="120" y2="0" stroke="var(--line)"/>
+          <path d="M0 80 C40.8 -44.8, 76.8 0, 120 0" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+          <circle cx="66" cy="-16" r="4" fill="var(--green)"/>
+        </svg>
+        <b>弹性 · 奖励</b><code>cubic-bezier(.34,1.56,.64,1)</code>
+        <p>带一次过冲。只用于“成功”语义：字母弹入、判对波浪、连击计数。</p>
+      </div>
+      <div class="curve-card">
+        <svg viewBox="0 -6 120 96" width="100%" height="88">
+          <line x1="0" y1="80" x2="120" y2="80" stroke="var(--line-strong)"/><line x1="0" y1="0" x2="120" y2="0" stroke="var(--line)"/>
+          <path d="M0 80 C78 80, 42 0, 120 0" fill="none" stroke="var(--indigo)" stroke-width="2.5"/>
+          <circle cx="57" cy="37" r="4" fill="var(--indigo)"/>
+        </svg>
+        <b>对称 · 往返</b><code>cubic-bezier(.65,0,.35,1)</code>
+        <p>两端减速，用于往返运动：翻卡 rotateY、光标呼吸、位移往返。</p>
+      </div>
+      <div class="curve-card">
+        <svg viewBox="0 -6 120 96" width="100%" height="88">
+          <line x1="0" y1="80" x2="120" y2="80" stroke="var(--line-strong)"/><line x1="0" y1="0" x2="120" y2="0" stroke="var(--line)"/>
+          <path d="M0 80 L120 0" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-dasharray="4 5"/>
+          <circle cx="72" cy="24" r="4" fill="var(--text-3)"/>
+        </svg>
+        <b>线性 · 计量</b><code>linear</code>
+        <p>仅限与时间线性相关的东西：倒计时环消耗、均衡器摆动。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- B 时长 -->
+  <section class="ms-sec">
+    <h3><i>B</i>时长标尺 DURATION <span style="font-weight:450;color:var(--text-3);font-size:11.5px">四档足够，不要第六档</span></h3>
+    <div class="ladder">
+      <div class="lad"><b>--dur-1</b><div class="track"><div class="fill" style="width:17%"></div><span>120ms · 微交互：按压、悬浮、色变</span></div></div>
+      <div class="lad"><b>--dur-2</b><div class="track"><div class="fill" style="width:31%"></div><span>220ms · 小进出场：卡片抬升、Toast、弹层</span></div></div>
+      <div class="lad"><b>--dur-3</b><div class="track"><div class="fill" style="width:51%"></div><span>360ms · 页面级：路由过渡、列表级联上浮</span></div></div>
+      <div class="lad"><b>--dur-4</b><div class="track"><div class="fill" style="width:86%"></div><span>620ms · 庆祝时刻：翻卡、判对波浪、圆环生长</span></div></div>
+    </div>
+  </section>
+
+  <!-- C 编排 -->
+  <section class="ms-sec">
+    <h3><i>C</i>编排示例 CHOREOGRAPHY</h3>
+    <div class="choreo">
+      <div class="cho">
+        <b>① 路由进入 · 级联上浮</b>
+        <small>页面内元素依次上浮 18px 淡入，步长 --stagger 45ms，单页最多 8 级</small>
+        <div class="gantt">
+          <div style="width:58%"></div>
+          <div style="width:58%;margin-left:9%"></div>
+          <div style="width:58%;margin-left:18%"></div>
+          <div style="width:58%;margin-left:27%"></div>
+          <div style="width:58%;margin-left:36%"></div>
+        </div>
+      </div>
+      <div class="cho">
+        <b>② 卡片悬浮 · 抬升反馈</b>
+        <small>虚线为原位。上浮 4px + 书脊点亮 + 阴影升一档，220ms ease-out；按回落回原位</small>
+        <div class="lift-demo">
+          <span class="arrow">↑ 4px</span>
+          <div class="box ghost"></div>
+          <div class="box"></div>
+        </div>
+      </div>
+      <div class="cho">
+        <b>③ 判对 · 波浪扫色</b>
+        <small>绿色逐格点亮，每格延迟 26ms、弹性 pop；✓ 粒子从词首、词尾各迸出一枚</small>
+        <div class="wave">
+          <span style="color:var(--green);border-color:var(--green)">a</span>
+          <span style="color:var(--green);border-color:var(--green)">b</span>
+          <span style="color:var(--green);border-color:var(--green)">a</span>
+          <span style="color:color-mix(in srgb,var(--green),#fff 30%);border-color:color-mix(in srgb,var(--green),transparent 45%)">n</span>
+          <span style="color:color-mix(in srgb,var(--green),#fff 48%);border-color:color-mix(in srgb,var(--green),transparent 62%)">d</span>
+          <span style="color:color-mix(in srgb,var(--green),#fff 62%);border-color:color-mix(in srgb,var(--green),transparent 75%)">o</span>
+          <span style="color:color-mix(in srgb,var(--green),#fff 74%);border-color:color-mix(in srgb,var(--green),transparent 85%)">n</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D 清单 -->
+  <section class="ms-sec">
+    <h3><i>D</i>交互清单 CHECKLIST <span style="font-weight:450;color:var(--text-3);font-size:11.5px">实现时逐条对表</span></h3>
+    <table class="spec">
+      <tr><th>触发场景</th><th>动效</th><th>曲线</th><th>时长</th></tr>
+      <tr><td>导航切换</td><td>旧页下沉淡出 8px → 新页内容<em>级联上浮</em></td><td>ease-out</td><td>360ms × n·45ms</td></tr>
+      <tr><td>顶栏激活态</td><td>琥珀胶囊<em>滑动变形</em>到目标项（共享元素）</td><td>ease-out</td><td>280ms</td></tr>
+      <tr><td>卡片 / 续学行悬浮</td><td>上浮 4px、书脊点亮、阴影 elev-1→elev-2</td><td>ease-out</td><td>220ms</td></tr>
+      <tr><td>按钮按压</td><td>scale 0.96 回弹；主按钮悬浮掠过一道光泽</td><td>ease-out</td><td>120 / 700ms</td></tr>
+      <tr><td>键入字母</td><td>字母自 0.6 弹入并轻微过冲；错误即时红显</td><td>spring</td><td>180ms</td></tr>
+      <tr><td>当前格光标</td><td>呼吸明灭 + 微光晕（非生硬 steps 闪烁）</td><td>in-out</td><td>1.1s ∞</td></tr>
+      <tr><td>整词判对</td><td><em>逐格波浪上色</em> + ✓粒子两枚 + 自动过题延迟 900ms</td><td>spring</td><td>26ms/格</td></tr>
+      <tr><td>判错提交</td><td>错格横向抖动 ±4px、卡片泛红边缘光、低音提示</td><td>ease-out</td><td>320ms</td></tr>
+      <tr><td>播放发音</td><td>播放键呼吸光 + <em>涟漪环×2</em> + 图标切均衡器律动</td><td>out / linear</td><td>2.1s ∞</td></tr>
+      <tr><td>背单词翻卡</td><td>rotateY 至 90° 换面再转回（避免镜像文字）；认识右飞、再想左飞，新卡自底部弹入</td><td>in-out</td><td>620ms</td></tr>
+      <tr><td>冲刺连击 +1</td><td>计数弹跳过冲；每 +5 连击边缘光升档、音调升高</td><td>spring</td><td>300ms</td></tr>
+      <tr><td>冲刺倒计时</td><td>圆环 linear 消耗；≤10s 转红脉动 + 页缘红晕渐入</td><td>linear</td><td>实时</td></tr>
+      <tr><td>统计图表</td><td>柱体自底部生长 stagger 20ms；圆环 0° 生长 + 数字滚动</td><td>ease-out</td><td>600ms</td></tr>
+      <tr><td>弹窗 / Toast</td><td>背景模糊淡入，内容盒 scale 0.94→1 上浮</td><td>ease-out</td><td>220ms</td></tr>
+      <tr><td>系统减动效</td><td>prefers-reduced-motion：全部退化为纯淡入淡出</td><td>—</td><td>≤120ms</td></tr>
+    </table>
+
+    <ul class="principles">
+      <li>同屏同时运动的元素不超过 3 组，其余让位给正在发生的事。</li>
+      <li>一切位移动画距离 ≤ 24px——这是练习工具，不是游乐场。</li>
+      <li>循环动画（呼吸光、涟漪、均衡器）必须能被任何用户输入立即打断。</li>
+      <li>颜色即语义：绿=对、红=错、黄=待补、琥珀=进行中，动效不得改变这组语义。</li>
+    </ul>
+  </section>
+
+</div>
+<div class="shot-tag" style="position:static;text-align:right;margin-top:26px">ENGLISH DICTATION · UI/MOTION PROPOSAL — 08 MOTION SPEC</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>04 · 听打练习 — 判错</title>
+<link rel="stylesheet" href="theme.css">
+<script>if(!new URLSearchParams(location.search).has("motion=0"))document.documentElement.dataset.motion="on";</script>
+</head>
+<body>
+
+<header class="topbar"><div class="wrap topbar-in">
+  <a class="brand rv" href="#">
+    <span class="brand-mark">E</span>
+    <span class="brand-copy"><b>英语听打</b><small>DICTATION&nbsp;STUDIO</small></span>
+  </a>
+  <div class="nav rv d1">
+    <a href="#">素材库</a><a class="on" href="#">听打</a><a href="#">背单词</a><a href="#">选词</a><a href="#">冲刺</a><a href="#">统计</a>
+  </div>
+  <div class="top-actions rv d2">
+    <button class="icon-btn" title="切换主题"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <span class="avatar">客</span>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+  <div class="p-top rv" style="margin-top:28px">
+    <span class="prog-line">07 / 20<span class="bar amber"><i style="width:35%"></i></span>CET-4 核心词汇</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="chip type">辅助听写</span>
+      <div class="seg"><button class="on">全部</button><button>已背</button></div>
+      <button class="btn ghost sm">1.0×</button>
+    </div>
+  </div>
+
+  <!-- 判错：红色边缘光定格 -->
+  <section class="stage rv d1" style="border-color:color-mix(in srgb, var(--red), transparent 62%)">
+    <div class="tagline">LISTEN · TYPE · LEARN</div>
+    <div class="pbar"><i></i></div>
+    <div class="edge-glow red"></div>
+
+    <div class="info-line">
+      <span class="ph">/əˈbændən/</span>
+      <span class="mn">v. 放弃；抛弃</span>
+    </div>
+
+    <!-- 已输入部分保持绿 · 拼错红 · 未输入黄虚线 -->
+    <div class="cells err">
+      <span class="cell right">a</span>
+      <span class="cell right">b</span>
+      <span class="cell right">a</span>
+      <span class="cell right">n</span>
+      <span class="cell wrong bad" style="transform:translateX(-2px)">a</span>
+      <span class="cell miss"></span>
+      <span class="cell miss"></span>
+    </div>
+
+    <div class="verdict no">
+      ✗ 第 5 个字母拼错了，答案是 <b>abandon</b> <span class="k">· 按</span> <kbd class="k" style="font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--text-2)">Enter</kbd> <span class="k">清空重输</span>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-ghost"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>重播<kbd>Esc</kbd></button>
+      <div class="play-wrap">
+        <button class="play" aria-label="播放发音" style="filter:saturate(.55) brightness(.82)">
+          <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9.4 9.4 0 0 1 0 13.6"/></svg>
+        </button>
+      </div>
+      <button class="ctrl-ghost">跳过<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 8 7-8 7zM15 5l6 7-6 7z"/></svg></button>
+    </div>
+
+    <p class="hint">判错瞬间：错误格横向抖动 ±4px · 播放提示音 · 本题首答已记为“答错”，不影响最终判分</p>
+  </section>
+
+</main>
+
+<div class="shot-tag">ENGLISH DICTATION · UI/MOTION PROPOSAL — 04 PRACTICE / WRONG</div>
+<script>
+addEventListener("load", () => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("qa")) return;
+  const bad = [...document.querySelectorAll("body *")].filter(e => {
+    const r = e.getBoundingClientRect();
+    return r.right > innerWidth + 1 && getComputedStyle(e).position !== "fixed";
+  });
+  const d = document.createElement("div"); d.id = "qa-out";
+  d.textContent = "QA overflow:" + bad.length + " | " + bad.slice(0, 5).map(e => e.className || e.tagName).join(",") + " | H:" + document.documentElement.scrollHeight;
+  document.body.appendChild(d);
+});
+</script>
+</body>
+</html>

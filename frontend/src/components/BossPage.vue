@@ -172,10 +172,14 @@ async function finish(kind) {
   stopAudio();
   phase.value = "done";
   if (!answers.value.length) return;   // 不战而退：没有可记账的答案
+  const attemptId = (() => {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+  })();
   try {
     const d = await api("/boss/result", {
       method: "POST",
-      body: JSON.stringify({ answers: answers.value }),
+      body: JSON.stringify({ answers: answers.value, attempt_id: attemptId }),
     });
     result.value = d;
     window.dispatchEvent(new CustomEvent("profile-changed"));

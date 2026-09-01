@@ -15,6 +15,7 @@ const searching = ref(false);
 const copiedInvite = ref(false);
 let mounted = true;
 let searchTimer = null;
+let searchSeq = 0;   // L2: 同上，丢弃乱序返回的旧查询结果
 
 onMounted(async () => {
   try {
@@ -71,12 +72,14 @@ function onSearchInput() {
 }
 
 async function doSearch(q) {
+  const seq = ++searchSeq;
   searching.value = true;
   try {
     const d = await api(`/friends/search?q=${encodeURIComponent(q)}`);
-    if (!mounted) return;
+    if (!mounted || seq !== searchSeq) return;
     searchResults.value = d.users || [];
   } catch {
+    if (seq !== searchSeq) return;
     searchResults.value = [];
   }
   searching.value = false;

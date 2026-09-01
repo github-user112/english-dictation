@@ -218,12 +218,18 @@ function skip() {
   nextWord();
 }
 
+function makeId() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+}
+
 /* 结果异步上报，不阻塞冲刺节奏；失败静默丢弃 */
 function saveResult(right) {
   api("/result", { method: "POST", body: JSON.stringify({
     list: list.value, id: item.value.id, mode: "sprint",
     first_right: right, final_right: right, right,
     outcome: right === null ? "skipped" : "completed",
+    attempt_id: makeId(),
   }) }).catch(() => {});
 }
 

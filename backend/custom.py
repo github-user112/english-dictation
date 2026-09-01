@@ -68,7 +68,10 @@ def api_custom_create():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "请求体无效"}), 400
-    title = (data.get("title") or "").strip()[:60] or "未命名文章"
+    raw_title = data.get("title")
+    if raw_title is not None and not isinstance(raw_title, str):
+        return jsonify({"error": "标题必须是字符串"}), 400
+    title = (raw_title or "").strip()[:60] or "未命名文章"
     text = data.get("text") or ""
     if not isinstance(text, str) or len(text.strip()) < 10:
         return jsonify({"error": "文本太短，至少 10 个字符"}), 400

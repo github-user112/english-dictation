@@ -1,7 +1,22 @@
 """听音选词 / 限时冲刺接口测试。"""
+from flask.testing import FlaskClient
+
 from backend.db import db
 
 USER = "b" * 32
+
+
+class CsrfClient(FlaskClient):
+    """并发测试用：写请求自动携带 dict_csrf cookie 中的 token。"""
+    def open(self, *args, **kwargs):
+        method = kwargs.get("method", "GET").upper()
+        if method in {"POST", "PUT", "PATCH", "DELETE"}:
+            token = self.get_cookie("dict_csrf")
+            if token:
+                headers = dict(kwargs.get("headers") or {})
+                headers.setdefault("X-CSRF-Token", token.value)
+                kwargs["headers"] = headers
+        return super().open(*args, **kwargs)
 
 
 def get(client, path):
@@ -100,3 +115,42 @@ def test_sprint_best_validates_score(client):
     # bool/float 不是合法成绩（int(True)==1、int(3.9)==3 的隐式转换必须拒绝）
     assert client.post(f"/api/sprint/best?u={USER}", json={"score": True}).status_code == 400
     assert client.post(f"/api/sprint/best?u={USER}", json={"score": 3.9}).status_code == 400
+
+
+def test_sprint_best_concurrent_writes_keep_high_score(app):
+    """并发回归：多线程同一 user 上报高低分混写，最终记录应为历史最高（非最后写入）。
+
+    修复点：challenge.py api_sprint_best_post 使用 BEGIN IMMEDIATE 串行化
+    读检查-比较-写入，防止低分最后到达覆盖已存在的高分。
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    import uuid
+
+    user = uuid.uuid4().hex
+    n = 20
+    high, low = 90, 5
+    scores = [high if i % 3 == 0 else low for i in range(n)]
+
+    # Flask test client 非线程安全，每个线程独立 client；预先获取 CSRF token 后再在 barrier 后并发
+    clients = [CsrfClient(app) for _ in range(n)]
+    for cl in clients:
+        cl.get("/api/auth/me", headers={"Cookie": f"dict_u={user}"})
+    barrier = Barrier(n)
+
+    def hit(cl, s):
+        barrier.wait()
+        return cl.post(
+            f"/api/sprint/best?u={user}",
+            json={"score": s, "combo": s, "total": s + 10},
+            headers={"Cookie": f"dict_u={user}"}
+        )
+
+    with ThreadPoolExecutor(max_workers=max(32, n + 4)) as pool:
+        for resp in pool.map(hit, clients, scores):
+            assert resp.status_code == 200, resp.json
+
+    with db() as conn:
+        row = conn.execute("SELECT score FROM sprint_best WHERE user=?", (user,)).fetchone()
+    assert row is not None
+    assert row["score"] == high

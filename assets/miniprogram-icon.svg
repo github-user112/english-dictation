@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded app background -->
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#bg)"/>
+
+  <!-- headphone band -->
+  <path d="M300 556 v-40 a212 212 0 0 1 424 0 v40"
+        fill="none" stroke="#ffffff" stroke-width="60"
+        stroke-linecap="round"/>
+
+  <!-- ear cups -->
+  <rect x="252" y="516" width="124" height="236" rx="56" fill="#ffffff"/>
+  <rect x="648" y="516" width="124" height="236" rx="56" fill="#ffffff"/>
+
+  <!-- sound wave accent (center) -->
+  <g stroke="#34d399" stroke-width="40" stroke-linecap="round">
+    <line x1="512" y1="592" x2="512" y2="676"/>
+    <line x1="466" y1="620" x2="466" y2="648"/>
+    <line x1="558" y1="620" x2="558" y2="648"/>
+  </g>
+
+  <!-- typing input bar (bottom) -->
+  <rect x="300" y="800" width="424" height="120" rx="32" fill="#ffffff" opacity="0.96"/>
+  <!-- blinking cursor -->
+  <rect x="500" y="836" width="20" height="48" rx="10" fill="#34d399"/>
+  <!-- ghost text dots -->
+  <g fill="#c7d2fe">
+    <circle cx="372" cy="860" r="13"/>
+    <circle cx="412" cy="860" r="13"/>
+    <circle cx="452" cy="860" r="13"/>
+  </g>
+</svg>

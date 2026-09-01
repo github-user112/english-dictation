@@ -53,11 +53,15 @@ def api_create():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "请求体无效"}), 400
-    name = (data.get("name") or "").strip()
+    raw_name = data.get("name")
+    if not isinstance(raw_name, str):
+        return jsonify({"error": f"小组名需 1–{NAME_MAX} 个字符"}), 400
+    name = raw_name.strip()
     if not 1 <= len(name) <= NAME_MAX:
         return jsonify({"error": f"小组名需 1–{NAME_MAX} 个字符"}), 400
 
     with db() as conn:
+        conn.execute("BEGIN IMMEDIATE")   # 与 join 同理：加入数上限的读-判-写需原子
         mine = conn.execute(
             "SELECT COUNT(*) c FROM group_member WHERE user=?", (user,)).fetchone()["c"]
         if mine >= MY_GROUPS_MAX:
@@ -194,6 +198,19 @@ def api_detail(gid):
         if not grp:
             return jsonify({"error": "小组不存在"}), 404
         mine = _membership(conn, gid, me)
+        if not mine:
+            # 非成员只看公开预览（与 /challenges 的 403 口径一致）：
+            # 成员名单、等级、连续天数与挑战成绩属组内信息，不随详情泄露
+            member_count = conn.execute(
+                "SELECT COUNT(*) c FROM group_member WHERE group_id=?", (gid,)).fetchone()["c"]
+            return resp({
+                "id": grp["id"], "name": grp["name"],
+                "creator_name": display_name(conn, grp["creator"]),
+                "created_at": grp["created_at"], "max_members": MEMBERS_DEFAULT_MAX,
+                "member_count": member_count,
+                "members": [], "challenges": [],
+                "role": None, "is_member": False,
+            })
         member_ids = [r["user"] for r in conn.execute(
             "SELECT user FROM group_member WHERE group_id=? ORDER BY joined_at", (gid,))]
         names = {uid: display_name(conn, uid) for uid in member_ids}
@@ -243,6 +260,8 @@ def api_join(gid):
         return guard
     user = get_user()
     with db() as conn:
+        # BEGIN IMMEDIATE 串行化并发 join：人数上限的检查与写入之间不会被插队
+        conn.execute("BEGIN IMMEDIATE")
         if not conn.execute("SELECT 1 FROM study_group WHERE id=?", (gid,)).fetchone():
             return jsonify({"error": "小组不存在"}), 404
         if _membership(conn, gid, user):
@@ -315,6 +334,8 @@ def api_create_challenge(gid):
 
     expires = (date.today() + timedelta(days=days)).isoformat()
     with db() as conn:
+        # BEGIN IMMEDIATE 串行化并发创建：活跃挑战数上限不可被并发突破
+        conn.execute("BEGIN IMMEDIATE")
         if not conn.execute("SELECT 1 FROM study_group WHERE id=?", (gid,)).fetchone():
             return jsonify({"error": "小组不存在"}), 404
         if not _membership(conn, gid, user):

@@ -107,6 +107,8 @@ def main():
 
     audio_dir = BASE / "audio" / args.list_key
     map_path = audio_dir / "nce_audio_map.json"
+    if not map_path.exists():
+        sys.exit(f"缺少 {map_path}")
     mapping = json.loads(map_path.read_text("utf-8"))
 
     byfile = defaultdict(list)

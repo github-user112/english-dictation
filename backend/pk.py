@@ -11,8 +11,9 @@
 帧协议（JSON）：
   C→S  {"type":"join"} | {"type":"start"} | {"type":"answer",index,text}
        | {"type":"finish"}
-  S→C  {"type":"state", ...}（含 phase/winner/role/items/players）、
-       {"type":"ping"}、{"type":"gone"}
+  S→C  {"type":"state", ...}（含 phase/winner/role/items/players；
+       进行中的 items 不含答案原文）、{"type":"verdict",index,right}（answer 的
+       即时判定回执，客户端凭它推进题序）、{"type":"ping"}、{"type":"gone"}
 
 version 单调递增保证多 worker 下不丢事件；游客身份取 Cookie，前端必须先
 请求一次 /api/pk/room/<code> 让身份 Cookie 就位再建立 WS 连接。
@@ -38,6 +39,7 @@ sock = Sock()
 ITEMS_COUNT = 30            # 一局词流长度，与限时冲刺同款词形
 GAME_SECONDS = 60           # 作答窗口
 GRACE_SECONDS = 15          # 超时判定宽限：弱网下 finish 帧晚到也算完赛
+MIN_ANSWER_SECONDS = 1.0    # 单题流速下限：听音+打字有物理下限，比这个快的作答是脚本
 POLL_TICK_SECONDS = 0.5     # 推送轮询周期 = 对手进度的最大可见延迟
 HEARTBEAT_SECONDS = 25      # nginx proxy_read_timeout(30s) 内必有一帧流量
 FINISHED_LINGER_SECONDS = 20   # 关局后再推送这么久，然后释放长连接线程
@@ -163,27 +165,28 @@ def _upsert_result(conn, code, user, name, score, combo, answered, finished):
 def _record_answer(conn, code, user, name, items, index, text):
     """服务端校验一次作答：判分、落 answers JSON、重算 score/combo/answered。
 
-    返回 True 表示本次计入（有效作答或纠错重试），False 表示忽略
-    （index 非法/答对的词重复提交/已交卷）。分数完全由服务端推导。
-    答错的词允许重试改分——拼错了再改对是听写游戏的主循环；答对的词
-    不可被后续提交翻案。调用方须用 db(immediate=True)，读-改-写在多
-    worker 下才原子。
+    返回 None 表示忽略（index 非法/已交卷），否则返回本次判定 True/False——
+    调用方把它作为 verdict 帧下发给作答者。分数完全由服务端推导。
+    答错的词允许重试改分——拼错了再改对是听写游戏的主循环；已答对的词
+    重复提交不再写库，但仍回报 True（幂等 verdict：断线重放后能拿回判定）。
+    调用方须用 db(immediate=True)，读-改-写在多 worker 下才原子。
     """
     if not isinstance(index, int) or isinstance(index, bool) or not (0 <= index < len(items)):
-        return False   # index 越界一律拒收，不 clamp：clamp 会把错帧写进槽位 0
+        return None   # index 越界一律拒收，不 clamp：clamp 会把错帧写进槽位 0
     row = conn.execute(
         "SELECT answers, finished_at FROM pk_result WHERE room_code=? AND user=?",
         (code, user)).fetchone()
     if row and row["finished_at"]:
-        return False   # 已交卷的座位不再接收新答案
+        return None   # 已交卷的座位不再接收新答案
     try:
         answers = json.loads(row["answers"]) if (row and row["answers"]) else {}
     except (ValueError, TypeError):
         answers = {}
     if answers.get(str(index)) is True:
-        return False   # 已答对的词不再接收提交
+        return True   # 已答对的词不被翻案；幂等回报判定结果即可
     expected = str(items[index].get("text", ""))
-    answers[str(index)] = text.strip().lower() == expected.strip().lower()
+    right = text.strip().lower() == expected.strip().lower()
+    answers[str(index)] = right
     score, combo, answered = _compute_score(answers)
     conn.execute(
         """INSERT INTO pk_result(room_code, user, name, score, combo, answered, answers)
@@ -193,7 +196,8 @@ def _record_answer(conn, code, user, name, items, index, text):
              answers=excluded.answers""",
         (code, user, name, score, combo, answered,
          json.dumps(answers, ensure_ascii=False)))
-    return True
+    conn.execute("UPDATE pk_room SET version=version+1 WHERE code=?", (code,))
+    return right
 
 
 def _roles(row, me):
@@ -225,14 +229,22 @@ def _snapshot(conn, code, viewer=None):
             "finished": bool(res and res["finished_at"]),
         })
     winner = None
-    if row["state"] == "finished" and len(players) == 2:
-        first, second = players
-        winner = ("draw" if first["score"] == second["score"]
-                  else (first["user"] if first["score"] > second["score"] else second["user"]))
+    if row["state"] == "finished" and players:
+        if len(players) == 1:
+            winner = players[0]["user"]   # 单人房完赛即胜，终局战报语义完整
+        else:
+            first, second = players
+            winner = ("draw" if first["score"] == second["score"]
+                      else (first["user"] if first["score"] > second["score"] else second["user"]))
+    items = json.loads(row["items"])
+    if row["state"] != "finished":
+        # 答案原文不出服务端：进行中只下发发音/题型，判分用 id 反查，
+        # 快照泄词时客户端脚本照抄 text 即可满分的路径就此关闭
+        items = [{"id": it["id"], "kind": it["kind"], "audio": it["audio"]} for it in items]
     payload = {
         "type": "state",
         "code": row["code"], "list": row["list_key"], "phase": row["state"],
-        "items": json.loads(row["items"]),
+        "items": items,
         "started_at": row["started_at"],
         "deadline_at": _deadline_iso(row["started_at"]) if row["started_at"] else None,
         "server_now": now(),
@@ -254,18 +266,19 @@ def _maybe_autofinish(conn, room):
 
 
 def _handle_message(code, me, raw):
+    """处理一帧客户端消息；answer 帧返回 verdict 负载（由连接线程回发），其余返回 None。"""
     try:
         msg = json.loads(raw)
     except ValueError:
-        return
+        return None
     if not isinstance(msg, dict):
-        return
+        return None
     kind = msg.get("type")
 
     with db(immediate=True) as conn:
         row = conn.execute("SELECT * FROM pk_room WHERE code=?", (code,)).fetchone()
         if row is None:
-            return
+            return None
         role = _roles(row, me)
 
         if kind == "start":
@@ -273,22 +286,33 @@ def _handle_message(code, me, raw):
             if role in {"creator", "opponent"} and row["state"] == "waiting":
                 conn.execute("UPDATE pk_room SET state='playing', started_at=?, "
                              "version=version+1 WHERE code=?", (now(), code))
-            return
+            return None
 
         if kind == "answer":
             # 服务端判分：客户端只报 index+文本，不报任何分数
             if role == "spectator" or row["state"] != "playing":
-                return
-            if _record_answer(conn, code, me, display_name(conn, me),
-                              json.loads(row["items"]), msg.get("index"),
-                              str(msg.get("text", ""))):
-                conn.execute("UPDATE pk_room SET version=version+1 WHERE code=?", (code,))
-            return
+                return None
+            index = msg.get("index")
+            # 流速闸门：累计作答数不得超过已流逝时间允许的上限。
+            # 听音+打字的物理下限约 1s/题，比这快的批量作答是脚本在灌答案
+            elapsed = _elapsed_seconds(row["started_at"])
+            done_row = conn.execute(
+                "SELECT answered FROM pk_result WHERE room_code=? AND user=?",
+                (code, me)).fetchone()
+            done = done_row["answered"] if done_row else 0
+            if done + 1 > int(elapsed / MIN_ANSWER_SECONDS) + 1:
+                return None
+            right = _record_answer(conn, code, me, display_name(conn, me),
+                                   json.loads(row["items"]), index,
+                                   str(msg.get("text", "")))
+            if right is None:
+                return None
+            return {"type": "verdict", "index": index, "right": right}
 
         if kind != "finish" or role == "spectator":
-            return   # 成绩只认服务端判过的 answer 帧；旧 progress 帧已退役
+            return None   # 成绩只认服务端判过的 answer 帧；旧 progress 帧已退役
         if row["state"] != "playing":
-            return   # 未开局或已关局的提交一律忽略
+            return None   # 未开局或已关局的提交一律忽略
         sealed = conn.execute(
             "SELECT finished_at, score, combo, answered FROM pk_result "
             "WHERE room_code=? AND user=?", (code, me)).fetchone()
@@ -345,7 +369,9 @@ def ws_pk(ws, code):
             if isinstance(raw, bytes):
                 raw = raw.decode("utf-8", "ignore")
             if raw:
-                _handle_message(code, me, raw)
+                verdict = _handle_message(code, me, raw)
+                if verdict:
+                    send(verdict)   # 判定即时回发：作答反馈延迟 ≈ 1 RTT，不等推送节拍
 
             with db() as conn:
                 room = conn.execute(

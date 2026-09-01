@@ -20,6 +20,7 @@ const joinLoading = ref("");
 const autoMsg = ref("");
 let mounted = true;
 let searchTimer = null;
+let searchSeq = 0;   // L2: 搜索请求序，丢弃乱序返回的旧查询结果
 
 onMounted(async () => {
   try {
@@ -102,14 +103,15 @@ async function doSearch(q) {
     searchError.value = q.length > 32 ? "搜索词过长" : "请输入要搜索的小组名";
     return;
   }
+  const seq = ++searchSeq;
   searching.value = true;
   searchError.value = "";
   try {
     const d = await api(`/groups/search?q=${encodeURIComponent(q)}`);
-    if (!mounted) return;
+    if (!mounted || seq !== searchSeq) return;
     searchResults.value = d.groups || [];
   } catch (err) {
-    if (!mounted) return;
+    if (!mounted || seq !== searchSeq) return;
     searchError.value = err.message || "搜索失败";
     searchResults.value = [];
   }

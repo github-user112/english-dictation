@@ -83,10 +83,14 @@ function unpick(pos) {
 async function submit() {
   if (!complete.value || feedback.value || submitting.value) return;
   submitting.value = true;
+  const attemptId = (() => {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    return uuid ? uuid.replaceAll("-", "") : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+  })();
   try {
     const d = await api("/arrange/answer", {
       method: "POST",
-      body: JSON.stringify({ list: list.value, id: q.value.id, order: placed.value }),
+      body: JSON.stringify({ list: list.value, id: q.value.id, order: placed.value, attempt_id: attemptId }),
     });
     feedback.value = d;
     if (d.right) {

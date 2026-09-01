@@ -105,7 +105,14 @@ def seat(code, name="creator"):
 
 
 def answer(code, user, index, text):
-    _handle_message(code, user, json.dumps({"type": "answer", "index": index, "text": text}))
+    return _handle_message(code, user, json.dumps({"type": "answer", "index": index, "text": text}))
+
+
+def backdate(code, seconds=120):
+    """把开局时间拨到过去：流速闸门按已流逝时间放题，批量作答的用例先拨钟。"""
+    with db() as conn:
+        conn.execute("UPDATE pk_room SET started_at=? WHERE code=?",
+                     (now_iso(-seconds), code))
 
 
 def finish(code, user, **extra):
@@ -230,7 +237,7 @@ def test_single_player_room_finishes_on_own_finish(client):
     finish(code, A)
     snap = snapshot(code)
     assert snap["phase"] == "finished"
-    assert snap["winner"] is None            # 单人自练无胜负，只有成绩
+    assert snap["winner"] == A               # 单人房完赛即胜，终局战报语义完整
     assert snap["players"][0]["score"] == 1
     assert snap["players"][0]["finished"] is True
 
@@ -238,6 +245,7 @@ def test_single_player_room_finishes_on_own_finish(client):
 def test_answers_alone_do_not_finalize_room(client):
     """答完所有题不再自动关局：收口由前端显式 finish 帧驱动。"""
     code = make_room_direct(state="playing", opponent=None)
+    backdate(code)
     for i in range(len(STREAM)):
         answer(code, A, i, STREAM[i]["text"])
     snap = snapshot(code)
@@ -251,6 +259,7 @@ def test_answers_alone_do_not_finalize_room(client):
 def test_draw_and_winner_determination(client):
     code = make_room_direct(opponent=B)
     _handle_message(code, A, json.dumps({"type": "start"}))
+    backdate(code)
     for user in (A, B):
         answer(code, user, 0, STREAM[0]["text"])
         finish(code, user)
@@ -259,6 +268,7 @@ def test_draw_and_winner_determination(client):
 
     other = make_room_direct(opponent=B)
     _handle_message(other, A, json.dumps({"type": "start"}))
+    backdate(other)
     answer(other, A, 0, STREAM[0]["text"])
     for i in range(len(STREAM)):
         answer(other, B, i, STREAM[i]["text"])
@@ -374,11 +384,11 @@ def test_record_answer_correct_increases_score(app):
 
 
 def test_record_answer_wrong_no_score_increase(app):
-    """错误作答 → score 不变, answered+1"""
+    """错误作答 → score 不变, answered+1；verdict 回报 False"""
     code = make_room_direct(state="playing", opponent=B)
     with db() as conn:
         ok = _record_answer(conn, code, A, "tester", STREAM, 0, "WRONG_ANSWER")
-    assert ok is True
+    assert ok is False
     with db() as conn:
         row = conn.execute("SELECT score, answered, answers FROM pk_result WHERE room_code=? AND user=?",
                            (code, A)).fetchone()
@@ -391,7 +401,7 @@ def test_record_answer_wrong_then_retry_scores_correct(app):
     """答错的词可重试改分——拼错了再改对是听写的主循环。"""
     code = make_room_direct(state="playing", opponent=B)
     with db() as conn:
-        assert _record_answer(conn, code, A, "t", STREAM, 0, "WRONG") is True
+        assert _record_answer(conn, code, A, "t", STREAM, 0, "WRONG") is False
         assert _record_answer(conn, code, A, "t", STREAM, 0, STREAM[0]["text"]) is True
         row = conn.execute("SELECT score, answers FROM pk_result WHERE room_code=? AND user=?",
                            (code, A)).fetchone()
@@ -400,21 +410,23 @@ def test_record_answer_wrong_then_retry_scores_correct(app):
 
 
 def test_record_answer_duplicate_ignored(app):
-    """已答对的词不被后续提交翻案"""
+    """已答对的词不被后续提交翻案：不再写库，但幂等回报 True（断线重放能拿回判定）"""
     code = make_room_direct(state="playing", opponent=B)
     with db() as conn:
         ok1 = _record_answer(conn, code, A, "t", STREAM, 0, STREAM[0]["text"])
         ok2 = _record_answer(conn, code, A, "t", STREAM, 0, "DIFFERENT")
-    assert ok1 is True
-    assert ok2 is False
+        row = conn.execute("SELECT score, answers FROM pk_result WHERE room_code=? AND user=?",
+                           (code, A)).fetchone()
+    assert ok1 is True and ok2 is True
+    assert row["score"] == 1 and json.loads(row["answers"])["0"] is True   # 未被翻案
 
 
 def test_record_answer_out_of_range_rejected(app):
-    """越界 index → 返回 False，不建记录"""
+    """越界 index → 返回 None（忽略），不建记录"""
     code = make_room_direct(state="playing", opponent=B)
     with db() as conn:
         ok = _record_answer(conn, code, A, "t", STREAM, 99, "anything")
-    assert ok is False
+    assert ok is None
     with db() as conn:
         row = conn.execute("SELECT * FROM pk_result WHERE room_code=? AND user=?",
                            (code, A)).fetchone()
@@ -426,7 +438,7 @@ def test_record_answer_bad_index_never_corrupts_slot_zero(app):
     code = make_room_direct(state="playing", opponent=B)
     for bad in ("0", 1.5, True, -1, len(STREAM), None, [0]):
         with db() as conn:
-            assert _record_answer(conn, code, A, "t", STREAM, bad, STREAM[0]["text"]) is False
+            assert _record_answer(conn, code, A, "t", STREAM, bad, STREAM[0]["text"]) is None
     with db() as conn:
         row = conn.execute("SELECT * FROM pk_result WHERE room_code=? AND user=?",
                            (code, A)).fetchone()
@@ -532,3 +544,41 @@ def test_sealed_seat_ignores_late_frames(app):
         after = conn.execute("SELECT version FROM pk_room WHERE code=?", (code,)).fetchone()["version"]
     assert after == before
     assert (seat(code)["score"], seat(code)["answered"]) == (1, 1)
+
+
+# ---------------- 快照泄词与流速闸门（H1 回归） ----------------
+
+def test_snapshot_hides_answer_text_until_finished(app):
+    """进行中/等待中的快照不下发答案原文——照抄 items 刷满分的路径被关闭。"""
+    code = make_room_direct(state="playing", opponent=B)
+    snap = snapshot(code, viewer=A)
+    assert all("text" not in it for it in snap["items"])
+    assert all(it["id"] and "audio" in it for it in snap["items"])   # 发音与 id 仍在
+    backdate(code)
+    for i in range(len(STREAM)):
+        answer(code, A, i, STREAM[i]["text"])
+    finish(code, A)
+    finish(code, B)   # 双方交卷才关局
+    done = snapshot(code, viewer=A)
+    assert done["phase"] == "finished"
+    assert done["items"][0]["text"] == STREAM[0]["text"]   # 终局战报恢复原文供回看
+
+
+def test_answer_burst_rejected_by_rate_gate(app):
+    """流速闸门：毫秒级灌全部答案只放过前两题，其余拒收。"""
+    code = make_room_direct(state="playing", opponent=B)
+    verdicts = [answer(code, A, i, STREAM[i]["text"]) for i in range(len(STREAM))]
+    accepted = [v for v in verdicts if v is not None]
+    assert len(accepted) <= 1                       # elapsed≈0 时闸门只放 1 题
+    s = seat(code)
+    assert s["answered"] <= 1 and s["score"] <= 1
+
+
+def test_answer_frame_returns_verdict(app):
+    """answer 帧的即时判定回执：对/错/忽略三态分明。"""
+    code = make_room_direct(state="playing", opponent=B)
+    backdate(code)
+    assert answer(code, A, 0, STREAM[0]["text"]) == {"type": "verdict", "index": 0, "right": True}
+    assert answer(code, A, 1, "WRONG") == {"type": "verdict", "index": 1, "right": False}
+    assert answer(code, A, 99, "x") is None                      # 越界忽略
+    assert answer(code, "z" * 32, 2, STREAM[2]["text"]) is None  # 旁观者无回执
