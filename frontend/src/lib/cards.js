@@ -250,3 +250,44 @@ export function weeklyShareText(m) {
     `（较上周 ${m.accuracyDelta >= 0 ? "+" : ""}${m.accuracyDelta}%）`;
   return `📅 我的听写周报（${m.weekStart}~${m.weekEnd}）\n听写 ${m.items} 题 · 首答正确率 ${m.accuracy}%${delta} · 背词答对 ${m.memorizeRight} 个 · 打卡 ${m.daysActive}/7 天\n一起来听清每一个词 → ${m.link}`;
 }
+
+export function paintWordTestCard(cv, m, dpr, P) {
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  paintBase(g, "VOCABULARY TEST · 词汇量测试",
+            `${m.name} 的词汇量`, `${m.cefr} ${m.cefrTitle} · L${m.level}`, dpr, P);
+
+  chip(g, (W - 520) / 2, 300, 520, 240, P.cardFill, P);
+  g.fillStyle = P.big;
+  g.font = "700 120px 'Avenir Next','PingFang SC',sans-serif";
+  g.fillText(String(m.wordCount), W / 2, 430);
+  g.fillStyle = P.label;
+  g.font = "500 28px 'PingFang SC',sans-serif";
+  g.fillText("可识别词汇量（词）", W / 2, 490);
+
+  const stats = [
+    ["CEFR", m.cefr],
+    ["答对", m.correct],
+    ["答题", m.answered],
+    ["难度", `L${m.level}`],
+  ];
+  stats.forEach(([lab, val], i) => {
+    const bw = 240, gap = 20;
+    const x = (W - bw * 2 - gap) / 2 + (i % 2) * (bw + gap);
+    const y = 600 + Math.floor(i / 2) * (130 + gap);
+    chip(g, x, y, bw, 130, P.cardFill, P);
+    g.textAlign = "center";
+    g.fillStyle = P.num;
+    g.font = "700 42px 'Avenir Next','PingFang SC',sans-serif";
+    g.fillText(String(val), x + bw / 2, y + 62);
+    g.fillStyle = P.label;
+    g.font = "400 23px 'PingFang SC',sans-serif";
+    g.fillText(lab, x + bw / 2, y + 100);
+  });
+  paintFooter(g, dpr, P);
+}
+
+export function wordTestShareText(m) {
+  return `📊 我的词汇量测试结果：${m.cefr} ${m.cefrTitle}（L${m.level}），约可识别 ${m.wordCount} 个单词！${m.answered > 0 ? `（答对 ${m.correct}/${m.answered}）` : ""} 你也来测测自己的词汇量 → ${m.link}`;
+}

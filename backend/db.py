@@ -305,6 +305,19 @@ def init_db():
             PRIMARY KEY(room_code, user),
             FOREIGN KEY(room_code) REFERENCES pk_room(code) ON DELETE CASCADE
         );
+        CREATE INDEX IF NOT EXISTS idx_pk_result_user ON pk_result(user, finished_at);
+        CREATE TABLE IF NOT EXISTS wordtest_result (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user TEXT NOT NULL,
+            level INTEGER NOT NULL,
+            questions_answered INTEGER NOT NULL,
+            correct_count INTEGER NOT NULL,
+            cefr TEXT NOT NULL,
+            word_count INTEGER NOT NULL,
+            detail TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_wordtest_user ON wordtest_result(user, created_at DESC);
         """)
 
 

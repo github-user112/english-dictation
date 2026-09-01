@@ -5,20 +5,21 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { PALETTES, currentTheme } from "../lib/poster";
 import {
   badgeShareText, paintBadgeCard, paintPkCard, paintWeeklyCard,
-  pkShareText, weeklyShareText,
+  paintWordTestCard,
+  pkShareText, weeklyShareText, wordTestShareText,
 } from "../lib/cards";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
-  kind: { type: String, required: true },       // pk | badge | weekly
+  kind: { type: String, required: true },       // pk | badge | weekly | wordtest
   payload: { type: Object, required: true },
 });
 
 const emit = defineEmits(["close"]);
 
-const PAINTER = { pk: paintPkCard, badge: paintBadgeCard, weekly: paintWeeklyCard };
-const TEXT = { pk: pkShareText, badge: badgeShareText, weekly: weeklyShareText };
-const FILENAME = { pk: "对战战报", badge: "成就徽章", weekly: "学习周报" };
+const PAINTER = { pk: paintPkCard, badge: paintBadgeCard, weekly: paintWeeklyCard, wordtest: paintWordTestCard };
+const TEXT = { pk: pkShareText, badge: badgeShareText, weekly: weeklyShareText, wordtest: wordTestShareText };
+const FILENAME = { pk: "对战战报", badge: "成就徽章", weekly: "学习周报", wordtest: "词汇量测试" };
 
 const poster = ref(null);
 const copied = ref(false);

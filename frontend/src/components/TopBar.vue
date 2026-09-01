@@ -8,7 +8,7 @@ const TITLES = {
   catalog: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
   quiz: "听音选词", sprint: "限时冲刺", daily: "每日挑战", tree: "单词树",
   boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句",
-  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战",
+  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战", wordtest: "词汇量测试",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");
 const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
@@ -72,6 +72,7 @@ onUnmounted(() => {
       <a class="nav-link" :class="{active: page==='friends'}" href="#/friends">好友</a>
       <a class="nav-link" :class="{active: page==='groups'}" href="#/groups">小组</a>
       <a class="nav-link" :class="{active: page==='report'}" href="#/report">报告</a>
+      <a class="nav-link" :class="{active: page==='wordtest'}" href="#/wordtest">词测</a>
       <a class="nav-link" :class="{active: page==='settings'}" href="#/settings">设置</a>
       <a v-if="!Account.loading && !Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">登录 / 注册</a>
       <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn ghost sm" @click="signOut">退出</button></div>

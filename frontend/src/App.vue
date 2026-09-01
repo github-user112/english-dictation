@@ -22,6 +22,7 @@ import FriendsPage from "./components/FriendsPage.vue";
 import GroupsPage from "./components/GroupsPage.vue";
 import GroupDetailPage from "./components/GroupDetailPage.vue";
 import PkPage from "./components/PkPage.vue";
+import WordTestPage from "./components/WordTestPage.vue";
 import { refreshAccount } from "./lib/account";
 import { stopAudio } from "./lib/core";
 
@@ -38,6 +39,7 @@ const ROUTES = {
   leaderboard: LeaderboardPage, friends: FriendsPage,
   groups: GroupsPage, group: GroupDetailPage,
   pk: PkPage,
+  wordtest: WordTestPage,
 };
 const view = ref(CatalogPage);
 const params = ref(new URLSearchParams());

@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from . import (achievements, ai, arrange, auth_routes, boss, catalog, challenge, custom,
                daily, db as dbmod, friends, goal, groups, leaderboard, match, memorize,
-               misc, pk, profile, push)
+               misc, pk, profile, push, wordtest)
 from .auth import csrf_valid, legacy_account_protected
 from .config import STATIC_DIR
 from .materials import MaterialUnavailable
@@ -21,7 +21,7 @@ def create_app(*, static_dir=None):
     dbmod.migrate()
     for mod in (achievements, ai, arrange, auth_routes, boss, catalog, challenge, custom,
                 daily, friends, goal, groups, leaderboard, match, memorize, misc, pk,
-                profile, push):
+                profile, push, wordtest):
         app.register_blueprint(mod.bp)
     # WebSocket 路由挂在独立 Sock 蓝图上，须在业务蓝图之后 init_app
     pk.init_app(app)
