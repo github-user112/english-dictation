@@ -101,7 +101,7 @@ def test_leaderboard_daily_respects_period_windows(client):
     weekly = client.get("/api/leaderboard?scope=daily&period=weekly").json
     assert weekly["total_players"] == 2 and weekly["rows"][0]["value"] == 90   # -20 天的 99 分不进本周窗
     monthly = client.get("/api/leaderboard?scope=daily&period=monthly").json
-    assert monthly["rows"][0]["value"] == 99     # 本月 1 号在本周窗外，月度榜看得到
+    assert monthly["rows"][0]["value"] == 99     # -20 天在月度 30 天窗口内，月度榜看得到
     alltime = client.get("/api/leaderboard?scope=daily").json
     assert alltime["rows"][0]["value"] == 99
 

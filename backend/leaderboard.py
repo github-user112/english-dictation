@@ -4,7 +4,8 @@
 "什么时候同步、怎么算周月窗口"两类陈旧性问题；sprint_best 没有逐局历史，
 周期维度对它天然不成立，前端对该两个 scope 隐藏日/周筛选。
 
-周期窗口按"当天日期"切：weekly 取本周一，monthly 取本月 1 号（本地时区）。
+周期窗口按"当天日期"切：weekly 取本周一；monthly 取 30 天前（固定 30 天
+回看，避免月初时"本月 1 号"窗口反而窄于周度窗口的悖论）。
 """
 from collections import defaultdict
 from datetime import date, timedelta
@@ -33,7 +34,7 @@ def _cutoff(period):
     if period == "weekly":
         return today - timedelta(days=today.weekday())
     if period == "monthly":
-        return today.replace(day=1)
+        return today - timedelta(days=30)
     return None
 
 
