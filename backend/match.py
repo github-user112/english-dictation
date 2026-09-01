@@ -108,7 +108,7 @@ def api_match_result():
                ON CONFLICT(day,user,practice_mode) DO UPDATE SET
                first_right_count=first_right_count+excluded.first_right_count,
                first_wrong_count=first_wrong_count+excluded.first_wrong_count,
-               final_right_count=first_right_count+excluded.final_right_count""",
+               final_right_count=final_right_count+excluded.final_right_count""",
             (today, user, "match", 0, 0,
              sum(1 for _, right in graded if right),
              sum(1 for _, right in graded if not right),

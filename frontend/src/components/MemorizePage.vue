@@ -96,7 +96,8 @@ async function init() {
       play();
     }
   } else {
-    const d = await api(`/memorize/session?list=${list.value}`);
+    const n = Number(props.params?.get("n")) || 0;
+    const d = await api(`/memorize/session?list=${list.value}` + (n >= 1 && n <= 100 ? `&n=${n}` : ""));
     if (!mounted) return;
     items.value = d.items || [];
     queue.value = [...items.value];

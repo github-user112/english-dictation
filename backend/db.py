@@ -266,6 +266,33 @@ def init_db():
             finished_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_pk_room_creator ON pk_room(creator, state);
+        CREATE TABLE IF NOT EXISTS study_goal (
+            user TEXT NOT NULL,
+            list TEXT NOT NULL,
+            target_days INTEGER NOT NULL,
+            start_day TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(user, list)
+        );
+        CREATE TABLE IF NOT EXISTS ai_cache (
+            user TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            key TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY(user, kind, key)
+        );
+        CREATE TABLE IF NOT EXISTS push_meta (
+            name TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS push_subscription (
+            endpoint TEXT PRIMARY KEY,
+            user TEXT NOT NULL,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS pk_result (
             room_code TEXT NOT NULL,
             user TEXT NOT NULL,

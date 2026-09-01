@@ -57,4 +57,5 @@ MATERIALS = {
     "nc3": {"type": "sentences", "title": "新概念英语3册"},
     "nc4": {"type": "sentences", "title": "新概念英语4册"},
     "oral900": {"type": "sentences", "title": "口语900句"},
+    "news": {"type": "sentences", "title": "每日新闻"},
 }

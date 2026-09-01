@@ -12,6 +12,30 @@ const error = ref("");
 const badges = ref(null);
 const celebrating = ref([]);
 const badgeShareOpen = ref(false);
+const weeklyShareOpen = ref(false);
+const weeklyLoading = ref(false);
+const weekly = ref(null);
+const typing = ref(null);
+
+async function openWeekly() {
+  weeklyLoading.value = true;
+  try {
+    const d = await api("/report/weekly");
+    weekly.value = {
+      name: Account.username || "游客",
+      weekStart: d.week_start.slice(5).replace("-", "."),
+      weekEnd: d.week_end.slice(5).replace("-", "."),
+      items: d.items, accuracy: d.accuracy, accuracyDelta: d.accuracy_delta,
+      memorizeRight: d.memorize_right, daysActive: d.days_active, streak: d.streak,
+      link: location.origin + "/#/",
+    };
+    weeklyShareOpen.value = true;
+  } catch (err) {
+    alert(err.message || "周报加载失败");
+  } finally {
+    weeklyLoading.value = false;
+  }
+}
 
 function badgeSharePayload() {
   return {
@@ -70,6 +94,8 @@ async function load() {
     badges.value = a.badges || [];
     checkNewBadges();
   } catch { /* 徽章加载失败时保持隐藏 */ }
+  // 打字数据独立加载：失败只隐藏 WPM/错键区，不拖垮整页统计
+  api("/stats/typing").then((d) => { typing.value = d; }).catch(() => {});
 }
 
 /* ---- 打卡热力图：最近 26 周，按周列排布（周一开头） ---- */
@@ -105,6 +131,21 @@ const speedView = computed(() => {
   }).join(" ");
   const avg = s.reduce((a, p) => a + p.sec, 0) / s.length;
   return { points: pts, avg: avg.toFixed(1), latest: s[s.length - 1].sec.toFixed(1), n: s.length };
+});
+
+/* ---- WPM 曲线：近 30 天有数据的天 ---- */
+const TIER_ICON = { 钻石: "💎", 铂金: "🏆", 黄金: "🥇", 白银: "🥈", 青铜: "🥉" };
+const wpmView = computed(() => {
+  const c = (typing.value?.curve || []).slice(-30);
+  if (!c.length) return null;
+  const max = Math.max(10, ...c.map((p) => p.wpm));
+  const pts = c.map((p, i) => {
+    const x = c.length === 1 ? 50 : (i / (c.length - 1)) * 100;
+    const y = 34 - (p.wpm / max) * 30;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const best = Math.max(...c.map((p) => p.wpm));
+  return { points: pts, best: best.toFixed(1), n: c.length };
 });
 
 /* ---- 新徽章庆祝：localStorage 记住已见集合，首次访问静默建档 ---- */
@@ -181,6 +222,7 @@ function checkNewBadges() {
           </a>
           <div class="controls" style="margin-top:14px;">
             <button class="btn ghost sm" @click="badgeShareOpen = true">🎖 分享我的勋章</button>
+            <button class="btn ghost sm" :disabled="weeklyLoading" @click="openWeekly">📅 分享本周周报</button>
           </div>
         </div>
       </div>
@@ -244,6 +286,30 @@ function checkNewBadges() {
       </div>
     </template>
 
+    <template v-if="typing && (wpmView || typing.heatmap.length)">
+      <div class="section-title">打字数据<small>近 30 天 WPM · 近 90 天错键</small></div>
+      <div class="stat-card" style="padding:18px 16px 12px;">
+        <div class="tier-line">
+          <span class="tier-badge">{{ TIER_ICON[typing.tier] || "🥉" }} {{ typing.tier }}</span>
+          <span class="tier-sub">近 7 天均速 <b>{{ typing.wpm7 }}</b> WPM · 最快 {{ wpmView ? wpmView.best : 0 }} WPM</span>
+        </div>
+        <svg v-if="wpmView" viewBox="0 0 100 40" preserveAspectRatio="none" class="spark" aria-hidden="true">
+          <polyline :points="wpmView.points" fill="none" stroke="var(--accent)" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <div v-if="wpmView" class="spark-cap">
+          <span>WPM 曲线</span><span>{{ wpmView.n }} 天样本</span>
+        </div>
+      </div>
+      <div v-if="typing.heatmap.length" class="stat-card" style="padding:14px 16px;">
+        <div v-for="h in typing.heatmap" :key="h.expect" class="typo-row">
+          <code class="typo-expect">{{ h.expect }}</code>
+          <span class="typo-arrow">常打成</span>
+          <code v-for="g in h.got" :key="g.key" class="typo-got">{{ g.key }}<i v-if="g.count > 1">×{{ g.count }}</i></code>
+        </div>
+      </div>
+    </template>
+
     <template v-if="badges">
     <div class="section-title">成就徽章<small>{{ badges.filter(b => b.unlocked).length }} / {{ badges.length }} 已解锁</small></div>
     <div class="badge-wall">
@@ -256,5 +322,6 @@ function checkNewBadges() {
     </template>
 
     <ShareCard :open="badgeShareOpen" kind="badge" :payload="badgeSharePayload()" @close="badgeShareOpen = false" />
+    <ShareCard v-if="weekly" :open="weeklyShareOpen" kind="weekly" :payload="weekly" @close="weeklyShareOpen = false" />
   </div>
 </template>

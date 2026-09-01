@@ -190,6 +190,45 @@ export function paintBadgeCard(cv, m, dpr, P) {
   paintFooter(g, dpr, P);
 }
 
+export function paintWeeklyCard(cv, m, dpr, P) {
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  paintBase(g, "WEEKLY REPORT · 学习周报",
+            `${m.name} 的一周`, `${m.weekStart} ~ ${m.weekEnd}`, dpr, P);
+
+  chip(g, (W - 520) / 2, 300, 520, 280, P.cardFill, P);
+  g.fillStyle = P.big;
+  g.font = "700 140px 'Avenir Next','PingFang SC',sans-serif";
+  g.fillText(String(m.items), W / 2, 450);
+  g.fillStyle = P.label;
+  g.font = "500 28px 'PingFang SC',sans-serif";
+  g.fillText("本周听写（题）", W / 2, 512);
+
+  const delta = m.accuracyDelta == null ? "" :
+    (m.accuracyDelta >= 0 ? ` ↑${m.accuracyDelta}` : ` ↓${Math.abs(m.accuracyDelta)}`);
+  const stats = [
+    ["首答正确率", `${m.accuracy}%${delta}`],
+    ["背词答对", m.memorizeRight],
+    ["打卡天数", `${m.daysActive}/7`],
+    ["连续打卡", `${m.streak} 天`],
+  ];
+  stats.forEach(([lab, val], i) => {
+    const bw = 300, gap = 24;
+    const x = (W - bw * 2 - gap) / 2 + (i % 2) * (bw + gap);
+    const y = 640 + Math.floor(i / 2) * (140 + gap);
+    chip(g, x, y, bw, 140, P.cardFill, P);
+    g.textAlign = "center";
+    g.fillStyle = P.num;
+    g.font = "700 42px 'Avenir Next','PingFang SC',sans-serif";
+    g.fillText(String(val), x + bw / 2, y + 66);
+    g.fillStyle = P.label;
+    g.font = "400 23px 'PingFang SC',sans-serif";
+    g.fillText(lab, x + bw / 2, y + 106);
+  });
+  paintFooter(g, dpr, P);
+}
+
 /* ---- 分享文案：纯字符串拼接，与画布内容一致 ---- */
 
 export function sprintShareText(m) {
@@ -204,4 +243,10 @@ export function pkShareText(m) {
 
 export function badgeShareText(m) {
   return `🎖 我的听写勋章：Lv.${m.level} ${m.levelTitle}（${m.xp} XP，连续打卡 ${m.streak} 天）！一起坚持听清每一个词 → ${m.link}`;
+}
+
+export function weeklyShareText(m) {
+  const delta = m.accuracyDelta == null ? "" :
+    `（较上周 ${m.accuracyDelta >= 0 ? "+" : ""}${m.accuracyDelta}%）`;
+  return `📅 我的听写周报（${m.weekStart}~${m.weekEnd}）\n听写 ${m.items} 题 · 首答正确率 ${m.accuracy}%${delta} · 背词答对 ${m.memorizeRight} 个 · 打卡 ${m.daysActive}/7 天\n一起来听清每一个词 → ${m.link}`;
 }

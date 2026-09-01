@@ -1,6 +1,6 @@
 /* cards.js 纯函数测试 */
 import { describe, it, expect } from "vitest";
-import { pkShareText, badgeShareText } from "../lib/cards";
+import { pkShareText, badgeShareText, weeklyShareText } from "../lib/cards";
 
 describe("pkShareText", () => {
   const m = {
@@ -44,5 +44,22 @@ describe("badgeShareText", () => {
   });
   it("contains link", () => {
     expect(badgeShareText(m)).toContain("https://example.com");
+  });
+});
+
+describe("weeklyShareText", () => {
+  const m = { name: "小鱼", weekStart: "09.01", weekEnd: "09.07", items: 120,
+              accuracy: 86, accuracyDelta: 5, memorizeRight: 40, daysActive: 6,
+              streak: 12, link: "https://example.com" };
+  it("包含核心数据与上周增量", () => {
+    const t = weeklyShareText(m);
+    expect(t).toContain("120 题");
+    expect(t).toContain("86%");
+    expect(t).toContain("较上周 +5%");
+    expect(t).toContain("打卡 6/7 天");
+    expect(t).toContain("https://example.com");
+  });
+  it("无上周数据时不显示增量", () => {
+    expect(weeklyShareText({ ...m, accuracyDelta: null })).not.toContain("较上周");
   });
 });

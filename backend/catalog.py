@@ -284,6 +284,12 @@ def api_session():
                 "SELECT * FROM daily_plan WHERE day=? AND user=? AND list=?", (today, user, list_key)
             ).fetchone()
             if not plan:
+                if request.args.get("new") is None:
+                    # 设了「N 天背完」目标时，每日新词配额由目标推算（函数内 import 避免循环依赖）
+                    from .goal import daily_new_quota
+                    goal_quota = daily_new_quota(conn, user, list_key)
+                    if goal_quota is not None:
+                        new_quota = goal_quota
                 conn.execute("INSERT INTO daily_plan VALUES(?,?,?,?,?,?,?)",
                              (today, user, list_key, new_quota, 0, stamp, stamp))
                 plan = conn.execute(

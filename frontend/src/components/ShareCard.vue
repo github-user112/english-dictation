@@ -4,21 +4,21 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { PALETTES, currentTheme } from "../lib/poster";
 import {
-  badgeShareText, paintBadgeCard, paintPkCard,
-  pkShareText,
+  badgeShareText, paintBadgeCard, paintPkCard, paintWeeklyCard,
+  pkShareText, weeklyShareText,
 } from "../lib/cards";
 
 const props = defineProps({
   open: { type: Boolean, default: false },
-  kind: { type: String, required: true },       // pk | badge
+  kind: { type: String, required: true },       // pk | badge | weekly
   payload: { type: Object, required: true },
 });
 
 const emit = defineEmits(["close"]);
 
-const PAINTER = { pk: paintPkCard, badge: paintBadgeCard };
-const TEXT = { pk: pkShareText, badge: badgeShareText };
-const FILENAME = { pk: "对战战报", badge: "成就徽章" };
+const PAINTER = { pk: paintPkCard, badge: paintBadgeCard, weekly: paintWeeklyCard };
+const TEXT = { pk: pkShareText, badge: badgeShareText, weekly: weeklyShareText };
+const FILENAME = { pk: "对战战报", badge: "成就徽章", weekly: "学习周报" };
 
 const poster = ref(null);
 const copied = ref(false);

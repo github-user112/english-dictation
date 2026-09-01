@@ -31,6 +31,9 @@ def load_material(list_key):
                 })
         else:
             path = BASE / "sentences" / f"{list_key}.json"
+            # 每日新闻由后台任务生成：文件尚未生成时按空素材处理，不拖垮目录页
+            if list_key == "news" and not path.exists():
+                return []
             data = json.loads(path.read_text("utf-8"))
             for sentence in data["items"]:
                 items.append({

@@ -103,6 +103,7 @@ def app(tmp_path):
         patch("backend.arrange.MATERIALS", test_materials),
         patch("backend.memorize.MATERIALS", test_materials),
         patch("backend.memorize.CONFIG", test_config),
+        patch("backend.goal.MATERIALS", test_materials),
         patch("backend.misc.AUDIO", audio_path),
         patch("backend.misc.CONFIG", test_config),
     ]

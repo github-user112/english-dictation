@@ -1,9 +1,55 @@
 <script setup>
-import { ref } from "vue";
-import { Settings } from "../lib/core";
+import { onMounted, ref } from "vue";
+import { api, Settings } from "../lib/core";
 import { Account } from "../lib/account";
 
 const s = ref(Settings.get());
+
+const pushSupported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const pushOn = ref(false);
+const pushBusy = ref(false);
+
+onMounted(async () => {
+  if (!pushSupported) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+    pushOn.value = Boolean(reg && await reg.pushManager.getSubscription());
+  } catch { /* 读取失败按未开启展示 */ }
+});
+
+function b64ToU8(b64) {
+  const pad = "=".repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+async function togglePush() {
+  if (pushBusy.value) return;
+  pushBusy.value = true;
+  try {
+    if (pushOn.value) {
+      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      const sub = reg && await reg.pushManager.getSubscription();
+      if (sub) {
+        await api("/push/subscribe", { method: "DELETE", body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await sub.unsubscribe();
+      }
+      pushOn.value = false;
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { alert("通知权限被拒绝，请在浏览器设置里允许通知"); return; }
+    const { public_key } = await api("/push/key");
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(public_key) });
+    await api("/push/subscribe", { method: "POST", body: JSON.stringify(sub.toJSON()) });
+    pushOn.value = true;
+  } catch (err) {
+    alert(err.message || "设置失败");
+  } finally {
+    pushBusy.value = false;
+  }
+}
 
 function set(key, val) {
   // L1: 数值设置钳制（HTML min/max 不限制输入内容）
@@ -59,6 +105,14 @@ function set(key, val) {
       <div><div class="lab">自动重播次数</div><div class="desc">第一次播放后再重播几次，0 表示只播一遍</div></div>
       <input type="number" min="0" max="10" style="width:70px;"
         :value="s.replayTimes" @change="set('replayTimes', Number($event.target.value))">
+    </div>
+    <div class="section-title">提醒</div>
+    <div class="setting-row">
+      <div><div class="lab">每日目标提醒</div><div class="desc">设定了学习计划后，当天没背完时傍晚推送提醒（需浏览器允许通知）</div></div>
+      <button v-if="pushSupported" class="btn ghost" :class="{primary: pushOn}" :disabled="pushBusy" @click="togglePush">
+        {{ pushOn ? '已开启 ✓' : '开启提醒' }}
+      </button>
+      <span v-else class="desc">当前浏览器不支持推送</span>
     </div>
     <div class="section-title">账户</div>
     <div class="setting-row">

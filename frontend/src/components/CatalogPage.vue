@@ -4,6 +4,9 @@ import { api, Settings } from "../lib/core";
 import { Profile, refreshProfile } from "../lib/profile";
 
 const lists = ref([]);
+const goals = ref({});
+const goalEditing = ref("");
+const goalDays = ref(30);
 const today = ref(null);
 const active = ref([]);
 const lessons = ref({});
@@ -42,9 +45,46 @@ async function load() {
   loading.value = false;
   loadLessons();
   loadCustoms();
+  loadGoals();
   // 每日横幅状态强刷：从每日挑战页回来后能立刻看到"已完成"
   refreshProfile(true).catch(() => {});
 }
+
+async function loadGoals() {
+  try {
+    const d = await api("/goal");
+    if (mounted) goals.value = d.goals || {};
+  } catch { /* 游客或旧后端无此接口时静默 */ }
+}
+
+async function saveGoal(l) {
+  const days = Number(goalDays.value);
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    alert("天数需为 1-365 的整数");
+    return;
+  }
+  try {
+    const d = await api("/goal", { method: "POST", body: JSON.stringify({ list: l.key, target_days: days }) });
+    goals.value = { ...goals.value, [l.key]: d.goal };
+    goalEditing.value = "";
+  } catch (err) {
+    alert(err.message || "保存失败");
+  }
+}
+
+async function delGoal(l) {
+  if (!confirm(`取消「${l.title}」的学习计划？已背进度保留。`)) return;
+  try {
+    await api(`/goal?list=${l.key}`, { method: "DELETE" });
+    const next = { ...goals.value };
+    delete next[l.key];
+    goals.value = next;
+  } catch (err) {
+    alert(err.message || "删除失败");
+  }
+}
+
+function goalPct(g) { return g.total ? Math.min(100, Math.round(g.memorized / g.total * 100)) : 0; }
 
 async function loadCustoms() {
   try {
@@ -123,7 +163,12 @@ function resume(s) {
   if (s.lesson) p.set("lesson", s.lesson);
   location.hash = `#/${lists.value.find((l) => l.key === s.list)?.type === "words" ? "word" : "sentence"}?${p}`;
 }
-function memorize(key) { window.location.hash = `#/memorize?list=${key}`; }
+function memorize(key) {
+  const g = goals.value[key];
+  // 有学习计划时按当日应背新词量开局（后端 n 上限 100），没有则走默认批量
+  const n = g && !g.done ? Math.min(g.daily_new, 100) : 0;
+  window.location.hash = `#/memorize?list=${key}` + (n ? `&n=${n}` : "");
+}
 function startQuiz(l) { window.location.hash = `#/quiz?list=${l.key}`; }
 function startSprint(l) { window.location.hash = `#/sprint?list=${l.key}`; }
 /* 听音排句：听句子把词块点回正确顺序 */
@@ -191,7 +236,30 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">单词</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
         <div class="meta">共 {{ l.total }} · 已背 {{ l.memorized }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
         <div class="progress" role="progressbar" :aria-valuenow="(l.total ? l.known : 0)" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
+        <!-- 学习计划：N 天背完的进度环 + 每日目标 -->
+        <div v-if="goalEditing === l.key" class="goal-row">
+          <span class="goal-text"><b>N 天背完：</b></span>
+          <input v-model.number="goalDays" class="goal-input" type="number" min="1" max="365" aria-label="目标天数" @keyup.enter="saveGoal(l)">
+          <button class="btn primary sm" @click="saveGoal(l)">确定</button>
+          <button class="btn ghost sm" @click="goalEditing = ''">取消</button>
+        </div>
+        <div v-else-if="goals[l.key]" class="goal-row">
+          <svg class="goal-ring" viewBox="0 0 36 36" role="img" :aria-label="'已背 ' + goalPct(goals[l.key]) + '%'">
+            <circle class="ring-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+            <circle class="ring-fg" cx="18" cy="18" r="15.9155" pathLength="100" :stroke-dasharray="goalPct(goals[l.key]) + ' 100'"/>
+            <text x="18" y="21.5" class="ring-text">{{ goalPct(goals[l.key]) }}%</text>
+          </svg>
+          <span class="goal-text">
+            <b>{{ goals[l.key].done ? "已完成 🎉" : goals[l.key].target_days + " 天计划" }}</b>
+            <small>{{ goals[l.key].done
+              ? `共 ${goals[l.key].total} 词全部背完`
+              : `每天 ${goals[l.key].daily_new} 词 · 剩 ${goals[l.key].days_left} 天 · 今日已背 ${goals[l.key].today_done}` }}</small>
+          </span>
+          <button class="btn ghost sm" aria-label="修改计划" @click="goalEditing = l.key; goalDays = goals[l.key].target_days">✎</button>
+          <button class="btn ghost sm" aria-label="取消计划" @click="delGoal(l)">✕</button>
+        </div>
         <div class="card-actions">
+          <button v-if="!goals[l.key] && goalEditing !== l.key" class="btn ghost sm" aria-label="设定学习计划" @click="goalEditing = l.key; goalDays = 30">🎯 定目标</button>
           <button class="btn ghost sm" aria-label="背单词" @click="memorize(l.key)">📖 背单词</button>
           <button class="btn ghost sm" aria-label="听音选词" @click="startQuiz(l)">🎧 选词</button>
           <button class="btn ghost sm" aria-label="限时冲刺" @click="startSprint(l)">⚡ 冲刺</button>

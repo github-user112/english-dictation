@@ -5,6 +5,7 @@
 """
 import contextlib
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 from threading import Barrier
 from unittest.mock import patch
 from uuid import uuid4
@@ -123,7 +124,8 @@ def test_group_challenge_concurrent_cannot_exceed_cap(app):
     assert success + rejected == n
     with db() as conn:
         cnt = conn.execute(
-            "SELECT COUNT(*) c FROM group_challenge WHERE group_id=? AND expires_at>?",
-            (gid, "2099-01-01"),
+            # 与 groups.py 的活跃判定一致：expires_at >= 今天
+            "SELECT COUNT(*) c FROM group_challenge WHERE group_id=? AND expires_at>=?",
+            (gid, date.today().isoformat()),
         ).fetchone()["c"]
     assert cnt <= CAP

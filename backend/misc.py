@@ -186,6 +186,110 @@ def api_stats():
                  "practice_modes": practice_modes})
 
 
+@bp.get("/api/report/weekly")
+def api_report_weekly():
+    """周报分享卡数据：本周（周一起）听打/背诵汇总 + 与上周的首答正确率差。"""
+    u = get_user()
+    monday = date.today() - timedelta(days=date.today().weekday())
+    week_end = (monday + timedelta(days=7)).isoformat()
+    this_week, last_week = monday.isoformat(), (monday - timedelta(days=7)).isoformat()
+
+    def practice(conn, day_from, day_to):
+        r = conn.execute(
+            "SELECT SUM(new_count+review_count) items, SUM(first_right_count) fr, "
+            "SUM(first_wrong_count) fw FROM daily_practice_log WHERE user=? AND day>=? AND day<?",
+            (u, day_from, day_to)).fetchone()
+        return {"items": r["items"] or 0, "fr": r["fr"] or 0, "fw": r["fw"] or 0}
+
+    def accuracy(p):
+        total = p["fr"] + p["fw"]
+        return p["fr"] / total if total else 0.0
+
+    with db() as conn:
+        cur, prev = practice(conn, this_week, week_end), practice(conn, last_week, this_week)
+        mem = conn.execute(
+            "SELECT SUM(memorize_right) mr FROM daily_log WHERE user=? AND day>=? AND day<?",
+            (u, this_week, week_end)).fetchone()
+        days_active = conn.execute(
+            "SELECT COUNT(DISTINCT day) c FROM daily_practice_log WHERE user=? AND day>=? AND day<?",
+            (u, this_week, week_end)).fetchone()["c"]
+        streak = day_streak(r["day"] for r in conn.execute(
+            "SELECT day FROM daily_log WHERE user=?", (u,)).fetchall())
+    acc, prev_acc = accuracy(cur), accuracy(prev)
+    # 上周没练过时不显示增量（+100% 之类的数字没有意义）
+    delta = round((acc - prev_acc) * 100) if prev["fr"] + prev["fw"] > 0 else None
+    return resp({
+        "week_start": this_week, "week_end": (date.today()).isoformat(),
+        "items": cur["items"], "accuracy": round(acc * 100), "accuracy_delta": delta,
+        "memorize_right": mem["mr"] or 0, "days_active": days_active, "streak": streak,
+    })
+
+
+@bp.get("/api/stats/typing")
+def api_stats_typing():
+    """打字数据页：WPM 曲线（近 30 天）+ 错键对（近 90 天）+ 近 7 天速度段位。
+
+    WPM 口径：完成题的正确文本字符数 / 5 词 ÷ 作答分钟（按天先加总再相除，
+    长短句混练时比逐题平均 WPM 更稳）。字符数取 completed 行的 last_typed
+    （改对重输后等于正确文本），不反查素材文件。
+    """
+    u = get_user()
+    since30 = (date.today() - timedelta(days=29)).isoformat()
+    since90 = (date.today() - timedelta(days=89)).isoformat()
+    with db() as conn:
+        curve = [{"day": r["d"],
+                  "wpm": round(r["chars"] / 5 / (r["ms"] / 60000), 1) if r["ms"] else 0,
+                  "n": r["n"]}
+                 for r in conn.execute(
+            "SELECT substr(si.answered_at,1,10) d, SUM(LENGTH(si.last_typed)) chars, "
+            "SUM(si.duration_ms) ms, COUNT(*) n "
+            "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
+            "WHERE s.user=? AND si.state='completed' AND si.final_right=1 "
+            "AND si.duration_ms>0 AND si.last_typed IS NOT NULL AND si.answered_at>=? "
+            "GROUP BY d ORDER BY d", (u, since30)).fetchall()]
+        typo_rows = conn.execute(
+            "SELECT s.list, si.item_id, si.first_typed "
+            "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
+            "WHERE s.user=? AND si.state='completed' AND si.first_right=0 "
+            "AND si.first_typed IS NOT NULL AND si.answered_at>=? "
+            "ORDER BY si.answered_at DESC LIMIT 5000", (u, since90)).fetchall()
+
+    # 错键对：difflib 对齐 expected/typed，统计 (应敲, 实敲) 计数
+    from collections import Counter
+    import difflib
+    pairs = Counter()
+    for r in typo_rows:
+        item = find_item(r["list"], r["item_id"])
+        if not item:
+            continue
+        expected = item["text"].lower()
+        typed = (r["first_typed"] or "").lower()
+        if not expected or not typed or expected == typed:
+            continue
+        for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, expected, typed).get_opcodes():
+            if op == "replace":
+                for k in range(max(i2 - i1, j2 - j1)):
+                    e = expected[i1 + k] if i1 + k < i2 else "␣"
+                    t = typed[j1 + k] if j1 + k < j2 else "⌫"
+                    pairs[(e, t)] += 1
+            elif op == "delete":
+                for c in expected[i1:i2]:
+                    pairs[(c, "⌫")] += 1
+    # 每个应敲字母保留前 3 个错法，总体取错得最多的 12 个字母
+    by_char = defaultdict(Counter)
+    for (e, t), n in pairs.items():
+        by_char[e][t] += n
+    heat = [{"expect": e, "total": sum(c.values()),
+             "got": [{"key": t, "count": n} for t, n in c.most_common(3)]}
+            for e, c in sorted(by_char.items(), key=lambda kv: -sum(kv[1].values()))[:12]]
+
+    recent7 = [p["wpm"] for p in curve if p["day"] >= (date.today() - timedelta(days=6)).isoformat()]
+    wpm7 = round(sum(recent7) / len(recent7), 1) if recent7 else 0
+    tier = next((label for limit, label in
+                 [(45, "钻石"), (35, "铂金"), (25, "黄金"), (15, "白银"), (0, "青铜")] if wpm7 >= limit))
+    return resp({"curve": curve, "heatmap": heat, "wpm7": wpm7, "tier": tier})
+
+
 def _due_soon_count(user, conn, within_days=2):
     """未来 N 天内（含已逾期）到期的复习词数量，用于遗忘预警。复用调用方的连接。"""
     cutoff = (date.today() + timedelta(days=within_days)).isoformat()
