@@ -8,14 +8,12 @@ import ShareCard from "./ShareCard.vue";
 const props = defineProps({ params: { type: Object, default: null } });
 
 const phase = ref("idle");       // idle | testing | done
+const sessionId = ref("");        // 服务端会话句柄：状态全在服务端，客户端不记分
 const question = ref(null);
 const selected = ref(null);       // 选中的选项文本
 const submitting = ref(false);
 const level = ref(9);
 const answered = ref(0);
-const consecutiveWrong = ref(0);
-const usedIds = ref("");
-const correctCount = ref(0);      // 已答对数：随请求回传，服务端累计落表
 const history = ref([]);          // 答题历史 [{word, right}]
 const error = ref("");
 
@@ -41,30 +39,22 @@ onUnmounted(() => {
   stopAudio();
 });
 
-function usedSet() {
-  return new Set(usedIds.value ? usedIds.value.split(",") : []);
-}
-
 async function start() {
   error.value = "";
+  sessionId.value = "";
   question.value = null;
   selected.value = null;
   submitting.value = false;
   level.value = 9;
   answered.value = 0;
-  consecutiveWrong.value = 0;
-  usedIds.value = "";
-  correctCount.value = 0;
   history.value = [];
   result.value = null;
 
   try {
-    const d = await api(`/wordtest/question?level=${level.value}&answered=${answered.value}&consecutive_wrong=${consecutiveWrong.value}&used_ids=${encodeURIComponent(usedIds.value)}`);
-    if (d.done) {
-      phase.value = "done";
-      result.value = { cefr: "A1", word_count: 0, level: level.value, answered: 0, correct: 0 };
-      return;
-    }
+    const d = await api("/wordtest/start", { method: "POST", body: "{}" });
+    sessionId.value = d.session_id;
+    level.value = d.level;
+    answered.value = d.answered;
     question.value = d.question;
     phase.value = "testing";
     play();
@@ -83,27 +73,19 @@ function play() {
 }
 
 async function answer(opt) {
-  if (submitting.value || !question.value) return;
+  if (submitting.value || !question.value || !sessionId.value) return;
   selected.value = opt.text;
   submitting.value = true;
 
   try {
     const d = await api("/wordtest/answer", {
       method: "POST",
-      body: JSON.stringify({
-        option: opt.text,
-        level: level.value,
-        answered: answered.value,
-        consecutive_wrong: consecutiveWrong.value,
-        correct_count: correctCount.value,
-        used_ids: usedIds.value,
-      }),
+      body: JSON.stringify({ session_id: sessionId.value, option: opt.text }),
     });
 
     const right = d.right;
     history.value.push({ word: question.value.word, right });
     if (right) {
-      correctCount.value++;
       sndRight();
     } else {
       sndWrong();
@@ -123,10 +105,6 @@ async function answer(opt) {
     } else {
       level.value = d.level;
       answered.value = d.answered;
-      consecutiveWrong.value = d.consecutive_wrong;
-      const ids = usedSet();
-      ids.add(question.value.id);
-      usedIds.value = Array.from(ids).join(",");
       question.value = d.question;
       selected.value = null;
       submitting.value = false;   // 解锁下一题：成功路径不复位会永远 disabled

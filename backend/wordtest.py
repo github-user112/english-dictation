@@ -6,20 +6,20 @@
 - 答对 +1 级，答错 -1 级，最低 1 级。
 - 满 25 题或连续 5 题答错即结束。
 
-服务端无状态：客户端携带 level + used_ids（已见词集合）+ correct_count，
-服务端用确定性种子复算当前题，判断正确后推进到下一题。
-词汇量估算基于最终等级；结果落 wordtest_result 表；
-每日每人限完成 5 次（push_meta 计数，开局只预检、完成时才扣额）。
+服务端会话（wordtest_session）：level / answered / correct_count / used_ids /
+当前题（含答案）全部存服务端，客户端只持 session_id——无状态协议时代
+客户端自带 level 随便填，C2 一点就有。每日每人限开 DAILY_LIMIT 局；
+结果落 wordtest_result 表，detail 为逐题记录。
 """
 import json
 import random
 from datetime import date
+from uuid import uuid4
 
 from flask import Blueprint, jsonify, request
 
 from .auth import get_user, resp
 from .catalog import now
-from .config import MATERIALS
 from .db import db
 from .materials import load_material, audio_url
 
@@ -81,16 +81,16 @@ def _cefr_of(level):
 
 
 def _pick_question(level, used_ids):
-    """确定性出牌：从 level 区间词池中挑一道 4 选项题。
+    """从 level 区间词池中挑一道 4 选项题。
 
-    used_ids：已出现过的词 id 集合（用于去重）。
+    used_ids：已出现过的词 id 集合（会被加入本题正确词）。
     返回 {word, phonetic, audio, options: [{text, correct}], id}
     或 None（词池不足）。
     """
     # 收集候选：从 level 向外扩，攒够 6 个。按 id 去重——相邻 offset 的
     # 区间互相重叠（offset=0 扫 level，offset=1 又扫 level-1..level+1），
     # 不去重同一词会重复进 candidates，rng.sample 可能抽出两个相同选项。
-    # 注意只能加进局部 seen：seed 须等于客户端携带的 used_ids 原样。
+    # 注意只能加进局部 seen：used_ids 只收入题的词。
     candidates = []
     seen = set(used_ids)
     for offset in range(0, 4):
@@ -107,7 +107,8 @@ def _pick_question(level, used_ids):
     if len(candidates) < 4:
         return None
 
-    # 种子含 level + used_ids 排序后字符串 → 确定性
+    # 种子含 level + used_ids 排序后字符串：同一天同一状态出同一题，
+    # 仅供调试复现，正确性不依赖它（当前题存在会话行里，不靠复算）
     seed = f"wt|{date.today().isoformat()}|{level}|{sorted(used_ids)}"
     rng = random.Random(seed)
     correct = rng.choice(candidates)
@@ -146,102 +147,112 @@ def _pick_question(level, used_ids):
 
 
 def _public(q):
-    """下发给客户端的题面：剥离 correct 标志。判分在服务端复算，
+    """下发给客户端的题面：剥离 correct 标志。判分在服务端，
     正确选项随题面下发等于把答案送给会开 devtools 的人。"""
     if q is None:
         return None
     return {**q, "options": [{"text": o["text"]} for o in q["options"]]}
 
 
-def _daily_used(conn, user, today):
-    row = conn.execute(
-        "SELECT value FROM push_meta WHERE name=?", (f"wordtest|{user}|{today}",)).fetchone()
-    return int(row["value"]) if row else 0
-
-
-@bp.get("/api/wordtest/question")
-def api_wordtest_question():
-    """获取当前题。参数：level, used_ids（逗号分隔），客户端首次调此接口开局。"""
+@bp.post("/api/wordtest/start")
+def api_wordtest_start():
+    """开局：服务端建会话，客户端只拿 session_id 与题面。"""
     user = get_user()
-    try:
-        level = int(request.args.get("level", (MIN_DIFFICULTY + MAX_DIFFICULTY) // 2))
-        answered = int(request.args.get("answered", 0))
-        consecutive_wrong = int(request.args.get("consecutive_wrong", 0))
-    except ValueError:
-        return jsonify({"error": "参数无效"}), 400
-
-    used_ids = set(request.args.get("used_ids", "").split(",")) if request.args.get("used_ids") else set()
-    level = max(MIN_DIFFICULTY, min(MAX_DIFFICULTY, level))
-
-    # 首次开局（answered=0 且 used_ids 为空）预检每日限流——只读不扣额，
-    # 额度在完成落表时原子扣减（否则中途弃测也占一次，脚本刷 /answer 却不占）
-    if answered == 0 and not used_ids:
-        with db() as conn:
-            if _daily_used(conn, user, date.today().isoformat()) >= DAILY_LIMIT:
-                return jsonify({"error": f"今天已测 {DAILY_LIMIT} 次，明天再来"}), 429
-
-    q = _pick_question(level, used_ids)
-    if q is None:
-        return resp({"done": True})
-
-    return resp({"question": _public(q), "done": False,
-                 "level": level, "answered": answered,
-                 "consecutive_wrong": consecutive_wrong})
+    today = date.today().isoformat()
+    with db(immediate=True) as conn:   # 计数-判-写须原子：并发开局不能双双绕过日限
+        started = conn.execute(
+            "SELECT COUNT(*) c FROM wordtest_session "
+            "WHERE user=? AND substr(created_at,1,10)=?",
+            (user, today)).fetchone()["c"]
+        if started >= DAILY_LIMIT:
+            return jsonify({"error": f"今天已测 {DAILY_LIMIT} 次，明天再来"}), 429
+        level = (MIN_DIFFICULTY + MAX_DIFFICULTY) // 2
+        used_ids = set()
+        q = _pick_question(level, used_ids)
+        if q is None:
+            return jsonify({"error": "词池不可用"}), 503
+        sid = uuid4().hex
+        conn.execute(
+            "INSERT INTO wordtest_session(id,user,level,answered,correct_count,"
+            "consecutive_wrong,used_ids,question,history,done,created_at) "
+            "VALUES(?,?,?,0,0,0,?,?,?,0,?)",
+            (sid, user, level, json.dumps(sorted(used_ids)),
+             json.dumps(q, ensure_ascii=False), "[]", now()))
+    return resp({"session_id": sid, "question": _public(q), "level": level,
+                 "answered": 0, "consecutive_wrong": 0, "done": False})
 
 
 @bp.post("/api/wordtest/answer")
 def api_wordtest_answer():
-    """提交答案，服务端复算当前题判断正确，返回下一题或最终结果。"""
+    """提交答案：会话状态全在服务端行里，判分、推进、落表一事务完成。"""
     user = get_user()
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "请求体无效"}), 400
-
+    sid = data.get("session_id")
     option_text = data.get("option", "")
-    if not isinstance(option_text, str):
-        return jsonify({"error": "选项无效"}), 400
-
-    try:
-        level = int(data.get("level", (MIN_DIFFICULTY + MAX_DIFFICULTY) // 2))
-        answered = int(data.get("answered", 0))
-        consecutive_wrong = int(data.get("consecutive_wrong", 0))
-        prev_correct = int(data.get("correct_count", 0))
-    except (ValueError, TypeError):
+    if not isinstance(sid, str) or not sid or not isinstance(option_text, str):
         return jsonify({"error": "参数无效"}), 400
 
-    used_ids = set(data.get("used_ids", "").split(",")) if data.get("used_ids") else set()
-    level = max(MIN_DIFFICULTY, min(MAX_DIFFICULTY, level))
+    with db(immediate=True) as conn:
+        row = conn.execute(
+            "SELECT * FROM wordtest_session WHERE id=?", (sid,)).fetchone()
+        if not row or row["user"] != user:
+            return jsonify({"error": "会话不存在或已过期"}), 404
+        if row["done"]:
+            return jsonify({"error": "本场测试已结束"}), 409
 
-    # 复算当前题（同 seed → 同问题）
-    q = _pick_question(level, used_ids)
-    if q is None:
-        return resp({"done": True})
+        q = json.loads(row["question"])
+        level = row["level"]
+        used_ids = set(json.loads(row["used_ids"]))
+        history = json.loads(row["history"])
 
-    # 判分
-    right = False
-    for opt in q["options"]:
-        if opt["text"] == option_text:
-            right = opt["correct"]
-            break
+        right = any(o["text"] == option_text and o["correct"] for o in q["options"])
+        history.append({"level": level, "word": q["word"], "right": right})
 
-    used_ids.add(q["id"])
+        if right:
+            new_level = min(MAX_DIFFICULTY, level + 1)
+            new_consec = 0
+        else:
+            new_level = max(MIN_DIFFICULTY, level - 1)
+            new_consec = row["consecutive_wrong"] + 1
+        new_answered = row["answered"] + 1
+        correct_count = row["correct_count"] + int(right)
+        done = new_answered >= MAX_QUESTIONS or new_consec >= CONSECUTIVE_WRONG_LIMIT
 
-    if right:
-        new_level = min(MAX_DIFFICULTY, level + 1)
-        new_consec = 0
-    else:
-        new_level = max(MIN_DIFFICULTY, level - 1)
-        new_consec = consecutive_wrong + 1
+        next_q = None if done else _pick_question(new_level, used_ids)
+        if not done and next_q is None:
+            done = True   # 词池见底（生产词库不会，小词池兜底）：按当前成绩完赛
 
-    new_answered = answered + 1
-    # correct_count 是客户端回传的前序答对数（无状态协议的一部分），
-    # 钳到 [0, answered] 防胡填，再加本题
-    correct_count = max(0, min(prev_correct, answered)) + int(right)
-    done = new_answered >= MAX_QUESTIONS or new_consec >= CONSECUTIVE_WRONG_LIMIT
+        if done:
+            final_cefr = _cefr_of(new_level)
+            final_word_count = LEVEL_TO_WORD_COUNT[new_level]
+            conn.execute(
+                "UPDATE wordtest_session SET level=?, answered=?, correct_count=?, "
+                "consecutive_wrong=?, used_ids=?, question=NULL, history=?, done=1 "
+                "WHERE id=?",
+                (new_level, new_answered, correct_count, new_consec,
+                 json.dumps(sorted(used_ids)), json.dumps(history, ensure_ascii=False), sid))
+            conn.execute(
+                "INSERT INTO wordtest_result(user, level, questions_answered, "
+                "correct_count, cefr, word_count, detail, created_at) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (user, new_level, new_answered, correct_count, final_cefr,
+                 final_word_count, json.dumps(history, ensure_ascii=False), now()))
+            return resp({
+                "done": True, "right": right,
+                "level": new_level, "cefr": final_cefr,
+                "cefr_title": CEFR_TITLE[final_cefr],
+                "word_count": final_word_count,
+                "answered": new_answered, "correct_count": correct_count,
+            })
 
-    if not done:
-        # 出下一题
-        next_q = _pick_question(new_level, used_ids)
+        conn.execute(
+            "UPDATE wordtest_session SET level=?, answered=?, correct_count=?, "
+            "consecutive_wrong=?, used_ids=?, question=?, history=? WHERE id=?",
+            (new_level, new_answered, correct_count, new_consec,
+             json.dumps(sorted(used_ids)), json.dumps(next_q, ensure_ascii=False),
+             json.dumps(history, ensure_ascii=False), sid))
         return resp({
             "right": right, "level": new_level,
             "question": _public(next_q),
@@ -250,40 +261,6 @@ def api_wordtest_answer():
             "correct_count": correct_count,
             "done": False,
         })
-
-    # 结束：限流扣额与落表同事务——脚本直接刷 /answer 也每天最多 DAILY_LIMIT 行
-    final_cefr = _cefr_of(new_level)
-    final_word_count = LEVEL_TO_WORD_COUNT[new_level]
-    detail = json.dumps([
-        {"level": level, "word": q["id"], "right": right}
-    ], ensure_ascii=False)
-
-    with db() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        today = date.today().isoformat()
-        used = _daily_used(conn, user, today)
-        if used >= DAILY_LIMIT:
-            conn.rollback()
-            return jsonify({"error": f"今天已测 {DAILY_LIMIT} 次，明天再来"}), 429
-        conn.execute(
-            "INSERT INTO push_meta(name,value) VALUES(?,?) "
-            "ON CONFLICT(name) DO UPDATE SET value=excluded.value",
-            (f"wordtest|{user}|{today}", str(used + 1)))
-        conn.execute(
-            "INSERT INTO wordtest_result(user, level, questions_answered, "
-            "correct_count, cefr, word_count, detail, created_at) "
-            "VALUES(?,?,?,?,?,?,?,?)",
-            (user, new_level, new_answered,
-             correct_count, final_cefr, final_word_count,
-             detail, now()))
-
-    return resp({
-        "done": True, "right": right,
-        "level": new_level, "cefr": final_cefr,
-        "cefr_title": CEFR_TITLE[final_cefr],
-        "word_count": final_word_count,
-        "answered": new_answered, "correct_count": correct_count,
-    })
 
 
 @bp.get("/api/wordtest/result")

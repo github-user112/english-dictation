@@ -318,6 +318,20 @@ def init_db():
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_wordtest_user ON wordtest_result(user, created_at DESC);
+        CREATE TABLE IF NOT EXISTS wordtest_session (
+            id TEXT PRIMARY KEY,
+            user TEXT NOT NULL,
+            level INTEGER NOT NULL,
+            answered INTEGER NOT NULL DEFAULT 0,
+            correct_count INTEGER NOT NULL DEFAULT 0,
+            consecutive_wrong INTEGER NOT NULL DEFAULT 0,
+            used_ids TEXT NOT NULL DEFAULT '[]',
+            question TEXT,
+            history TEXT NOT NULL DEFAULT '[]',
+            done INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_wordtest_session_user ON wordtest_session(user, created_at);
         """)
 
 

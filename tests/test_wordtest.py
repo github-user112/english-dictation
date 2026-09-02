@@ -1,8 +1,9 @@
-"""词汇量等级测试：出牌 / 自适应难度 / 结果落表 / 每日限流。"""
+"""词汇量等级测试：出牌 / 服务端会话 / 自适应难度 / 结果落表 / 每日限流。"""
 import json
 from unittest.mock import patch
 
 import backend.wordtest as wt
+from backend.db import db as db_ctx
 
 
 # ---- 测试用词池：每个难度等级若干词，含独立释义（40 词，够答满 25 题） ----
@@ -27,16 +28,6 @@ def _mock_bank():
     return patch.object(wt, "_BANK", _TEST_BANK)
 
 
-def _mock_today(monkeypatch):
-    """固定 today，让种子确定性。"""
-    import datetime
-    class _FakeDate(datetime.date):
-        @classmethod
-        def today(cls):
-            return cls(2026, 9, 1)
-    monkeypatch.setattr(wt, "date", _FakeDate)
-
-
 def _get_correct_option(q):
     for opt in q["options"]:
         if opt["correct"]:
@@ -44,11 +35,31 @@ def _get_correct_option(q):
     return None
 
 
-def _correct_text(level, used_ids):
-    """服务端视角复算当前题的正确选项文本（API 题面不下发 correct 标志）。"""
-    q = wt._pick_question(level, set(used_ids))
+def _start(client):
+    r = client.post("/api/wordtest/start", data="{}", content_type="application/json")
+    assert r.status_code == 200, r.get_json()
+    return r.get_json()
+
+
+def _session_row(sid):
+    with db_ctx() as conn:
+        return conn.execute(
+            "SELECT * FROM wordtest_session WHERE id=?", (sid,)).fetchone()
+
+
+def _session_correct_text(sid):
+    """从服务端会话行读当前题的正确选项（API 题面已不带 correct 标志）。"""
+    q = json.loads(_session_row(sid)["question"])
     return _get_correct_option(q)["text"]
 
+
+def _answer(client, sid, option):
+    return client.post("/api/wordtest/answer",
+                       data=json.dumps({"session_id": sid, "option": option}),
+                       content_type="application/json")
+
+
+# ---- _pick_question 单元 ----
 
 def test_pick_question_returns_four_options():
     with _mock_bank():
@@ -90,124 +101,101 @@ def test_pick_question_dedupes_overlapping_tiers():
     assert len(texts) == 4 and len(set(texts)) == 4
 
 
-def test_question_api_returns_question(client):
+# ---- 会话 API ----
+
+def test_start_creates_session_and_hides_answers(client):
     with _mock_bank():
-        r = client.get("/api/wordtest/question?level=5&answered=0&consecutive_wrong=0&used_ids=")
-    assert r.status_code == 200
-    d = r.get_json()
-    assert not d["done"]
+        d = _start(client)
+    assert d["session_id"]
     q = d["question"]
     assert len(q["options"]) == 4
-    # 答案标志不下发：判分在服务端复算，客户端拿不到哪个选项对
+    # 答案标志不下发：判分在服务端，客户端拿不到哪个选项对
     assert all("correct" not in opt for opt in q["options"])
+    row = _session_row(d["session_id"])
+    assert row is not None and row["done"] == 0 and row["answered"] == 0
 
 
 def test_answer_right_advances_level(client):
     with _mock_bank():
-        r2 = client.post("/api/wordtest/answer",
-                         data=json.dumps({"option": _correct_text(5, set()),
-                                          "level": 5, "answered": 0,
-                                          "consecutive_wrong": 0, "used_ids": ""}),
-                         content_type="application/json")
-    d = r2.get_json()
-    assert d["right"] is True
-    assert d["level"] == 6
-    assert d["consecutive_wrong"] == 0
-    assert d["correct_count"] == 1
+        d = _start(client)
+        sid = d["session_id"]
+        r = _answer(client, sid, _session_correct_text(sid))
+    d2 = r.get_json()
+    assert d2["right"] is True
+    assert d2["level"] == d["level"] + 1
+    assert d2["consecutive_wrong"] == 0
+    assert d2["correct_count"] == 1
+    assert all("correct" not in opt for opt in d2["question"]["options"])
 
 
 def test_answer_wrong_decreases_level(client):
     with _mock_bank():
-        correct = _correct_text(5, set())
-        wrong = next(o["text"] for o in wt._pick_question(5, set())["options"]
-                     if o["text"] != correct)
-        r2 = client.post("/api/wordtest/answer",
-                         data=json.dumps({"option": wrong,
-                                          "level": 5, "answered": 0,
-                                          "consecutive_wrong": 0, "used_ids": ""}),
-                         content_type="application/json")
-    d = r2.get_json()
-    assert d["right"] is False
-    assert d["level"] == 4
-    assert d["consecutive_wrong"] == 1
-    assert d["correct_count"] == 0
+        d = _start(client)
+        sid = d["session_id"]
+        correct = _session_correct_text(sid)
+        wrong = next(o["text"] for o in d["question"]["options"] if o["text"] != correct)
+        r = _answer(client, sid, wrong)
+    d2 = r.get_json()
+    assert d2["right"] is False
+    assert d2["level"] == d["level"] - 1
+    assert d2["consecutive_wrong"] == 1
+    assert d2["correct_count"] == 0
 
 
-def test_answer_correct_count_clamps(client):
-    """correct_count 由客户端回传（无状态协议），但钳到 [0, answered] 防胡填。"""
+def test_answer_rejects_bad_session(client):
+    r = _answer(client, "nonexistent", "x")
+    assert r.status_code == 404
+
+
+def test_full_run_saves_result_and_seals_session(client):
+    """答满 25 题：落结果表（含逐题 detail），会话封盘不可再答。"""
     with _mock_bank():
-        r = client.post("/api/wordtest/answer",
-                        data=json.dumps({"option": _correct_text(5, set()),
-                                         "level": 5, "answered": 3,
-                                         "consecutive_wrong": 0, "correct_count": 99,
-                                         "used_ids": ""}),
-                        content_type="application/json")
-    assert r.get_json()["correct_count"] == 4   # 99 钳到 answered=3，+本题 1
-
-
-def test_answer_returns_next_question(client):
-    with _mock_bank():
-        r = client.get("/api/wordtest/question?level=5&answered=0&consecutive_wrong=0&used_ids=")
-        q = r.get_json()["question"]
-        r2 = client.post("/api/wordtest/answer",
-                         data=json.dumps({"option": _correct_text(5, set()),
-                                          "level": 5, "answered": 0,
-                                          "consecutive_wrong": 0, "used_ids": ""}),
-                         content_type="application/json")
-        d = r2.get_json()
-    assert not d["done"]
-    assert d["question"] is not None
-    assert d["question"]["id"] != q["id"]
-    assert all("correct" not in opt for opt in d["question"]["options"])
-
-
-def test_test_ends_and_saves_result(client, monkeypatch):
-    """按前端协议答满 25 题：结束落表，correct_count 累计正确。"""
-    mock = _mock_bank()
-    mock.__enter__()
-    _mock_today(monkeypatch)
-    try:
-        level, answered, consecutive_wrong = 5, 0, 0
-        used_ids, correct_count = set(), 0
-        r = client.get(f"/api/wordtest/question?level={level}&answered=0"
-                       "&consecutive_wrong=0&used_ids=")
-        q = r.get_json()["question"]
-        d = {}
-        for _ in range(25):
-            r2 = client.post("/api/wordtest/answer",
-                             data=json.dumps({
-                                 "option": _correct_text(level, used_ids),
-                                 "level": level, "answered": answered,
-                                 "consecutive_wrong": consecutive_wrong,
-                                 "correct_count": correct_count,
-                                 "used_ids": ",".join(sorted(used_ids))}),
-                             content_type="application/json")
-            d = r2.get_json()
-            assert d["right"] is True
-            correct_count += 1
-            used_ids.add(q["id"])
-            if d.get("done"):
+        d = _start(client)
+        sid = d["session_id"]
+        d2 = {}
+        for _ in range(wt.MAX_QUESTIONS):
+            r = _answer(client, sid, _session_correct_text(sid))
+            d2 = r.get_json()
+            assert d2["right"] is True
+            if d2["done"]:
                 break
-            level = d["level"]
-            answered = d["answered"]
-            consecutive_wrong = d["consecutive_wrong"]
-            q = d["question"]
-        assert d["done"] and correct_count == 25
+        assert d2["done"] and d2["correct_count"] == 25 and d2["answered"] == 25
+
+        row = _session_row(sid)
+        assert row["done"] == 1 and row["question"] is None
+        # 已结束的会话拒收答案
+        assert _answer(client, sid, "x").status_code == 409
 
         r3 = client.get("/api/wordtest/result")
         result = r3.get_json()["result"]
         assert result is not None
-        assert result["cefr"] in ("A1", "A2", "B1", "B2", "C1", "C2")
-        assert result["word_count"] > 0
+        assert result["cefr"] == "C2"           # 全对一路升到 L18
+        assert result["word_count"] == 15000
         assert result["correct_count"] == 25
         assert result["questions_answered"] == 25
-    finally:
-        mock.__exit__(None, None, None)
+
+        with db_ctx() as conn:
+            detail = conn.execute(
+                "SELECT detail FROM wordtest_result ORDER BY id DESC LIMIT 1"
+            ).fetchone()["detail"]
+        assert len(json.loads(detail)) == 25    # 逐题记录完整
+
+
+def test_daily_limit_on_start(client):
+    """每日限开 DAILY_LIMIT 局（弃测也占额度：会话行即计量，无刷行通道）。"""
+    with _mock_bank():
+        for _ in range(wt.DAILY_LIMIT):
+            _start(client)
+        r = client.post("/api/wordtest/start", data="{}",
+                        content_type="application/json")
+    assert r.status_code == 429
+    with db_ctx() as conn:
+        n = conn.execute("SELECT COUNT(*) c FROM wordtest_session").fetchone()["c"]
+    assert n == wt.DAILY_LIMIT
 
 
 def test_result_endpoint_returns_latest(client):
     """直接灌入结果，验证 /result 返回最近一次。"""
-    from backend.db import db as db_ctx
     from backend.catalog import now
 
     uid = client.get("/api/auth/me").get_json()["user"]
@@ -231,51 +219,3 @@ def test_result_endpoint_returns_latest(client):
     assert result is not None
     assert result["cefr"] == "B2"
     assert result["word_count"] == 4500
-
-
-def test_daily_limit_enforced(client, monkeypatch):
-    """当日完成次数达 DAILY_LIMIT 后，开局预检 429。"""
-    from backend.db import db as db_ctx
-    from datetime import date
-    from backend.wordtest import DAILY_LIMIT
-
-    _mock_today(monkeypatch)
-    me = client.get("/api/auth/me").get_json()["user"]
-    today = date(2026, 9, 1).isoformat()
-    with db_ctx() as conn:
-        conn.execute(
-            "INSERT INTO push_meta(name, value) VALUES(?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET value=excluded.value",
-            (f"wordtest|{me}|{today}", str(DAILY_LIMIT)))
-
-    with _mock_bank():
-        r = client.get("/api/wordtest/question?level=5&answered=0&consecutive_wrong=0&used_ids=")
-    assert r.status_code == 429
-
-
-def test_daily_limit_enforced_on_finish(client, monkeypatch):
-    """额度在完成落表时原子扣减：绕过开局直接刷 /answer 也 429，且不写结果行。"""
-    from backend.db import db as db_ctx
-    from datetime import date
-    from backend.wordtest import DAILY_LIMIT
-
-    _mock_today(monkeypatch)
-    me = client.get("/api/auth/me").get_json()["user"]
-    today = date(2026, 9, 1).isoformat()
-    with db_ctx() as conn:
-        conn.execute(
-            "INSERT INTO push_meta(name, value) VALUES(?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET value=excluded.value",
-            (f"wordtest|{me}|{today}", str(DAILY_LIMIT)))
-
-    with _mock_bank():
-        r = client.post("/api/wordtest/answer",
-                        data=json.dumps({"option": _correct_text(5, set()),
-                                         "level": 5, "answered": wt.MAX_QUESTIONS - 1,
-                                         "consecutive_wrong": 0, "used_ids": ""}),
-                        content_type="application/json")
-    assert r.status_code == 429
-    with db_ctx() as conn:
-        n = conn.execute("SELECT COUNT(*) c FROM wordtest_result WHERE user=?",
-                         (me,)).fetchone()["c"]
-    assert n == 0
