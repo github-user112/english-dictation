@@ -14,9 +14,30 @@ const title = computed(() => TITLES[page.value] || "英语听打");
 const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
 const lvWidth = computed(() => `${Math.round((Profile.levelProgress || 0) * 100)}%`);
 
+/* 次要入口收进「更多」：功能多了导航换行难看，只留每日动线在顶栏 */
+const MORE = [
+  { p: "leaderboard", t: "排行榜", s: "排行" },
+  { p: "friends", t: "好友", s: "好友" },
+  { p: "groups", t: "小组", s: "小组" },
+  { p: "report", t: "学习报告", s: "报告" },
+  { p: "wordtest", t: "词汇量测试", s: "词测" },
+  { p: "settings", t: "设置", s: "设置" },
+];
+const moreOpen = ref(false);
+const moreActive = computed(() => MORE.some((m) => m.p === page.value));
+
+function closeMore() { moreOpen.value = false; }
+function onDocClick(e) {
+  if (!e.target.closest?.(".nav-more")) closeMore();
+}
+function onDocKey(e) {
+  if (e.key === "Escape") closeMore();
+}
+
 function sync() {
   const h = location.hash.replace(/^#\/?/, "") || "catalog";
   page.value = h.split("?")[0];
+  closeMore();
 }
 async function signOut() {
   try {
@@ -28,12 +49,16 @@ function onProfileChanged() { refreshProfile(true).catch(() => {}); }
 onMounted(() => {
   window.addEventListener("hashchange", sync);
   window.addEventListener("profile-changed", onProfileChanged);
+  document.addEventListener("click", onDocClick);
+  document.addEventListener("keydown", onDocKey);
   sync();
   refreshProfile().catch(() => {});   // 失败静默：徽章位隐藏即可
 });
 onUnmounted(() => {
   window.removeEventListener("hashchange", sync);
   window.removeEventListener("profile-changed", onProfileChanged);
+  document.removeEventListener("click", onDocClick);
+  document.removeEventListener("keydown", onDocKey);
 });
 </script>
 
@@ -68,12 +93,19 @@ onUnmounted(() => {
       <a class="nav-link" :class="{active: page==='wrong'}" href="#/wrong">错词</a>
       <a class="nav-link" :class="{active: page==='tree'}" href="#/tree">小树</a>
       <a class="nav-link" :class="{active: page==='stats'}" href="#/stats">统计</a>
-      <a class="nav-link" :class="{active: page==='leaderboard'}" href="#/leaderboard">排行</a>
-      <a class="nav-link" :class="{active: page==='friends'}" href="#/friends">好友</a>
-      <a class="nav-link" :class="{active: page==='groups'}" href="#/groups">小组</a>
-      <a class="nav-link" :class="{active: page==='report'}" href="#/report">报告</a>
-      <a class="nav-link" :class="{active: page==='wordtest'}" href="#/wordtest">词测</a>
-      <a class="nav-link" :class="{active: page==='settings'}" href="#/settings">设置</a>
+      <div class="nav-more">
+        <button class="nav-link nav-more-btn" :class="{active: moreActive, open: moreOpen}"
+                :aria-expanded="moreOpen" aria-haspopup="menu" @click.stop="moreOpen = !moreOpen">
+          更多<span class="nav-caret" aria-hidden="true">▾</span>
+        </button>
+        <div v-if="moreOpen" class="nav-menu" role="menu">
+          <a v-for="m in MORE" :key="m.p" class="nav-menu-item" role="menuitem"
+             :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.t }}</a>
+        </div>
+      </div>
+      <!-- 移动端导航条本可横滑，次要项直接内联（下拉会被 overflow 裁掉） -->
+      <a v-for="m in MORE" :key="`i-${m.p}`" class="nav-link nav-more-inline"
+         :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.s }}</a>
       <a v-if="!Account.loading && !Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">登录 / 注册</a>
       <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn ghost sm" @click="signOut">退出</button></div>
     </nav>
