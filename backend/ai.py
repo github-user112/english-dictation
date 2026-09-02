@@ -97,7 +97,9 @@ def api_ai_mnemonic():
     try:
         text = _chat(_mnemonic_prompt(item["text"], item.get("phonetic"), item.get("meaning")))
     except Exception as exc:
-        return jsonify({"error": f"AI 生成失败：{exc}"}), 502
+        # 异常原文可能带上游 URL/内部细节，只记日志不回客户端
+        print(f"ai mnemonic 失败: {exc}", flush=True)
+        return jsonify({"error": "AI 生成失败，请稍后重试"}), 502
     with db() as conn:
         conn.execute(
             "INSERT INTO ai_cache(user,kind,key,content,created_at) VALUES('shared','mnemonic',?,?,?) "
@@ -139,7 +141,8 @@ def api_ai_story():
     try:
         story = _chat(_story_prompt(words))
     except Exception as exc:
-        return jsonify({"error": f"AI 生成失败：{exc}"}), 502
+        print(f"ai story 失败: {exc}", flush=True)
+        return jsonify({"error": "AI 生成失败，请稍后重试"}), 502
     with db() as conn:
         conn.execute(
             "INSERT INTO ai_cache(user,kind,key,content,created_at) VALUES(?,?,?,?,?) "

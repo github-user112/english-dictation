@@ -102,16 +102,20 @@ def remind_today(now_dt=None, force=False):
             "ON CONFLICT(name) DO UPDATE SET value=excluded.value", (today,))
         due = due_reminders(conn)
         subs = {u: subscriptions_for(conn, u) for u in {d["user"] for d in due}}
-        stale = []
-        for item in due:
-            for sub in subs.get(item["user"], []):
-                if not send_payload(sub, {
-                        "title": "📖 今天的目标还没完成",
-                        "body": f"今日计划还差 {item['missing']} 个词，点我接着背",
-                        "url": f"/#/memorize?list={item['list']}"}):
-                    stale.append(sub["endpoint"])
-        for endpoint in stale:
-            conn.execute("DELETE FROM push_subscription WHERE endpoint=?", (endpoint,))
+    # 发送放在事务外：webpush 单条最长 15s，握着 SQLite 写锁发推送
+    # 会把这期间全站写请求堵到 busy_timeout 打 500
+    stale = []
+    for item in due:
+        for sub in subs.get(item["user"], []):
+            if not send_payload(sub, {
+                    "title": "📖 今天的目标还没完成",
+                    "body": f"今日计划还差 {item['missing']} 个词，点我接着背",
+                    "url": f"/#/memorize?list={item['list']}"}):
+                stale.append(sub["endpoint"])
+    if stale:
+        with db() as conn:
+            for endpoint in stale:
+                conn.execute("DELETE FROM push_subscription WHERE endpoint=?", (endpoint,))
     print(f"push remind: due={len(due)} stale_removed={len(stale)}", flush=True)
     return True
 

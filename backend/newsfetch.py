@@ -142,15 +142,18 @@ def maybe_refresh():
         row = conn.execute("SELECT value FROM push_meta WHERE name='last_news'").fetchone()
         if row and row["value"] >= today:
             return False
-        try:
-            n = refresh()
-        except Exception as exc:
-            # 不写入认领行：下个 tick（30 分钟后）重试
-            print(f"news refresh 失败（下轮重试）: {exc}", flush=True)
-            return False
+        # 先认领再干活：抓 feed + TTS 要几十秒，握着写锁做会把全站写请求堵死
         conn.execute(
             "INSERT INTO push_meta(name,value) VALUES('last_news',?) "
             "ON CONFLICT(name) DO UPDATE SET value=excluded.value", (today,))
+    try:
+        n = refresh()
+    except Exception as exc:
+        # 失败撤认领：下个 tick（30 分钟后）重试
+        with db() as conn:
+            conn.execute("DELETE FROM push_meta WHERE name='last_news' AND value=?", (today,))
+        print(f"news refresh 失败（下轮重试）: {exc}", flush=True)
+        return False
     print(f"news refresh: +{n} 句", flush=True)
     if n:
         _reload_workers()

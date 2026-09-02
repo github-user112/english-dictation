@@ -15,6 +15,7 @@ const level = ref(9);
 const answered = ref(0);
 const consecutiveWrong = ref(0);
 const usedIds = ref("");
+const correctCount = ref(0);      // 已答对数：随请求回传，服务端累计落表
 const history = ref([]);          // 答题历史 [{word, right}]
 const error = ref("");
 
@@ -53,6 +54,7 @@ async function start() {
   answered.value = 0;
   consecutiveWrong.value = 0;
   usedIds.value = "";
+  correctCount.value = 0;
   history.value = [];
   result.value = null;
 
@@ -93,6 +95,7 @@ async function answer(opt) {
         level: level.value,
         answered: answered.value,
         consecutive_wrong: consecutiveWrong.value,
+        correct_count: correctCount.value,
         used_ids: usedIds.value,
       }),
     });
@@ -100,6 +103,7 @@ async function answer(opt) {
     const right = d.right;
     history.value.push({ word: question.value.word, right });
     if (right) {
+      correctCount.value++;
       sndRight();
     } else {
       sndWrong();
@@ -125,6 +129,7 @@ async function answer(opt) {
       usedIds.value = Array.from(ids).join(",");
       question.value = d.question;
       selected.value = null;
+      submitting.value = false;   // 解锁下一题：成功路径不复位会永远 disabled
       await play();
     }
   } catch (err) {
@@ -213,12 +218,12 @@ function goCatalog() {
       </div>
 
       <div class="wt-options">
-        <button v-for="opt in question?.options || []" :key="opt.text"
+        <button v-for="(opt, i) in question?.options || []" :key="opt.text"
           class="btn wt-option"
           :class="{ selected: selected === opt.text }"
           :disabled="submitting"
           @click="answer(opt)">
-          <span class="wt-opt-letter">{{ String.fromCharCode(65 + (opt.text.charCodeAt(0) % 4)) }}</span>
+          <span class="wt-opt-letter">{{ String.fromCharCode(65 + i) }}</span>
           {{ opt.text }}
         </button>
       </div>
