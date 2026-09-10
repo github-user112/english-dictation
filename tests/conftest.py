@@ -51,6 +51,7 @@ def app(tmp_path):
     test_materials = {
         "test_words": {"type": "words", "title": "Test Words"},
         "test_sents": {"type": "sentences", "title": "Test Sentences"},
+        "test_nce": {"type": "words", "title": "Test NCE"},
     }
 
     word_data = {"name": "Test", "words": [
@@ -61,6 +62,15 @@ def app(tmp_path):
         {"word": "hello", "phonetic": "/həˈloʊ/", "meaning": "int. 问候"},
     ]}
     (wordlists / "test_words.json").write_text(json.dumps(word_data), "utf-8")
+
+    # 带课次词库：课号 1,3 仿 nce1 双课合并，用来验证句课 L → 词课 2L-1 的映射
+    nce_data = {"name": "TestNCE", "words": [
+        {"word": "excuse", "phonetic": "/ɪkˈskjuːs/", "meaning": "v. 原谅", "lesson": 1},
+        {"word": "pardon", "phonetic": "/ˈpɑːdn/", "meaning": "int. 请再说一遍", "lesson": 1},
+        {"word": "umbrella", "phonetic": "/ʌmˈbrelə/", "meaning": "n. 雨伞", "lesson": 3},
+        {"word": "ticket", "phonetic": "/ˈtɪkɪt/", "meaning": "n. 票", "lesson": 3},
+    ]}
+    (wordlists / "test_nce.json").write_text(json.dumps(nce_data), "utf-8")
 
     sent_data = {"items": [
         {"id": 1, "en": "Hello world", "zh": "你好世界", "lesson": 1},
@@ -101,9 +111,12 @@ def app(tmp_path):
         patch("backend.boss.MATERIALS", test_materials),
         patch("backend.match.MATERIALS", test_materials),
         patch("backend.arrange.MATERIALS", test_materials),
+        patch("backend.shadow.MATERIALS", test_materials),
         patch("backend.memorize.MATERIALS", test_materials),
         patch("backend.memorize.CONFIG", test_config),
         patch("backend.goal.MATERIALS", test_materials),
+        patch("backend.today.MATERIALS", test_materials),
+        patch("backend.today.CONFIG", test_config),
         patch("backend.misc.AUDIO", audio_path),
         patch("backend.misc.CONFIG", test_config),
     ]

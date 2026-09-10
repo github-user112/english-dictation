@@ -13,12 +13,20 @@ const lessons = ref({});
 const lessonErrors = ref({});
 const lessonLoading = ref({});
 const selectedLesson = ref({});
+const moreFor = ref(""); // 词汇卡片「更多玩法」展开项，同时只开一张
 const loading = ref(true);
 const error = ref("");
 const customs = ref([]);
 let mounted = true;
 const words = computed(() => lists.value.filter((l) => l.type === "words"));
 const sents = computed(() => lists.value.filter((l) => l.type === "sentences"));
+// 词汇分组：新概念系列 vs 其他考试词库（按 key 前缀区分，新增词库自动归入考试组）
+const wordGroups = computed(() => {
+  const nce = words.value.filter((l) => /^nce\d/.test(l.key));
+  const rest = words.value.filter((l) => !/^nce\d/.test(l.key));
+  return [{ title: "新概念英语", lists: nce }, { title: "考试词库", lists: rest }]
+    .filter((g) => g.lists.length);
+});
 
 onMounted(load);
 onUnmounted(() => { mounted = false; });
@@ -149,7 +157,7 @@ function lessonLabel(l, x) {
   const done = x.known + x.learning;
   const mode = Settings.get().practiceMode;
   const sess = active.value.find((s) => s.list === l.key && s.lesson === x.lesson && s.mode === mode);
-  return `第 ${x.lesson} 课 · ${x.total} 句 · ${done ? `打过 ${done}` : "未开始"}${sess ? " · 继续→" : ""}`;
+  return `第 ${x.lesson} 课 · ${x.total} ${l.type === "words" ? "词" : "句"} · ${done ? `打过 ${done}` : "未开始"}${sess ? " · 继续→" : ""}`;
 }
 
 function start(l) {
@@ -177,11 +185,17 @@ function startArrange(l) {
   if (l.lesson_count && selectedLesson.value[l.key]) p.set("lesson", selectedLesson.value[l.key]);
   location.hash = `#/arrange?${p}`;
 }
+/* 听读模式：听原声 → 跟读 → 语音识别打分 */
+function startShadow(l) {
+  const p = new URLSearchParams({ list: l.key });
+  if (l.lesson_count && selectedLesson.value[l.key]) p.set("lesson", selectedLesson.value[l.key]);
+  location.hash = `#/shadow?${p}`;
+}
 function title(key) { return lists.value.find((l) => l.key === key)?.title || key; }
 </script>
 
 <template>
-  <div v-if="loading" class="empty">加载中…</div>
+  <div v-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else-if="error" class="empty" role="alert">
     <p>{{ error }}</p>
     <button class="btn primary" @click="load">重试</button>
@@ -189,7 +203,7 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
   <div v-else class="catalog-page">
     <section class="catalog-hero">
       <div>
-        <span class="eyebrow">DAILY LISTENING PRACTICE</span>
+        <span class="eyebrow"><span class="hero-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>DAILY LISTENING PRACTICE</span>
         <h1>听清每一句，<br><em>写下每个词。</em></h1>
         <p>从熟悉声音开始，把英语变成一种自然反应。</p>
       </div>
@@ -231,8 +245,10 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
     </template>
 
     <div class="section-title"><span>词汇听打</span><small>先背诵，再通过听写巩固</small></div>
+    <template v-for="g in wordGroups" :key="g.title">
+    <div class="section-sub">{{ g.title }}</div>
     <div class="card-grid word-grid">
-      <div v-for="l in words" :key="l.key" class="card" :aria-label="l.title + ' 词汇听打，共 ' + l.total + ' 个'">
+      <div v-for="l in g.lists" :key="l.key" class="card" :aria-label="l.title + ' 词汇听打，共 ' + l.total + ' 个'">
         <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">单词</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
         <div class="meta">共 {{ l.total }} · 已背 {{ l.memorized }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
         <div class="progress" role="progressbar" :aria-valuenow="(l.total ? l.known : 0)" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
@@ -258,15 +274,27 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
           <button class="btn ghost sm" aria-label="修改计划" @click="goalEditing = l.key; goalDays = goals[l.key].target_days">✎</button>
           <button class="btn ghost sm" aria-label="取消计划" @click="delGoal(l)">✕</button>
         </div>
+        <select v-if="l.lesson_count && lessons[l.key]" v-model.number="selectedLesson[l.key]" class="lesson-select"
+                aria-label="选择课程" @change="pickLesson(l.key, $event)">
+          <option v-for="x in lessons[l.key]" :key="x.lesson" :value="x.lesson">{{ lessonLabel(l, x) }}</option>
+        </select>
+        <div v-else-if="lessonErrors[l.key]" class="meta" role="alert">{{ lessonErrors[l.key] }}</div>
+        <div v-else-if="lessonLoading[l.key]" class="meta">课程加载中…</div>
         <div class="card-actions">
-          <button v-if="!goals[l.key] && goalEditing !== l.key" class="btn ghost sm" aria-label="设定学习计划" @click="goalEditing = l.key; goalDays = 30">🎯 定目标</button>
+          <button class="btn primary sm" :disabled="Boolean(l.lesson_count && !selectedLesson[l.key])" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听打')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听打' }}</button>
           <button class="btn ghost sm" aria-label="背单词" @click="memorize(l.key)">📖 背单词</button>
-          <button class="btn ghost sm" aria-label="听音选词" @click="startQuiz(l)">🎧 选词</button>
-          <button class="btn ghost sm" aria-label="限时冲刺" @click="startSprint(l)">⚡ 冲刺</button>
-          <button class="btn primary sm" aria-label="开始听打" @click="start(l)">👂 开始听打</button>
+          <button class="btn ghost sm more-toggle" :aria-expanded="moreFor === l.key"
+                  :aria-label="moreFor === l.key ? '收起更多玩法' : '更多玩法：听音选词、限时冲刺、设定目标'"
+                  @click="moreFor = moreFor === l.key ? '' : l.key">⋯</button>
+        </div>
+        <div v-if="moreFor === l.key" class="card-more">
+          <button class="chip" aria-label="听音选词" @click="startQuiz(l)">🎧 听音选词</button>
+          <button class="chip" aria-label="限时冲刺" @click="startSprint(l)">⚡ 限时冲刺</button>
+          <button v-if="!goals[l.key] && goalEditing !== l.key" class="chip" aria-label="设定学习计划" @click="goalEditing = l.key; goalDays = 30; moreFor = ''">🎯 定目标</button>
         </div>
       </div>
     </div>
+    </template>
 
     <div class="section-title"><span>句子听写</span><small>在完整语境里训练听力</small></div>
     <div class="card-grid sentence-grid">
@@ -282,6 +310,7 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div v-else-if="lessonLoading[l.key]" class="meta">课程加载中…</div>
         <div class="card-actions">
           <button class="btn ghost sm" aria-label="听音排句" @click="startArrange(l)">🧩 排句</button>
+          <button class="btn ghost sm" aria-label="听读跟读" @click="startShadow(l)">🎙️ 听读</button>
           <button class="btn primary sm" :disabled="Boolean(l.lesson_count && !selectedLesson[l.key])" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听写')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听写' }}</button>
         </div>
       </div>

@@ -136,7 +136,7 @@ function savePoster() {
 
 <template>
   <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
-  <div v-else-if="!view" class="empty">加载中…</div>
+  <div v-else-if="!view" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else class="report-page">
     <div class="page-heading compact">
       <span class="eyebrow">YOUR WRAPPED</span>

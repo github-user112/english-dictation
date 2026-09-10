@@ -1,7 +1,7 @@
-/* CatalogPage 组件测试 */
+/* ListsPage 组件测试 */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import CatalogPage from "../components/CatalogPage.vue";
+import ListsPage from "../components/ListsPage.vue";
 
 let activeSessions = [];
 let failLists = false;
@@ -32,7 +32,7 @@ vi.mock("../lib/core", () => ({
   Settings: { get: () => ({ practiceMode: "assisted" }) },
 }));
 
-describe("CatalogPage", () => {
+describe("ListsPage", () => {
   beforeEach(() => {
     localStorage.clear();
     activeSessions = [];
@@ -40,7 +40,7 @@ describe("CatalogPage", () => {
   });
 
   it("should render lesson options with labels without TDZ error", async () => {
-    const wrapper = mount(CatalogPage);
+    const wrapper = mount(ListsPage);
     await flushPromises();
     const opts = wrapper.findAll("option");
     expect(opts.length).toBe(2);
@@ -50,7 +50,7 @@ describe("CatalogPage", () => {
   });
 
   it("should still render cards when one material's lessons request fails", async () => {
-    const wrapper = mount(CatalogPage);
+    const wrapper = mount(ListsPage);
     await flushPromises();
     // oral900 /lessons 失败不应阻塞页面：两张句子卡片都要渲染出来
     expect(wrapper.text()).toContain("口语900");
@@ -73,7 +73,7 @@ describe("CatalogPage", () => {
       { id: "pure-1", list: "nc1", lesson: 1, mode: "pure", scope: "all", total: 20, pending: 10 },
       { id: "assisted-2", list: "nc1", lesson: 2, mode: "assisted", scope: "all", total: 20, pending: 10 },
     ];
-    const wrapper = mount(CatalogPage);
+    const wrapper = mount(ListsPage);
     await flushPromises();
     const options = wrapper.findAll("option");
     expect(options[0].text()).not.toContain("继续");
@@ -82,7 +82,7 @@ describe("CatalogPage", () => {
 
   it("should show a retryable error when the catalog request fails", async () => {
     failLists = true;
-    const wrapper = mount(CatalogPage);
+    const wrapper = mount(ListsPage);
     await flushPromises();
     expect(wrapper.text()).toContain("素材库不可用");
     expect(wrapper.find("button").text()).toBe("重试");

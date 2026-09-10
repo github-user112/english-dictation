@@ -58,6 +58,30 @@ export function bestAlternativeScore(target, transcripts) {
   return out;
 }
 
+function wordsOf(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+}
+
+/* 整句跟读打分：0-100。按词序列求编辑距离（漏词/多词/错词都计入），
+   相似度 = 1 - 距离/较长词数。levenshtein 只用 length 与下标，词数组可直接复用。 */
+export function scoreSentence(target, heard) {
+  const t = wordsOf(target);
+  const h = wordsOf(heard);
+  if (!t.length || !h.length) return { score: 0, hit: null };
+  const d = levenshtein(t, h);
+  const score = Math.max(0, Math.round((1 - d / Math.max(t.length, h.length)) * 100));
+  return { score, hit: h.join(" ") };
+}
+
+export function bestSentenceScore(target, transcripts) {
+  let out = { score: 0, hit: null };
+  for (const text of transcripts || []) {
+    const r = scoreSentence(target, text);
+    if (r.score > out.score) out = r;
+  }
+  return out;
+}
+
 /* 单次聆听：recognition 生命周期包装，返回实例便于调用方 abort() */
 export function listenOnce({ lang = "en-US", onResult, onError, onEnd } = {}) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;

@@ -155,7 +155,7 @@ function roleLabel(role) {
     <p>{{ error }}</p>
     <button class="btn primary" @click="loadMyGroups">重试</button>
   </div>
-  <div v-else-if="loading" class="empty">加载中…</div>
+  <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="groups-page">
     <div class="page-heading compact">

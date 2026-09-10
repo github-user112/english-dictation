@@ -1,6 +1,6 @@
 /* 跟读打分模块测试 */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { scorePronunciation, bestAlternativeScore, listenOnce, speechSupported } from "../lib/speech";
+import { scorePronunciation, bestAlternativeScore, scoreSentence, bestSentenceScore, listenOnce, speechSupported } from "../lib/speech";
 
 describe("scorePronunciation", () => {
   it("should give 100 for exact word", () => {
@@ -47,6 +47,41 @@ describe("bestAlternativeScore", () => {
 
   it("should tolerate null alternatives", () => {
     expect(bestAlternativeScore("world", null).score).toBe(0);
+  });
+});
+
+describe("scoreSentence", () => {
+  it("should give 100 for an exact sentence", () => {
+    expect(scoreSentence("I am fine.", "I am fine").score).toBe(100);
+  });
+
+  it("should ignore case and punctuation", () => {
+    expect(scoreSentence("Excuse me!", "excuse me,").score).toBe(100);
+  });
+
+  it("should penalize a missed word", () => {
+    const r = scoreSentence("I am very fine", "I am fine");
+    expect(r.score).toBe(75);   // 漏 1 词 / 4 词
+  });
+
+  it("should penalize extra words", () => {
+    const r = scoreSentence("I am fine", "I am fine thank you");
+    expect(r.score).toBe(60);   // 多 2 词 / 5 词
+  });
+
+  it("should score an unrelated sentence low", () => {
+    expect(scoreSentence("I am fine", "totally different words here").score).toBeLessThan(40);
+  });
+
+  it("should return 0 for empty input", () => {
+    expect(scoreSentence("hello", "").score).toBe(0);
+    expect(scoreSentence("", "hello").score).toBe(0);
+  });
+
+  it("bestSentenceScore picks the best alternative", () => {
+    const r = bestSentenceScore("thank you very much", ["thank very much", "thank you very much"]);
+    expect(r.score).toBe(100);
+    expect(bestSentenceScore("hello", null).score).toBe(0);
   });
 });
 

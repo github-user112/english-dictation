@@ -38,7 +38,7 @@ function statusLine(d) {
 
 <template>
   <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
-  <div v-else-if="!p" class="empty">加载中…</div>
+  <div v-else-if="!p" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="tree-page">
     <div class="page-heading compact">

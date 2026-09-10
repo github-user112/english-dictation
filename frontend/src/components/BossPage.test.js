@@ -28,6 +28,7 @@ vi.mock("../lib/core", () => ({
   sndCombo: vi.fn(),
   sndWrong: vi.fn(),
   stopAudio: vi.fn(),
+  audioPlaying: { value: false },
 }));
 
 async function typeText(wrapper, text) {

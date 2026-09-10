@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, playWord, sndWrong, sndCombo, stopAudio } from "../lib/core";
+import { api, playWord, sndWrong, sndCombo, stopAudio, audioPlaying } from "../lib/core";
+import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import { ghostScore } from "../lib/progress";
 import WordCells from "./WordCells.vue";
 
@@ -46,6 +47,7 @@ const pkError = ref("");
 onMounted(async () => {
   // 同步段先挂监听：无论请求成败/卸载时序，onUnmounted 都能成对移除
   window.addEventListener("keydown", onGlobalKey, true);
+  document.addEventListener("pointerdown", onDocDown, true);
   list.value = props.params?.get("list") || "cet4";
   try {
     if (challengeId) {
@@ -98,6 +100,7 @@ onUnmounted(() => {
   stopTimers();
   stopAudio();
   window.removeEventListener("keydown", onGlobalKey, true);
+  document.removeEventListener("pointerdown", onDocDown, true);
 });
 
 function stopTimers() {
@@ -114,6 +117,8 @@ function focusCatch() {
     try { el.focus({ preventScroll: true }); } catch { el.focus(); }
   }
 }
+// 冲刺中持键盘：点页面任何非交互位置都不收起软键盘
+const onDocDown = makeTapGuard(focusCatch, () => phase.value === "run");
 
 async function start() {
   if (!items.value.length) return;
@@ -151,12 +156,11 @@ function nextWord() {
 }
 
 function onCatchBlur() {
-  // 焦点守护：冲刺中输入框失焦（按钮点击等）立刻补聚焦，保住软键盘
-  if (phase.value !== "run" || !mounted) return;
-  setTimeout(() => {
-    if (mounted && phase.value === "run") focusCatch();
-  }, 60);
+  const ok = phase.value === "run" && mounted;
+  onBlurCatch(catchEl.value, ok ? focusCatch : null);
 }
+function evCompStart(ev) { onCompStart(ev, catchEl.value); }
+function evCompEnd(ev) { onCompEnd(ev, catchEl.value, typeChar, () => phase.value === "run" && !revealing.value && !locked); }
 
 function play() {
   if (item.value) playWord(item.value);
@@ -177,10 +181,7 @@ function onGlobalKey(ev) {
 }
 
 function onInput(ev) {
-  const ch = ev.data || ev.target.value;
-  ev.target.value = "";
-  if (!ch || phase.value !== "run" || revealing.value || locked || ev.isComposing) return;
-  typeChar(ch);
+  onCharInput(ev, typeChar, () => phase.value === "run" && !revealing.value && !locked);
 }
 
 function typeChar(ch) {
@@ -313,7 +314,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
     </div>
 
     <!-- 冲刺中 -->
-    <div v-else-if="phase === 'run'" @pointerdown="focusCatch">
+    <div v-else-if="phase === 'run'">
       <div v-if="remain <= 10" class="urg" aria-hidden="true"></div>
       <div class="practice-top">
         <span class="progress-line">得分 {{ score }} · 连击 <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">×{{ combo }}</b></Transition></span>
@@ -342,14 +343,15 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
           <span v-if="revealing" style="color:var(--red);">✗ 答案：<span class="show-word">{{ item.text }}</span></span>
         </div>
         <div class="controls">
-          <button class="btn ghost" aria-label="重播发音" @click="play">🔊</button>
-          <button class="btn ghost" :disabled="revealing" aria-label="跳过当前词" @click="skip">跳过</button>
+          <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="重播发音" @mousedown.prevent @click="play">🔊</button>
+          <button class="btn ghost" :disabled="revealing" aria-label="跳过当前词" @mousedown.prevent @click="skip">跳过</button>
         </div>
         <div class="hint">听音打词 · 打对自动下一个 · 打错看一眼答案继续 · Esc 重听</div>
       </div>
       <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
              autocapitalize="off" spellcheck="false" enterkeyhint="done"
              style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
+             @compositionstart="evCompStart" @compositionend="evCompEnd"
              @input="onInput" @focusout="onCatchBlur">
     </div>
 

@@ -294,6 +294,15 @@ def test_skipped_new_and_legacy_item_have_no_learning_side_effects(client):
     assert (mode["new_count"], mode["review_count"], mode["first_wrong_count"], mode["skipped_count"]) == (1, 1, 0, 2)
 
 
+def test_memorize_session_lesson(client):
+    """按课背诵：只出该课的词；课号非法 400、不存在 404。"""
+    r = get(client, "/api/memorize/session?list=test_nce&lesson=1")
+    assert r.status_code == 200
+    assert {i["id"] for i in r.json["items"]} == {"excuse", "pardon"}
+    assert get(client, "/api/memorize/session?list=test_nce&lesson=bad").status_code == 400
+    assert get(client, "/api/memorize/session?list=test_nce&lesson=99").status_code == 404
+
+
 def test_invalid_numeric_inputs_return_400(client):
     for number in ("bad", "0", "101"):
         response = get(client, f"/api/memorize/session?list=test_words&n={number}")

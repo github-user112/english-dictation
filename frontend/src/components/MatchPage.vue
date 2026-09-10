@@ -1,13 +1,16 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { api, playWord, stopAudio } from "../lib/core";
 
 const PAIR_OPTIONS = [4, 6, 8, 10];
+const isMobile = window.matchMedia("(max-width: 620px)").matches;
+const MIN_FS = 10;             // 牌面自动缩字的下限（px）
 
 const phase = ref("start");    // start | run | done
 const wordLists = ref([]);
 const list = ref("cet4");
-const pairsWanted = ref(8);
+const pairsWanted = ref(isMobile ? 6 : 8);
+const gridEl = ref(null);
 const items = ref([]);         // 服务端发的词（含释义/音频）
 const tiles = ref([]);         // 洗牌后的桌面：每词两张（en/zh）
 const pickedKey = ref("");     // 当前选中的第一张牌
@@ -25,6 +28,9 @@ let shakeTimer = null;
 let mounted = true;
 
 const totalPairs = computed(() => items.value.length);
+// 手机端固定 3 列（6 对 = 3×4 共 12 格）
+const gridCols = computed(() =>
+  isMobile ? 3 : Math.min(4, Math.max(2, Math.ceil(Math.sqrt(totalPairs.value * 2)))));
 const matchedCount = computed(() => matched.value.length);
 /* 星级：零失误三星，≤3 失误两星，其余一星 */
 const stars = computed(() => (mistakes.value === 0 ? 3 : mistakes.value <= 3 ? 2 : 1));
@@ -74,9 +80,28 @@ async function deal() {
     phase.value = "run";
     if (timer) clearInterval(timer);
     timer = setInterval(() => { seconds.value++; }, 1000);
+    nextTick(fitTiles);
     playWord(items.value[0]);   // 开局先听第一个词，顺便暖声
   } catch (err) {
     loadError.value = err.message || "发牌失败";
+  }
+}
+
+// 逐牌缩字：一行放不下就逐步减小字号，到下限仍超长则横向滚动
+function fitTiles() {
+  const grid = gridEl.value;
+  if (!grid) return;
+  for (const b of grid.querySelectorAll(".pair-tile b")) {
+    b.style.fontSize = "";
+    b.classList.remove("scroll");
+    b.classList.add("nowrap");
+    let fs = parseFloat(getComputedStyle(b).fontSize);
+    while (fs > MIN_FS && b.scrollWidth > b.clientWidth) {
+      fs -= 0.5;
+      b.style.fontSize = `${fs}px`;
+    }
+    if (b.scrollWidth > b.clientWidth) b.classList.add("scroll");
+    else b.classList.remove("nowrap");
   }
 }
 
@@ -179,7 +204,7 @@ function mmss(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0
         <span v-if="combo >= 2" class="combo-num" aria-hidden="true">🔥 ×{{ combo }}</span>
         <span class="match-clock" role="timer" :aria-label="`已用时 ${seconds} 秒`">⏱ {{ mmss(seconds) }}</span>
       </div>
-      <div class="pair-grid" :style="{ '--cols': Math.min(4, Math.max(2, Math.ceil(Math.sqrt(totalPairs * 2)))) }">
+      <div ref="gridEl" class="pair-grid" :style="{ '--cols': gridCols }">
         <button v-for="t in tiles" :key="t.key" class="pair-tile"
                 :class="tileClass(t)"
                 :aria-label="`${t.side === 'en' ? '英文' : '中文'}：${t.text}`"

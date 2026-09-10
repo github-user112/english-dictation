@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, playWord, sndWrong, sndCombo, stopAudio } from "../lib/core";
+import { api, playWord, sndWrong, sndCombo, stopAudio, audioPlaying } from "../lib/core";
+import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import WordCells from "./WordCells.vue";
 
 const HEARTS = 3;
@@ -33,6 +34,7 @@ const heartsLine = computed(() =>
 
 onMounted(async () => {
   window.addEventListener("keydown", onGlobalKey, true);
+  document.addEventListener("pointerdown", onDocDown, true);
   try {
     const d = await api("/boss/session");
     if (!mounted) return;
@@ -48,6 +50,7 @@ onUnmounted(() => {
   stopTimers();
   stopAudio();
   window.removeEventListener("keydown", onGlobalKey, true);
+  document.removeEventListener("pointerdown", onDocDown, true);
 });
 
 function stopTimers() {
@@ -63,6 +66,8 @@ function focusCatch() {
     try { el.focus({ preventScroll: true }); } catch { el.focus(); }
   }
 }
+// 战斗中持键盘：点页面任何非交互位置都不收起软键盘
+const onDocDown = makeTapGuard(focusCatch, () => phase.value === "run");
 
 async function start() {
   if (!items.value.length) return;
@@ -92,12 +97,11 @@ function nextWord() {
 }
 
 function onCatchBlur() {
-  // 焦点守护：战斗中输入框失焦（按钮点击等）立刻补聚焦，保住软键盘
-  if (phase.value !== "run" || !mounted) return;
-  setTimeout(() => {
-    if (mounted && phase.value === "run") focusCatch();
-  }, 60);
+  const ok = phase.value === "run" && mounted;
+  onBlurCatch(catchEl.value, ok ? focusCatch : null);
 }
+function evCompStart(ev) { onCompStart(ev, catchEl.value); }
+function evCompEnd(ev) { onCompEnd(ev, catchEl.value, typeChar, () => phase.value === "run" && !revealing.value && !locked); }
 
 function play() {
   if (item.value) playWord(item.value);
@@ -118,10 +122,7 @@ function onGlobalKey(ev) {
 }
 
 function onInput(ev) {
-  const ch = ev.data || ev.target.value;
-  ev.target.value = "";
-  if (!ch || phase.value !== "run" || revealing.value || locked || ev.isComposing) return;
-  typeChar(ch);
+  onCharInput(ev, typeChar, () => phase.value === "run" && !revealing.value && !locked);
 }
 
 function typeChar(ch) {
@@ -226,7 +227,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
     </div>
 
     <!-- 战斗中 -->
-    <div v-else-if="phase === 'run'" @pointerdown="focusCatch">
+    <div v-else-if="phase === 'run'">
       <div class="practice-top">
         <span class="hearts" role="img"
               :aria-label="`剩余 ${hearts} 颗心`">{{ heartsLine }}</span>
@@ -250,7 +251,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
           <span v-if="revealing" style="color:var(--red);">✗ 答案：<span class="show-word">{{ item.text }}</span></span>
         </div>
         <div class="controls">
-          <button class="btn ghost" aria-label="重播发音" @click="play">🔊</button>
+          <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="重播发音" @mousedown.prevent @click="play">🔊</button>
           <button class="btn ghost" :disabled="locked" aria-label="撤退并结算" @click="retreat">🏳️ 撤退</button>
         </div>
         <div class="hint">听音打词 · 打对扣 Boss 血并从错词本除名 · 打错扣一颗心 · Esc 重听</div>
@@ -258,6 +259,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
       <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
              autocapitalize="off" spellcheck="false" enterkeyhint="done"
              style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
+             @compositionstart="evCompStart" @compositionend="evCompEnd"
              @input="onInput" @focusout="onCatchBlur">
     </div>
 

@@ -93,7 +93,7 @@ async def main():
     if args.lists:
         lists = [s.strip() for s in args.lists.split(",")]
     else:
-        lists = ["cet4", "cet6", "kaoyan", "tuofu", "oral900"]
+        lists = ["nce1", "nce2", "nce3", "nce4", "cet4", "cet6", "kaoyan", "tuofu", "oral900"]
         log.info(f"全部素材按优先级依次处理: {lists}")
 
     for lk in lists:

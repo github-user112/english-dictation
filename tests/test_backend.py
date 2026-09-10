@@ -150,6 +150,37 @@ class TestUpdateWordState:
                 assert row["right_count"] == 1
 
 
+    def test_first_right_redeems_wrong_count(self, app):
+        """首答即对每次赎回一笔旧错，归零即自动移出错词本。"""
+        with app.app_context():
+            with db() as conn:
+                # 错 2 次（一次全错、一次重试后对）→ wrong_count=2
+                update_word_state(conn, "testuser", "test_words", "hello",
+                                  first_right=False, final_right=False,
+                                  mode="assisted", today="2025-01-01")
+                update_word_state(conn, "testuser", "test_words", "hello",
+                                  first_right=False, final_right=True,
+                                  mode="assisted", today="2025-01-02")
+                row = conn.execute(
+                    "SELECT wrong_count FROM word_state WHERE user=? AND list=? AND item_id=?",
+                    ("testuser", "test_words", "hello")
+                ).fetchone()
+                assert row["wrong_count"] == 2
+                # 两次首答即对 → 逐笔赎回到 0
+                update_word_state(conn, "testuser", "test_words", "hello",
+                                  first_right=True, final_right=True,
+                                  mode="assisted", today="2025-01-03")
+                update_word_state(conn, "testuser", "test_words", "hello",
+                                  first_right=True, final_right=True,
+                                  mode="assisted", today="2025-01-04")
+                row = conn.execute(
+                    "SELECT wrong_count,right_count FROM word_state WHERE user=? AND list=? AND item_id=?",
+                    ("testuser", "test_words", "hello")
+                ).fetchone()
+                assert row["wrong_count"] == 0
+                assert row["right_count"] == 3
+
+
 class TestAPI:
     """API 端点测试"""
 

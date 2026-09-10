@@ -207,7 +207,7 @@ const activityIcons = {
     <p>{{ error }}</p>
     <button class="btn primary" @click="load">重试</button>
   </div>
-  <div v-else-if="loading || !data" class="empty">加载中…</div>
+  <div v-else-if="loading || !data" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="friends-page">
     <div class="page-heading compact">

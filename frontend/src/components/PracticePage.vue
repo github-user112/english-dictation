@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong } from "../lib/core";
+import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong, audioPlaying } from "../lib/core";
+import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import WordCells from "./WordCells.vue";
 import SentenceCells from "./SentenceCells.vue";
 import SpeechDrill from "./SpeechDrill.vue";
@@ -39,6 +40,8 @@ const replayCount = ref(0);
 const cells = ref(null);
 const catchEl = ref(null);
 const itemShownAt = ref(0);   // 当前题出现时刻，用于打字速度统计
+const lessonList = ref([]);   // 本素材的课次表（按课练习时拉取，用于自动跳下一课）
+const lessonDone = ref(false);// 本课打完，展示提示后自动跳下一课
 let mounted = true;
 
 function markItemShown() { itemShownAt.value = Date.now(); }
@@ -55,6 +58,16 @@ const prog = computed(() => {
 const speedLabel = computed(() => speed.value.toFixed(2).replace(/0$/, "").replace(/\.0/, "") + "x");
 const settings = computed(() => Settings.get());
 const sessionProgress = ref(null);
+// 课次表里的下一课（课号不一定连续，按表顺序取）
+const nextLessonNo = computed(() => {
+  const i = lessonList.value.findIndex((x) => x.lesson === lesson.value);
+  return i >= 0 ? (lessonList.value[i + 1]?.lesson ?? null) : null;
+});
+// 展示用课号：课次表里的序号（nce1 词汇等素材课号是 1,3,5…，展示统一成 1,2,3…）
+function lessonRank(no) {
+  const i = lessonList.value.findIndex((x) => x.lesson === no);
+  return i >= 0 ? i + 1 : no;
+}
 /* 判对后的停留节奏与卡片进度发丝线 */
 const NEXT_DELAY_MS = 1100;
 const pbarWidth = computed(() => {
@@ -87,6 +100,12 @@ onMounted(async () => {
       return;
     }
     if (!mounted) return;
+    // 按课练习：拉课次表，打完本课后自动跳下一课用
+    if (lesson.value) {
+      api(`/lessons?list=${encodeURIComponent(list.value)}`)
+        .then((d) => { if (mounted) lessonList.value = d.lessons || []; })
+        .catch(() => {});
+    }
   }
   loading.value = false;
   if (items.value.length) {
@@ -131,24 +150,11 @@ function focusCatch() {
     try { el.focus({ preventScroll: true }); } catch { el.focus(); }
   }
 }
-function onDocDown(ev) {
-  // 不对按钮/链接/输入框等元素阻止默认行为，仅捕获焦点
-  if (ev.target.tagName === "BUTTON" || ev.target.tagName === "A" ||
-      ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT" ||
-      ev.target.tagName === "TEXTAREA" || ev.target.closest(".btn") ||
-      ev.target.closest("a") || ev.target.closest("select")) {
-    return;
-  }
-  // B10: 触屏滑动不阻止默认行为（允许页面滚动）
-  if (ev.pointerType === "touch") return;
-  // 仅拦截鼠标左键，避免右键菜单、中键滚轮、拖拽/选区被误拦
-  if (ev.pointerType === "mouse" && ev.button !== 0) return;
-  ev.preventDefault();
-  focusCatch();
-}
-function onBlurCatch(ev) {
-  ev.target.setAttribute("readonly", "");
-}
+// 练习页全程持键盘：点页面任何非交互位置都不收起软键盘
+const onDocDown = makeTapGuard(focusCatch);
+function evBlurCatch(ev) { onBlurCatch(catchEl.value, focusCatch); }
+function evCompStart(ev) { onCompStart(ev, catchEl.value); }
+function evCompEnd(ev) { onCompEnd(ev, catchEl.value, typeChar, () => !submitted.value && !peeking.value); }
 function onGlobalKey(ev) {
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
@@ -217,10 +223,7 @@ function onKey(ev) {
   }
 }
 function onInput(ev) {
-  const ch = ev.data || ev.target.value;
-  ev.target.value = "";
-  if (!ch || submitted.value || ev.isComposing || peeking.value) return;
-  typeChar(ch);
+  onCharInput(ev, typeChar, () => !submitted.value && !peeking.value);
 }
 function typeChar(ch) {
   if (!cells.value || submitted.value) return;
@@ -434,6 +437,12 @@ function next() {
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   clearInputSnapshot();
   if (cur.value + 1 >= items.value.length) {
+    // 按课练习且还有下一课：提示后自动跳转；否则回素材库
+    if (!custom.value && lesson.value && nextLessonNo.value != null) {
+      lessonDone.value = true;
+      nextTimer.value = setTimeout(goNextLesson, 2000);
+      return;
+    }
     location.hash = "#/catalog";
     return;
   }
@@ -453,6 +462,15 @@ function next() {
     focusCatch();
     play();
   }, 130);
+}
+function goCatalog() { location.hash = "#/catalog"; }
+function goNextLesson() {
+  if (!mounted || nextLessonNo.value == null) return;
+  localStorage.setItem(`dict_lesson_${list.value}`, String(nextLessonNo.value));
+  const p = new URLSearchParams({ list: list.value, mode: practiceMode.value, lesson: nextLessonNo.value });
+  if (scope.value !== "all") p.set("scope", scope.value);
+  const page = mode.value === "sentence" ? "sentence" : "word";
+  location.hash = `#/${page}?${p}`;   // hashKey 变化 → 组件重挂载，新课自动开始
 }
 function resetAttempt() {
   firstRight.value = null;
@@ -517,8 +535,17 @@ function cycleSpeed() {
 </script>
 
 <template>
-  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="retryLoad">重试</button></div>
-  <div v-else-if="loading" class="empty">加载中…</div>
+  <div v-if="lessonDone" class="empty" role="status">
+    <div style="font-size:42px;" aria-hidden="true">🎉</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:8px;">第 {{ lessonRank(lesson) }} 课听打完成！</div>
+    <p>即将自动进入第 {{ lessonRank(nextLessonNo) }} 课…</p>
+    <div class="controls" style="margin-top:14px;">
+      <button class="btn primary big" @click="goNextLesson">立即开始 →</button>
+      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+    </div>
+  </div>
+  <div v-else-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="retryLoad">重试</button></div>
+  <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
   <div v-else @pointerdown="focusCatch">
     <div class="practice-top">
@@ -552,17 +579,18 @@ function cycleSpeed() {
       </div>
       <SpeechDrill v-if="mode === 'word' && (submitted || retrying)" :text="item.text"></SpeechDrill>
       <div class="controls">
-        <button class="btn ghost" aria-label="重播音频" @click="play">↻ 重播</button>
-        <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @click="skip">跳过</button>
+        <button class="btn ghost" aria-label="重播音频" @mousedown.prevent @click="play">↻ 重播</button>
+        <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @mousedown.prevent @click="skip">跳过</button>
         <button v-if="saveError && submitted" class="btn primary" :disabled="saving" @click="retrySave">重试保存</button>
         <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
-        <button class="btn primary big" id="play-btn" aria-label="播放音频" @click="play">🔊</button>
+        <button class="btn primary big" :class="{ playing: audioPlaying }" id="play-btn" aria-label="播放音频" @mousedown.prevent @click="play"><span v-if="audioPlaying" class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><template v-else>🔊</template></button>
       </div>
       <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 忘了拼写可按住 Alt 看答案（记为答错）· 自动重播间隔可在设置调整</div>
     </div>
     <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"
            style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
-           @input="onInput" @blur="onBlurCatch">
+           @compositionstart="evCompStart" @compositionend="evCompEnd"
+           @input="onInput" @blur="evBlurCatch">
   </div>
 </template>

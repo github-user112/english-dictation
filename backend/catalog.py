@@ -365,7 +365,11 @@ def update_word_state(conn, user, list_key, item_id, first_right, final_right, m
     if final_right:
         state["right_count"] += 1
         state["consecutive_right"] += 1
-        if not first_right:
+        if first_right:
+            # 首答即对赎回一笔旧错：错词在重练/复习中干净答对一次就抵消一次，
+            # wrong_count 归零即自动移出错词本（列表成员资格 = wrong_count>0）
+            state["wrong_count"] = max(0, state["wrong_count"] - 1)
+        else:
             state["wrong_count"] += 1
         if state["consecutive_right"] >= CONFIG["known_threshold"]:
             state["status"] = "known"

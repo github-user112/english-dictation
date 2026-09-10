@@ -169,7 +169,7 @@ function checkNewBadges() {
 
 <template>
   <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
-  <div v-else-if="!stats" class="empty">加载中…</div>
+  <div v-else-if="!stats" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else class="stats-page">
     <!-- 新徽章解锁庆祝 -->
     <Teleport to="body">
@@ -261,7 +261,7 @@ function checkNewBadges() {
 
     <div class="section-title">打卡热力图<small>近半年 · 颜色越亮练得越多</small></div>
     <div class="stat-card" style="padding:18px 16px;">
-      <div class="heat-grid" role="img" aria-label="近半年打卡热力图">
+      <div class="heat-grid" role="img" aria-label="近半年打卡热力图" :style="{ '--weeks': Math.ceil(heatmap.length / 7) }">
         <span v-for="c in heatmap" :key="c.day" class="heat-cell"
               :class="'lvl' + c.lvl" :title="`${c.day} · ${c.n} 题`"></span>
       </div>

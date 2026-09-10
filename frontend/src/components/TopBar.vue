@@ -5,23 +5,25 @@ import { Profile, refreshProfile } from "../lib/profile";
 
 const page = ref("catalog");
 const TITLES = {
-  catalog: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
+  catalog: "今日", lists: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
   quiz: "听音选词", sprint: "限时冲刺", daily: "每日挑战", tree: "单词树",
   boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句",
-  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战", wordtest: "词汇量测试",
+  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战", wordtest: "词汇量测试", shadow: "听读",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");
 const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
 const lvWidth = computed(() => `${Math.round((Profile.levelProgress || 0) * 100)}%`);
 
-/* 次要入口收进「更多」：功能多了导航换行难看，只留每日动线在顶栏 */
+/* 次要入口收进「更多」：功能多了导航换行难看，只留每日动线在顶栏。
+   组内顺序 = 学习工具 → 社交 → 系统；sep 表示与该组开头之间画分隔线 */
 const MORE = [
-  { p: "leaderboard", t: "排行榜", s: "排行" },
+  { p: "lists", t: "素材库", s: "素材" },
+  { p: "wordtest", t: "词汇量测试", s: "词测" },
+  { p: "report", t: "学习报告", s: "报告" },
+  { p: "leaderboard", t: "排行榜", s: "排行", sep: true },
   { p: "friends", t: "好友", s: "好友" },
   { p: "groups", t: "小组", s: "小组" },
-  { p: "report", t: "学习报告", s: "报告" },
-  { p: "wordtest", t: "词汇量测试", s: "词测" },
-  { p: "settings", t: "设置", s: "设置" },
+  { p: "settings", t: "设置", s: "设置", sep: true },
 ];
 const moreOpen = ref(false);
 const moreActive = computed(() => MORE.some((m) => m.p === page.value));
@@ -65,7 +67,7 @@ onUnmounted(() => {
 <template>
   <header id="topbar">
     <div class="top-left">
-      <a href="#/catalog" class="brand" aria-label="返回素材库">
+      <a href="#/catalog" class="brand" aria-label="返回今日动线">
         <span class="brand-mark">D</span>
         <span class="brand-copy"><b>Dictation</b><small>听见，然后写下</small></span>
       </a>
@@ -88,9 +90,9 @@ onUnmounted(() => {
         <b>Lv.{{ Profile.level }}</b><span>{{ Profile.title }}</span>
         <i class="lv-bar" aria-hidden="true"><i :style="{ width: lvWidth }"></i></i>
       </a>
-      <a class="nav-link" :class="{active: page==='catalog'}" href="#/catalog">素材</a>
-      <a class="nav-link" :class="{active: page==='daily'}" href="#/daily">每日</a>
+      <a class="nav-link" :class="{active: page==='catalog'}" href="#/catalog">今日</a>
       <a class="nav-link" :class="{active: page==='wrong'}" href="#/wrong">错词</a>
+      <a class="nav-link" :class="{active: page==='daily'}" href="#/daily">每日</a>
       <a class="nav-link" :class="{active: page==='tree'}" href="#/tree">小树</a>
       <a class="nav-link" :class="{active: page==='stats'}" href="#/stats">统计</a>
       <div class="nav-more">
@@ -99,8 +101,11 @@ onUnmounted(() => {
           更多<span class="nav-caret" aria-hidden="true">▾</span>
         </button>
         <div v-if="moreOpen" class="nav-menu" role="menu">
-          <a v-for="m in MORE" :key="m.p" class="nav-menu-item" role="menuitem"
-             :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.t }}</a>
+          <template v-for="m in MORE" :key="m.p">
+            <div v-if="m.sep" class="nav-menu-sep" aria-hidden="true"></div>
+            <a class="nav-menu-item" role="menuitem"
+               :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.t }}</a>
+          </template>
         </div>
       </div>
       <!-- 移动端导航条本可横滑，次要项直接内联（下拉会被 overflow 裁掉） -->

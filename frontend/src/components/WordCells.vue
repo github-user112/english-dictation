@@ -60,7 +60,7 @@ function isFull() {
   return wcur.value >= letterIdxs().length;
 }
 function isCurrent(i) {
-  return !props.submitted && letterIdxs()[wcur.value] === i;
+  return !props.submitted && !props.feedback && letterIdxs()[wcur.value] === i;
 }
 function answerText() {
   return letterIdxs().map((i) => input.value[i] || "").join("") + extraInput.value;
@@ -124,7 +124,7 @@ defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull
 
 <template>
   <div ref="box" class="cells-wrap letter-lines" :class="{ win: winFlash, err: errFlash }" style="margin:0;">
-    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted }"
+    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted && !feedback }"
           :style="{ '--chars': Math.max(6, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(t, i) in refTokens" :key="i">
       <span v-if="showSequence && t.type === 'punct'" class="punct">{{ t.text }}</span>

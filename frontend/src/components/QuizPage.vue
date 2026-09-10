@@ -141,7 +141,7 @@ function goCatalog() { location.hash = "#/catalog"; }
 
 <template>
   <div v-if="error && !questions.length" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="restart">重试</button></div>
-  <div v-else-if="loading" class="empty">加载中…</div>
+  <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else-if="!questions.length" class="empty">没有可出题的词</div>
 
   <div v-else-if="q" class="quiz-page">

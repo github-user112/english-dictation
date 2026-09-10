@@ -15,7 +15,7 @@ bp = Blueprint("memorize", __name__)
 
 @bp.get("/api/memorize/session")
 def api_memorize_session():
-    """背单词任务：到期待重背的词优先 + 未背过的新词补齐"""
+    """背单词任务：到期待重背的词优先 + 未背过的新词补齐。带 lesson 时只出该课的词。"""
     u = get_user()
     list_key = request.args.get("list", "cet4")
     try:
@@ -24,21 +24,38 @@ def api_memorize_session():
         return jsonify({"error": "n 无效"}), 400
     if not 1 <= batch <= 100:
         return jsonify({"error": "n 必须在 1..100 之间"}), 400
+    lesson = None
+    if request.args.get("lesson") is not None:
+        try:
+            lesson = int(request.args.get("lesson"))
+            assert lesson >= 1
+        except (TypeError, ValueError, AssertionError):
+            return jsonify({"error": "lesson 必须为正整数"}), 400
+        if request.args.get("n") is None:
+            batch = 100   # 按课背：默认整课出完（上限 100）
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":
         return jsonify({"error": "句子素材不支持背诵"}), 400
     cutoff = (date.today() - timedelta(days=CONFIG["memorize_review_days"])).isoformat()
 
+    pool_source = list(iter_material(list_key, lesson)) if lesson else None
+    if lesson and not pool_source:
+        return jsonify({"error": "课程不存在"}), 404
+    lesson_ids = {m["id"] for m in pool_source} if lesson else None
+
     with db() as conn:
         reviews = conn.execute(
             "SELECT item_id FROM word_state WHERE user=? AND list=? AND kind='word' AND memorized=1 "
             "AND last_memorize < ? ORDER BY last_memorize LIMIT ?",
             (u, list_key, cutoff, batch)).fetchall()
+        if lesson_ids is not None:
+            reviews = [r for r in reviews if r["item_id"] in lesson_ids]
         memorized_ids = {r["item_id"] for r in conn.execute(
             "SELECT item_id FROM word_state WHERE user=? AND list=? AND memorized=1",
             (u, list_key)).fetchall()}
-    pool = [m for m in iter_material(list_key) if m["id"] not in memorized_ids]
+    pool = [m for m in (pool_source if lesson else iter_material(list_key))
+            if m["id"] not in memorized_ids]
     random.shuffle(pool)
     fresh = pool[: max(0, batch - len(reviews))]
 

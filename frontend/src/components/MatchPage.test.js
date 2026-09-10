@@ -1,6 +1,10 @@
 /* 英中配对消消乐页组件测试 */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
+
+// jsdom 没有 matchMedia；组件模块加载期就会调用
+window.matchMedia = window.matchMedia || (() => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+
 import MatchPage from "../components/MatchPage.vue";
 
 const items = [

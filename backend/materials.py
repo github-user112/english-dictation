@@ -28,6 +28,7 @@ def load_material(list_key):
                     "phonetic": word.get("phonetic") or "",
                     "meaning": word.get("meaning") or "",
                     "kind": "word",
+                    "lesson": word.get("lesson"),
                 })
         else:
             path = BASE / "sentences" / f"{list_key}.json"

@@ -138,14 +138,14 @@ defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, seri
 
 <template>
   <div ref="box" class="cells-wrap" style="margin:0;">
-    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted }"
+    <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted && !feedback }"
           :style="{ '--chars': Math.max(10, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(w, i) in displayWords" v-else :key="i">
       <span v-for="(e, k) in extraAt(i)" :key="'extra-' + i + '-' + k" class="cell word-line wrong"
             :style="{ '--chars': Math.max(3, e.word.length) }">{{ e.word }}</span>
       <span v-if="w.pre" class="punct">{{ w.pre }}</span>
       <span :id="'sc' + i" class="cell word-line"
-            :class="[mark[i] || '', !submitted && i === scur ? 'current' : '']"
+            :class="[mark[i] || '', !submitted && !feedback && i === scur ? 'current' : '']"
             :style="{ '--chars': lineChars(i), cursor: 'text' }" @click="focusWord(i)">{{ input[i] }}</span>
       <span v-if="w.suf" class="punct">{{ w.suf }}</span>
     </template>

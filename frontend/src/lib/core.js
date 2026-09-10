@@ -1,4 +1,5 @@
 /* 核心工具：设置 / API / 音频 */
+import { ref } from "vue";
 
 /* ---- 设置 ---- */
 export const Settings = {
@@ -85,6 +86,13 @@ export async function api(path, opts = {}) {
 /* ---- 音频 ---- */
 export const audioEl = new Audio();
 audioEl.preload = "auto";
+
+/* 音频播放状态（驱动喇叭按钮动效） */
+export const audioPlaying = ref(false);
+function _syncPlaying() { audioPlaying.value = !audioEl.paused && !audioEl.ended; }
+for (const ev of ["play", "playing", "pause", "ended", "error"]) {
+  audioEl.addEventListener(ev, _syncPlaying);
+}
 
 let actx = null;
 function unlockActx() {

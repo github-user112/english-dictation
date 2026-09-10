@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import TopBar from "./components/TopBar.vue";
-import CatalogPage from "./components/CatalogPage.vue";
+import TodayPage from "./components/TodayPage.vue";
+import ListsPage from "./components/ListsPage.vue";
 import PracticePage from "./components/PracticePage.vue";
 import MemorizePage from "./components/MemorizePage.vue";
 import QuizPage from "./components/QuizPage.vue";
@@ -23,11 +24,12 @@ import GroupsPage from "./components/GroupsPage.vue";
 import GroupDetailPage from "./components/GroupDetailPage.vue";
 import PkPage from "./components/PkPage.vue";
 import WordTestPage from "./components/WordTestPage.vue";
+import ShadowPage from "./components/ShadowPage.vue";
 import { refreshAccount } from "./lib/account";
 import { stopAudio } from "./lib/core";
 
 const ROUTES = {
-  catalog: CatalogPage, word: PracticePage, sentence: PracticePage,
+  catalog: TodayPage, lists: ListsPage, word: PracticePage, sentence: PracticePage,
   memorize: MemorizePage, quiz: QuizPage, sprint: SprintPage,
   daily: DailyPage, tree: TreePage,
   boss: BossPage,
@@ -40,8 +42,9 @@ const ROUTES = {
   groups: GroupsPage, group: GroupDetailPage,
   pk: PkPage,
   wordtest: WordTestPage,
+  shadow: ShadowPage,
 };
-const view = ref(CatalogPage);
+const view = ref(TodayPage);
 const params = ref(new URLSearchParams());
 const hashKey = ref("");
 const APP_VERSION = __APP_VERSION__;
@@ -60,7 +63,7 @@ function route() {
   const h = location.hash.replace(/^#\/?/, "") || "catalog";
   const [page, qs] = h.split("?");
   params.value = new URLSearchParams(qs || "");
-  view.value = ROUTES[page] || CatalogPage;
+  view.value = ROUTES[page] || TodayPage;
   hashKey.value = location.hash;
   window.scrollTo(0, 0);
 }

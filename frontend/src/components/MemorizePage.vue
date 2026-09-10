@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong } from "../lib/core";
+import { api, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong, audioPlaying } from "../lib/core";
+import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import WordCells from "./WordCells.vue";
 
 const props = defineProps({ params: { type: Object, default: null } });
 
 const list = ref("cet4");
+const lesson = ref(null);            // 按课背诵时的课号（今日动线入口带入）
 const phase = ref("learn");            // learn | quiz | done
 const items = ref([]);                 // 全部任务
 const queue = ref([]);                 // 自测队列
@@ -39,7 +41,7 @@ function saveState() {
   if (!items.value.length) return;
   try {
     sessionStorage.setItem(SS_KEY, JSON.stringify({
-      list: list.value, phase: phase.value, items: items.value,
+      list: list.value, lesson: lesson.value, phase: phase.value, items: items.value,
       queue: queue.value, cur: cur.value, stat: stat.value,
       submitted: submitted.value, lastRight: lastRight.value, lastNote: lastNote.value,
       attemptId: attemptId.value, saveError: saveError.value,
@@ -74,8 +76,9 @@ onMounted(() => {
 
 async function init() {
   list.value = props.params?.get("list") || "cet4";
+  lesson.value = Number(props.params?.get("lesson")) || null;
   const saved = loadState();
-  if (saved && saved.list === list.value && saved.items?.length) {
+  if (saved && saved.list === list.value && (saved.lesson || null) === lesson.value && saved.items?.length) {
     // 恢复刷新前的进度
     items.value = saved.items;
     queue.value = saved.queue || [];
@@ -97,7 +100,9 @@ async function init() {
     }
   } else {
     const n = Number(props.params?.get("n")) || 0;
-    const d = await api(`/memorize/session?list=${list.value}` + (n >= 1 && n <= 100 ? `&n=${n}` : ""));
+    const d = await api(`/memorize/session?list=${list.value}`
+      + (n >= 1 && n <= 100 ? `&n=${n}` : "")
+      + (lesson.value ? `&lesson=${lesson.value}` : ""));
     if (!mounted) return;
     items.value = d.items || [];
     queue.value = [...items.value];
@@ -129,6 +134,7 @@ onUnmounted(() => {
 async function nextTick() { await new Promise((r) => setTimeout(r, 0)); }
 
 function focusCatch() {
+  if (phase.value !== "quiz") return;   // 学习态/结束态不需要键盘，别唤起软键盘
   const el = catchEl.value;
   if (el) {
     el.removeAttribute("readonly");
@@ -139,18 +145,11 @@ function forceFocus() {
   if (focusTimers.value.length) return;
   focusTimers.value = [setTimeout(focusCatch, 150), setTimeout(focusCatch, 450)];
 }
-function onDocDown(ev) {
-  if (ev.target.tagName === "BUTTON" || ev.target.tagName === "A" ||
-      ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT" ||
-      ev.target.tagName === "TEXTAREA" || ev.target.closest(".btn") ||
-      ev.target.closest("a") || ev.target.closest("select")) {
-    return;
-  }
-  if (ev.pointerType === "touch") return;
-  ev.preventDefault();
-  focusCatch();
-}
-function onBlurCatch(ev) { ev.target.setAttribute("readonly", ""); }
+// 仅自测态需要持键盘：学习态/done 态点页面不应唤起软键盘
+const onDocDown = makeTapGuard(focusCatch, () => phase.value === "quiz");
+function evBlurCatch(ev) { onBlurCatch(catchEl.value, focusCatch); }
+function evCompStart(ev) { onCompStart(ev, catchEl.value); }
+function evCompEnd(ev) { onCompEnd(ev, catchEl.value, typeChar, () => !submitted.value); }
 function onGlobalKey(ev) {
   const t = ev.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) && t.id !== "catch") return;
@@ -270,10 +269,7 @@ function typeChar(ch) {
   if (cells.value.isFull()) submit();
 }
 function onInput(ev) {
-  const ch = ev.data || ev.target.value;
-  ev.target.value = "";
-  if (!ch || submitted.value || ev.isComposing) return;
-  typeChar(ch);
+  onCharInput(ev, typeChar, () => !submitted.value);
 }
 async function persistAnswer(right) {
   saving.value = true;
@@ -363,18 +359,22 @@ function redo() {
   location.reload();
 }
 function goDictation() {
-  window.location.hash = `#/word?list=${list.value}&scope=memorized`;
+  // 按课模式透传 lesson（听打按课走，scope 参数被忽略）；否则维持"只看已背"
+  const q = new URLSearchParams({ list: list.value });
+  if (lesson.value) q.set("lesson", lesson.value);
+  else q.set("scope", "memorized");
+  window.location.hash = `#/word?${q}`;
 }
 function goCatalog() { window.location.hash = "#/catalog"; }
 </script>
 
 <template>
   <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="redo">重试</button></div>
-  <div v-else-if="loading" class="empty">加载中…</div>
+  <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else-if="!items.length" class="empty">
     <p>本轮没有要背的词（已背的词 7 天内会回来复习）</p>
     <div class="controls" style="margin-top:16px;">
-      <button class="btn primary" @click="goDictation">去听打（只看已背）</button>
+      <button class="btn primary" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
       <button class="btn ghost" @click="goCatalog">返回素材库</button>
     </div>
   </div>
@@ -398,8 +398,8 @@ function goCatalog() { window.location.hash = "#/catalog"; }
         </div>
       </Transition>
       <div class="controls" style="margin-top:16px;">
-        <button class="btn ghost" aria-label="播放发音" @click="play">🔊 发音</button>
-        <button class="btn primary big" @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
+        <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 发音</button>
+        <button class="btn primary big" @mousedown.prevent @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
       </div>
       <div class="hint">点击卡片翻面 · 记住拼写后开始自测</div>
     </div>
@@ -426,8 +426,8 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       </div>
       <div class="controls">
         <div v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</div>
-        <button class="btn primary big" :disabled="saving" @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
-        <button class="btn ghost" aria-label="播放发音" @click="play">🔊 听发音</button>
+        <button class="btn primary big" :disabled="saving" @mousedown.prevent @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
+        <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 听发音</button>
       </div>
       <div class="hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
     </div>
@@ -438,14 +438,15 @@ function goCatalog() { window.location.hash = "#/catalog"; }
     <div style="font-size:20px;font-weight:700;margin-bottom:10px;">本轮完成 🎉</div>
     <p>已背 {{ stat.memorized }} 个 · 答对 {{ stat.right }} 次 · 答错 {{ stat.wrong }} 次</p>
     <div class="controls" style="margin-top:16px;">
-      <button class="btn primary big" @click="goDictation">去听打（只看已背）</button>
+      <button class="btn primary big" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
       <button class="btn ghost" @click="redo">再背一轮</button>
       <button class="btn ghost" @click="goCatalog">返回素材库</button>
     </div>
   </div>
 
-  <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
+  <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
          autocapitalize="off" spellcheck="false" enterkeyhint="done"
          style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
-         @input="onInput" @blur="onBlurCatch">
+         @compositionstart="evCompStart" @compositionend="evCompEnd"
+         @input="onInput" @blur="evBlurCatch">
 </template>

@@ -97,7 +97,7 @@ function goBoss() {
 async function remove(item) {
   try {
     await api("/wrong/remove", { method: "POST", body: JSON.stringify({ list: item.list, id: item.id }) });
-    location.reload();
+    items.value = items.value.filter((x) => x !== item);
   } catch (err) {
     alert(err.message || "删除失败，请检查网络");
   }
@@ -161,26 +161,23 @@ function grouped() {
       </div>
     </template>
 
-    <div v-if="items.length || confusions.length" class="practice-top" style="margin-top:26px;">
-      <span class="progress-line">共 {{ items.length }} 个需巩固</span>
-      <button v-if="items.length" class="btn primary" @click="redo">全部重练</button>
-    </div>
+    <div v-if="items.length" class="section-title"><span>错词本</span><small>点词表名可折叠</small></div>
     <template v-if="items.length">
-      <template v-for="(list, key) in grouped()" :key="key">
-        <div class="section-title">{{ key }}</div>
+      <details v-for="(list, key) in grouped()" :key="key" class="wrong-group" open>
+        <summary><span class="wg-name">{{ key }}</span><span class="wg-count">{{ list.length }} 词</span></summary>
         <template v-for="i in list" :key="i.id">
           <div class="wrong-item">
-            <button class="btn ghost" @click="play(i)">🔊</button>
-            <div class="w">{{ i.text }}</div>
+            <button class="btn ghost sm" aria-label="播放" @click="play(i)">🔊</button>
+            <div class="w">{{ i.text }}<small v-if="i.phonetic" class="wp">{{ i.phonetic }}</small></div>
             <div class="m">{{ i.meaning }}</div>
-            <div class="cnt">错 {{ i.wrong_count }}次</div>
-            <button v-if="i.kind === 'word'" class="btn ghost" :disabled="mnemonicLoading === i.list + '|' + i.id"
+            <span class="cnt" :title="`答对 ${i.right_count} 次`">错{{ i.wrong_count }}</span>
+            <button v-if="i.kind === 'word'" class="btn ghost sm" :disabled="mnemonicLoading === i.list + '|' + i.id"
                     aria-label="AI 助记与辨析" @click="toggleMnemonic(i)">{{ mnemonicLoading === i.list + '|' + i.id ? '…' : '✨' }}</button>
-            <button class="btn ghost" @click="remove(i)">删除</button>
+            <button class="btn ghost sm wi-del" aria-label="删除" @click="remove(i)">×</button>
           </div>
           <div v-if="mnemonics[i.list + '|' + i.id]" class="mnemonic-line" v-html="storyHtml(mnemonics[i.list + '|' + i.id])"></div>
         </template>
-      </template>
+      </details>
     </template>
   </div>
 </template>
