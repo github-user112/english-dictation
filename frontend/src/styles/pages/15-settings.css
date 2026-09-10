@@ -1,8 +1,706 @@
 /* ===== 15-settings · 设置 · SettingsPage =====
-   对照 design/设置-desktop.html + 设置-mobile.html
+   对照 design/settings-desktop.html + settings-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
+   （.card .step-item .seg .btn .grid-* .form-input .switch .slider）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
-*/
+   动画只用 transform / opacity。
+   ============================================================ */
+
+/* ---- 覆盖 legacy.css 的 .settings-page max-width ---- */
+.settings-page {
+  max-width: none;
+  margin: 0;
+}
+
+/* ============================================================
+   1. 页头
+   ============================================================ */
+.settings-page .page-heading {
+  margin: 4px 0 18px;
+}
+.settings-page .page-heading h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(24px, 4vw, 30px);
+  font-weight: 900;
+  letter-spacing: -.5px;
+  line-height: 1.15;
+}
+.settings-page .page-heading .h-emoji {
+  font-size: 32px;
+  font-family: var(--emoji);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .1));
+}
+.settings-page .page-heading p {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ============================================================
+   2. Studio Hero（调音台视觉区）
+   ============================================================ */
+.studio-hero {
+  background: linear-gradient(135deg, #0f2547 0%, #173a6b 45%, #1cb0f6 130%);
+  border-radius: 22px;
+  padding: 22px 26px;
+  color: #fff;
+  box-shadow: 0 6px 0 #0a1a33, 0 14px 36px rgba(15, 37, 71, .35);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.studio-hero::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -30px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: rgba(28, 176, 246, .14);
+}
+.studio-hero::before {
+  content: '';
+  position: absolute;
+  bottom: -90px;
+  left: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .05);
+}
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  opacity: .10;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .5) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.sh-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+/* --- 均衡器 --- */
+.eq-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.eq {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  height: 96px;
+}
+.eq span {
+  display: block;
+  width: 11px;
+  border-radius: 5px 5px 3px 3px;
+  background: linear-gradient(180deg, #ffe45c 0%, var(--orange) 60%, var(--orange-dark) 100%);
+  box-shadow: 0 0 14px rgba(255, 150, 0, .45);
+  animation: eq 1.05s ease-in-out infinite;
+}
+.eq span:nth-child(1) { height: 46%; animation-delay: 0s; }
+.eq span:nth-child(2) { height: 78%; animation-delay: .12s; }
+.eq span:nth-child(3) { height: 100%; animation-delay: .05s; }
+.eq span:nth-child(4) { height: 64%; animation-delay: .20s; }
+.eq span:nth-child(5) { height: 88%; animation-delay: .08s; }
+.eq span:nth-child(6) { height: 52%; animation-delay: .16s; }
+.eq span:nth-child(7) { height: 70%; animation-delay: .02s; }
+
+@keyframes eq {
+  0%, 100% { transform: scaleY(.32); }
+  50%     { transform: scaleY(1); }
+}
+
+.eq-tag {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  opacity: .75;
+  background: rgba(255, 255, 255, .12);
+  padding: 3px 10px;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+/* --- 读数区 --- */
+.sh-mid { min-width: 0; }
+.sh-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.sh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, .14);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+}
+.sh-title {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -.3px;
+}
+
+.sh-voice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sh-voice-ic {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--green), #6fdd1a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 4px 0 var(--green-dark);
+  font-family: var(--emoji);
+}
+.sh-voice-name {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.sh-voice-meta {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .8;
+  margin-top: 2px;
+}
+
+.sh-readout {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.rd {
+  background: rgba(255, 255, 255, .10);
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.rd .k {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  opacity: .75;
+  margin-bottom: 2px;
+  letter-spacing: .5px;
+}
+.rd .v {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+/* ============================================================
+   3. 卡片网格
+   ============================================================ */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.span-2 { grid-column: 1 / -1; }
+
+/* ============================================================
+   4. Section Card（白色圆角卡片）
+   ============================================================ */
+.section-card {
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .06), 0 8px 20px rgba(0, 0, 0, .04);
+}
+:root[data-theme="dark"] .section-card {
+  box-shadow: 0 4px 0 #000, 0 8px 20px rgba(0, 0, 0, .3);
+  border: 1px solid var(--border);
+}
+
+.sc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sc-title {
+  font-size: 17px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sc-ic {
+  font-size: 24px;
+  font-family: var(--emoji);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .1));
+}
+.sc-sub {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   5. Setting List（条目列表）
+   ============================================================ */
+.setting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* step-item 覆盖：移除 margin-bottom，用 gap 控制间距 */
+.setting-list .step-item {
+  margin-bottom: 0;
+  gap: 13px;
+  padding: 13px 15px;
+}
+
+/* ============================================================
+   6. Switch 开关（覆盖 legacy.css，让开关更大更清晰）
+   ============================================================ */
+.settings-page .switch {
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  position: relative;
+}
+.settings-page .switch input {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+}
+.settings-page .switch .slider {
+  position: absolute;
+  inset: 0;
+  background: #ccc;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background .2s;
+  border: none;
+}
+.settings-page .switch .slider::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+  transition: transform .2s var(--ease-out), background .2s;
+}
+.settings-page .switch input:checked + .slider {
+  background: var(--green);
+  border-color: transparent;
+}
+.settings-page .switch input:checked + .slider::before {
+  background: #fff;
+  transform: translateX(20px);
+}
+
+/* ============================================================
+   7. Segmented Control（分段控件）
+   ============================================================ */
+.settings-page .seg {
+  flex-shrink: 0;
+  padding: 4px;
+  background: var(--panel2);
+  border-radius: 12px;
+  gap: 4px;
+}
+:root[data-theme="light"] .settings-page .seg {
+  background: #efefef;
+}
+.settings-page .seg button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-dim);
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.settings-page .seg button:hover {
+  color: var(--text);
+}
+.settings-page .seg button.on {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+}
+:root[data-theme="dark"] .settings-page .seg button.on {
+  background: var(--panel3);
+}
+
+/* ============================================================
+   8. Number Input（数字输入框）
+   ============================================================ */
+.num-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.num-input {
+  width: 68px;
+  padding: 8px 10px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  background: var(--panel);
+  color: var(--text);
+  text-align: center;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  -moz-appearance: textfield;
+}
+.num-input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-bg);
+}
+:root[data-theme="dark"] .num-input:focus {
+  box-shadow: 0 0 0 3px rgba(88, 204, 2, .15);
+}
+.num-input::-webkit-inner-spin-button,
+.num-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.num-unit {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   9. Theme Grid（主题卡片）
+   ============================================================ */
+.theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.theme-card {
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--panel);
+  cursor: default;
+  transition: border-color .15s, box-shadow .15s;
+}
+:root[data-theme="dark"] .theme-card {
+  background: var(--panel2);
+}
+.theme-card.active {
+  border-color: var(--green);
+  background: var(--green-bg);
+  box-shadow: 0 0 0 3px rgba(88, 204, 2, .12);
+}
+:root[data-theme="dark"] .theme-card.active {
+  background: rgba(88, 204, 2, .08);
+}
+
+.tc-preview {
+  height: 70px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 9px 10px;
+  gap: 4px;
+}
+.tc-preview .ln {
+  height: 5px;
+  border-radius: 3px;
+}
+.tc-preview.light {
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+}
+.tc-preview.light .ln { background: #d5d5d5; }
+.tc-preview.light .ln.g { background: var(--green); }
+.tc-preview.dark {
+  background: #14181f;
+}
+.tc-preview.dark .ln { background: #2c3340; }
+.tc-preview.dark .ln.g { background: var(--green); }
+
+.tc-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+.tc-name-row b {
+  font-size: 14px;
+  font-weight: 900;
+}
+.tc-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--green);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 0 var(--green-dark);
+}
+.tc-desc {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.mt-10 { margin-top: 10px; }
+
+/* ============================================================
+   10. Push 按钮状态
+   ============================================================ */
+.settings-page .step-item .btn.sm {
+  flex-shrink: 0;
+}
+
+/* v-else 不支持推送时的提示文本 */
+.settings-page .step-item .desc {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   11. 底部信息条
+   ============================================================ */
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  padding: 12px;
+}
+.save-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+  background: var(--panel);
+  padding: 10px 20px;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .06);
+}
+:root[data-theme="dark"] .save-info {
+  box-shadow: 0 3px 0 #000;
+  border: 1px solid var(--border);
+}
+.si-ic {
+  font-size: 18px;
+  font-family: var(--emoji);
+}
+
+/* ============================================================
+   12. 手机端适配
+   ============================================================ */
+@media (max-width: 880px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .sh-body {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .eq-wrap {
+    flex-direction: row;
+    gap: 10px;
+  }
+  .eq {
+    height: 52px;
+    gap: 4px;
+  }
+  .eq span {
+    width: 7px;
+  }
+  .eq-tag {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+  }
+  .sh-readout {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .rd {
+    padding: 7px 5px;
+  }
+  .rd .k {
+    font-size: 8px;
+  }
+  .rd .v {
+    font-size: 15px;
+  }
+  .sh-voice-ic {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    border-radius: 11px;
+  }
+  .sh-voice-name {
+    font-size: 15px;
+  }
+  .sh-voice-meta {
+    font-size: 10px;
+  }
+  .sh-title {
+    font-size: 16px;
+  }
+  .studio-hero {
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-page .page-heading h1 {
+    font-size: 22px;
+  }
+  .settings-page .page-heading .h-emoji {
+    font-size: 24px;
+  }
+  .section-card {
+    padding: 16px;
+  }
+  .sc-title {
+    font-size: 15px;
+  }
+  .sc-ic {
+    font-size: 20px;
+  }
+  .setting-list .step-item {
+    gap: 11px;
+    padding: 12px 13px;
+    flex-wrap: wrap;
+  }
+  .setting-list .step-item .step-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+    border-radius: 10px;
+  }
+  .setting-list .step-item .step-body {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .setting-list .step-item .step-body b {
+    font-size: 13px;
+  }
+  .setting-list .step-item .step-body small {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  /* 控件在窄屏上放到右侧，不换行 */
+  .setting-list .step-item > .seg,
+  .setting-list .step-item > .num-wrap,
+  .setting-list .step-item > .btn,
+  .setting-list .step-item > .switch {
+    flex-shrink: 0;
+  }
+  /* step-body 占整行，控件跟在后面 */
+  .setting-list .step-item {
+    flex-direction: row;
+  }
+  .step-icon {
+    font-size: 19px !important;
+  }
+  .theme-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+  .theme-card {
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .tc-preview {
+    height: 54px;
+    margin-bottom: 8px;
+    padding: 7px 8px;
+    gap: 3px;
+  }
+  .tc-preview .ln {
+    height: 4px;
+  }
+  .tc-name-row b {
+    font-size: 12px;
+  }
+  .tc-check {
+    width: 19px;
+    height: 19px;
+    font-size: 10px;
+  }
+  .tc-desc {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  .btn.sm.full {
+    padding: 8px 10px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+  .save-info {
+    font-size: 11px;
+    padding: 8px 14px;
+  }
+  .si-ic {
+    font-size: 15px;
+  }
+}

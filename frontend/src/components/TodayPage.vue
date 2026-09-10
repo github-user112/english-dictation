@@ -61,101 +61,187 @@ function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }
     <p>{{ error }}</p>
     <button class="btn primary" @click="load">重试</button>
   </div>
-  <div v-else-if="data" class="duo-page">
-    <!-- 顶条：日期 + 连续天数 + 进度环 -->
-    <header class="duo-top">
-      <div class="duo-date">
-        <b>{{ dateLabel }}</b>
-        <span class="duo-streak" :class="{ cold: !data.streak }">
-          🔥 {{ data.streak > 0 ? `连续 ${data.streak} 天` : "今天开始第 1 天" }}
-        </span>
-      </div>
-      <svg class="duo-ring" viewBox="0 0 36 36" role="img"
-           :aria-label="`今日完成 ${data.done_count}/${steps.length}`">
-        <circle class="r-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
-        <circle class="r-fg" cx="18" cy="18" r="15.9155" pathLength="100"
-                :stroke-dasharray="`${ringPct} 100`"/>
-        <text x="18" y="22" class="r-text">{{ data.done_count }}/{{ steps.length }}</text>
-      </svg>
-    </header>
+  <div v-else-if="data" class="today-page">
 
-    <!-- 未测词汇量：先定位再进环线 -->
-    <a v-if="!data.has_wordtest" class="duo-wordtest" href="#/wordtest">
-      <span class="dw-icon" aria-hidden="true">🧭</span>
-      <span class="dw-body">
-        <b>先花 2 分钟测测词汇量</b>
-        <small>测完按你的水平推荐词库，路径会更合身</small>
-      </span>
-      <span class="dw-go">GO</span>
-    </a>
-
-    <!-- 主线词库切换：默认新概念1册，可换；句子课自动跟随 nce 册数 -->
-    <div class="duo-track">
-      <span class="dt-label">学习路线</span>
-      <select class="dt-select" :value="currentList" aria-label="切换主线词库" @change="pickList">
-        <option v-for="o in data.word_options" :key="o.key" :value="o.key">{{ o.title }}</option>
-      </select>
-      <span v-if="data.lesson_mode && data.lesson" class="dt-lesson">
-        第 {{ data.lesson }}<small v-if="data.lesson_total">/{{ data.lesson_total }}</small> 课
-      </span>
-    </div>
-
-    <!-- 多邻国式学习路径。pad-first：第一关是当前关时顶部留白，气泡才不会压到上面的路线选择器 -->
-    <div class="duo-path" :class="{ 'pad-first': nextIdx === 0 }" role="list" aria-label="今日学习路径">
-      <div v-for="(s, i) in steps" :key="s.key" class="duo-node-row" role="listitem"
-           :style="{ '--off': nodeOffset(i) + 'px' }">
-        <div class="duo-node-wrap">
-          <!-- 当前节点：悬浮提示 + 呼吸圈 -->
-          <template v-if="i === nextIdx">
-            <div class="duo-bubble" aria-hidden="true">
-              <b>{{ s.title }}</b><small>{{ s.desc }}</small>
-            </div>
-            <span class="duo-pulse" aria-hidden="true"></span>
-          </template>
-          <a class="duo-node" :class="{ done: s.done, current: i === nextIdx, locked: nextIdx >= 0 && i > nextIdx }"
-             :href="s.link"
-             :aria-label="`${s.title}：${s.desc}${s.done ? '（已完成）' : ''}`">
-            <span class="duo-node-icon" aria-hidden="true">{{ s.done ? "✓" : STEP_ICONS[s.key] || "⭐" }}</span>
-            <span v-if="!s.done && s.target > 0" class="duo-node-badge">{{ s.progress }}/{{ s.target }}</span>
-          </a>
-          <span class="duo-node-label" :class="{ dim: s.done }">{{ s.title }} · {{ s.minutes }}′</span>
+    <!-- ===== Hero · 今日进度环 ===== -->
+    <section class="today-hero" aria-label="今日进度">
+      <div class="hero-ring">
+        <svg viewBox="0 0 148 148" width="148" height="148" role="img"
+             :aria-label="`今日完成 ${data.done_count}/${steps.length}`">
+          <circle cx="74" cy="74" r="62" fill="none" stroke="#dcecd2" stroke-width="13" pathLength="100"/>
+          <circle cx="74" cy="74" r="62" fill="none" stroke="var(--green)" stroke-width="13"
+                  stroke-linecap="round" pathLength="100"
+                  :stroke-dasharray="`${ringPct} 100`"
+                  transform="rotate(-90 74 74)"
+                  style="filter:drop-shadow(0 0 6px rgba(88,204,2,0.4));"/>
+        </svg>
+        <div class="hero-ring-center">
+          <div class="hr-pct">{{ ringPct }}%</div>
+          <div class="hr-sub">{{ data.done_count }}/{{ steps.length }} 完成</div>
         </div>
       </div>
-
-      <!-- 终点奖杯 -->
-      <div class="duo-node-row" style="--off: 0px">
-        <div class="duo-node-wrap">
-          <div class="duo-node duo-trophy" :class="{ won: data.all_done }" aria-hidden="true">🏆</div>
-          <span class="duo-node-label" :class="{ dim: !data.all_done }">
-            {{ data.all_done ? "今日全部完成！" : "终点" }}
+      <div class="hero-info">
+        <div class="hero-banner" :class="{ win: data.all_done }">
+          <template v-if="data.all_done">🎉 今日五环全通，太棒了！</template>
+          <template v-else>✅ 继续前进！你已经完成了 {{ ringPct }}% 的五环任务！</template>
+        </div>
+        <h1 class="hero-title">{{ data.all_done ? "太棒了 🎉" : "继续前进 🚀" }}</h1>
+        <div class="hero-meta">
+          <span>📅 {{ dateLabel }}</span>
+          <span class="dot">·</span>
+          <span class="hero-streak" :class="{ cold: !data.streak }">
+            <template v-if="data.streak > 0">🔥 连续 <b>{{ data.streak }} 天</b></template>
+            <template v-else>🔥 今天开始第 1 天</template>
           </span>
         </div>
+        <div v-if="Profile.ready" class="hero-badges">
+          <span class="xp-chip">⚡ {{ Profile.xp.toLocaleString() }} XP</span>
+          <span class="level-chip">💎 Lv.{{ Profile.level }} · {{ Profile.title }}</span>
+        </div>
       </div>
+    </section>
+
+    <!-- ===== 主网格 ===== -->
+    <div class="today-grid">
+
+      <!-- ===== 左 · 五环旅程 ===== -->
+      <div class="card journey-card">
+        <div class="sec-head">
+          <span class="sh-emoji">🧭</span>
+          <div>
+            <div class="sh-title">今日五环旅程</div>
+            <div class="sh-sub">每天一条主线 · 完成五环即打卡</div>
+          </div>
+          <span class="sh-count">{{ data.done_count }}/{{ steps.length }} 完成</span>
+        </div>
+
+        <!-- 主线词库切换 -->
+        <div class="list-picker">
+          <span class="list-picker-label">📚 学习路线</span>
+          <select class="list-picker-select" :value="currentList" aria-label="切换主线词库" @change="pickList">
+            <option v-for="o in data.word_options" :key="o.key" :value="o.key">{{ o.title }}</option>
+          </select>
+          <span v-if="data.lesson_mode && data.lesson" class="list-picker-lesson">
+            第 {{ data.lesson }}<small v-if="data.lesson_total">/{{ data.lesson_total }}</small> 课
+          </span>
+        </div>
+
+        <!-- 五环旅程 -->
+        <div class="journey" :class="{ 'pad-first': nextIdx === 0 }" role="list" aria-label="今日学习路径">
+          <div class="journey-line"></div>
+
+          <div v-for="(s, i) in steps" :key="s.key" class="step"
+               :class="{ done: s.done, current: i === nextIdx, locked: nextIdx >= 0 && i > nextIdx }"
+               :style="{ '--off': nodeOffset(i) + 'px' }"
+               role="listitem">
+            <div class="step-node">
+              <span v-if="i === nextIdx" class="node-pulse" aria-hidden="true"></span>
+              <span class="step-em" aria-hidden="true">{{ s.done ? "✓" : STEP_ICONS[s.key] || "⭐" }}</span>
+              <span v-if="s.done" class="node-tick" aria-hidden="true">✓</span>
+            </div>
+            <a class="step-card" :href="s.link"
+               :aria-label="`${s.title}：${s.desc}${s.done ? '（已完成）' : ''}`">
+              <div class="step-head">
+                <span class="step-title" :class="{ dim: s.done }">{{ s.title }}</span>
+                <span class="step-status"
+                      :class="{ done: s.done, current: i === nextIdx, locked: nextIdx >= 0 && i > nextIdx }">
+                  {{ s.done ? "已完成" : (i === nextIdx ? "进行中" : "🔒 待开始") }}
+                </span>
+              </div>
+              <div class="step-desc">
+                <span v-if="!s.done && s.target > 0" class="lesson-tag">{{ s.progress }}/{{ s.target }}</span>
+                {{ s.desc }}
+              </div>
+              <div class="step-foot" :class="{ 'with-cta': i === nextIdx && !s.done }">
+                <div class="step-bar">
+                  <i :class="i === nextIdx ? 'fill-blue' : 'fill-green'"
+                     :style="{ width: (s.target > 0 ? s.progress / s.target * 100 : 0) + '%' }"></i>
+                </div>
+                <span class="step-count">{{ s.progress }}/{{ s.target }}</span>
+                <span class="step-time">⏱ {{ s.minutes }}'</span>
+                <span v-if="i === nextIdx && !s.done" class="step-cta">继续 ▶</span>
+              </div>
+            </a>
+          </div>
+
+          <!-- 终点奖杯 -->
+          <div class="step trophy" :class="{ won: data.all_done }">
+            <div class="step-node" aria-hidden="true">
+              <span class="step-em">{{ data.all_done ? "🏆" : "🎯" }}</span>
+            </div>
+            <div class="step-card" style="cursor: default">
+              <div class="step-head">
+                <span class="step-title" :class="{ dim: !data.all_done }">{{ data.all_done ? "今日全部完成！" : "终点" }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 右 · 侧栏 ===== -->
+      <div class="sidebar">
+
+        <!-- 词汇量测试（未测时显示） -->
+        <a v-if="!data.has_wordtest" class="side-test" href="#/wordtest">
+          <span class="st-icon" aria-hidden="true">📊</span>
+          <div class="st-title">先测词汇量</div>
+          <div class="st-desc">花 2 分钟测测词汇量，按你的水平推荐词库和每日量，任务更合身。</div>
+          <div class="st-benefits">
+            <span class="st-benefit">🎯 CEFR 等级</span>
+            <span class="st-benefit">📚 自动推词库</span>
+            <span class="st-benefit">📈 每日配额</span>
+          </div>
+          <span class="st-cta">📊 去测一下 · 2 分钟</span>
+        </a>
+
+        <!-- 每日挑战 banner -->
+        <a v-if="Profile.ready" class="side-daily" href="#/daily"
+           :aria-label="Profile.dailyDoneToday ? '每日挑战今日已完成' : '开始每日挑战'">
+          <div class="sd-row">
+            <span class="sd-icon" aria-hidden="true">🏆</span>
+            <div class="sd-body">
+              <div class="sd-title">今日词力 · 每日挑战</div>
+              <div class="sd-desc">
+                {{ Profile.dailyDoneToday
+                  ? `今天已完成 · 连续 ${Profile.dailyStreak} 天，重玩不计分`
+                  : "10 道全站同题 · 完成即给小树浇水" }}
+              </div>
+            </div>
+            <span class="sd-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</span>
+          </div>
+        </a>
+      </div>
+
     </div>
 
-    <!-- 全部完成庆祝卡 -->
-    <section v-if="data.all_done" class="duo-celebrate">
+    <!-- ===== 下一步 Hero ===== -->
+    <div v-if="nextIdx >= 0 && steps[nextIdx]" class="next-hero">
+      <div class="next-node">{{ STEP_ICONS[steps[nextIdx].key] || "⭐" }}</div>
+      <div class="next-body">
+        <div class="next-tag"><span class="pulse-dot"></span> 下一步 · 约 {{ steps[nextIdx].minutes }} 分钟</div>
+        <div class="next-title">{{ steps[nextIdx].title }}</div>
+        <div class="next-desc">{{ steps[nextIdx].desc }}</div>
+        <div class="next-prog-row">
+          <div class="next-prog">
+            <i :style="{ width: (steps[nextIdx].target > 0 ? steps[nextIdx].progress / steps[nextIdx].target * 100 : 0) + '%' }"></i>
+          </div>
+          <span class="next-prog-lbl">进度 {{ steps[nextIdx].progress }}/{{ steps[nextIdx].target }}</span>
+        </div>
+      </div>
+      <a class="next-btn" :href="steps[nextIdx].link">开始练习 →</a>
+    </div>
+
+    <!-- ===== 全部完成庆祝卡 ===== -->
+    <section v-if="data.all_done" class="today-celebrate">
       <h2>🎉 太棒了！今日五环全通</h2>
       <p>{{ Profile.ready && !Profile.dailyDoneToday ? "来个每日挑战收官？" : "明天继续，小树在等你浇水" }}</p>
       <a v-if="Profile.ready && !Profile.dailyDoneToday" class="duo-btn green" href="#/daily">每日挑战 →</a>
       <a v-else class="duo-btn blue" href="#/stats">看看统计 →</a>
     </section>
 
-    <!-- 每日挑战：加分项，不占环 -->
-    <a v-if="Profile.ready" class="daily-banner" href="#/daily"
-       :aria-label="Profile.dailyDoneToday ? '每日挑战今日已完成' : '开始每日挑战'">
-      <span class="db-icon" aria-hidden="true">🗓️</span>
-      <span class="db-body">
-        <b>今日词力 · 每日挑战</b>
-        <small>{{ Profile.dailyDoneToday
-          ? `今天已完成 · 连续 ${Profile.dailyStreak} 天，重玩不计分`
-          : "10 道全站同题 · 完成即给小树浇水" }}</small>
-      </span>
-      <em class="db-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</em>
-    </a>
-
-    <p class="today-foot">
-      <a href="#/lists">全部素材与自由练习 →</a>
+    <!-- ===== 页脚 ===== -->
+    <p class="today-footer">
+      <a href="#/lists">📚 全部素材与自由练习 →</a>
     </p>
   </div>
 </template>

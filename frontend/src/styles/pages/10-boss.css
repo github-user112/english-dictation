@@ -1,8 +1,522 @@
-/* ===== 10-boss · 错词Boss战 · BossPage =====
-   对照 design/错词Boss战-desktop.html + 错词Boss战-mobile.html
-   规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
-   禁止改 styles/base.css、styles.css、styles/legacy.css。
-*/
+/* ===== 10-boss · 错词Boss战 · BossPage ===== */
+
+/* --- PAGE SHELL --- */
+.boss-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 0 48px;
+}
+
+/* --- START PHASE --- */
+.boss-hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+  border-radius: 22px;
+  padding: 36px 32px 32px;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.25),
+    0 14px 40px rgba(0, 0, 0, 0.25);
+}
+.boss-hero::before {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(206, 130, 255, 0.1), transparent 70%);
+}
+.boss-hero::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -30px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 75, 75, 0.12), transparent 70%);
+  animation: boss-glow 3s ease-in-out infinite;
+}
+@keyframes boss-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
+}
+
+.boss-hero-dragon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+.boss-hero-title {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.boss-hero-desc {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.78;
+  margin-bottom: 4px;
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+.boss-hero-desc + .boss-hero-desc {
+  margin-bottom: 18px;
+}
+
+
+.boss-army {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  position: relative;
+  z-index: 1;
+}
+.boss-army-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.boss-army-chip i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--orange);
+  background: rgba(255, 150, 0, 0.18);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+
+.boss-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- RUN PHASE --- */
+
+
+.boss-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 14px;
+}
+
+
+.boss-hearts {
+  font-size: 22px;
+  letter-spacing: 2px;
+  line-height: 1;
+  user-select: none;
+}
+
+
+.boss-score-line {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+}
+
+
+.boss-panel {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+  border-radius: 22px;
+  padding: 24px 28px 20px;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.22),
+    0 12px 36px rgba(0, 0, 0, 0.22);
+}
+.boss-panel::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 75, 75, 0.12), transparent 70%);
+  animation: boss-glow 3s ease-in-out infinite;
+  z-index: 0;
+}
+.boss-panel::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  left: -50px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(206, 130, 255, 0.08), transparent 70%);
+  z-index: 0;
+}
+
+
+.boss-art {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.4));
+}
+.boss-art.hurt {
+  animation: shake-x 0.36s ease;
+}
+
+
+.boss-hp {
+  position: relative;
+  z-index: 1;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 8px;
+}
+.boss-hp i {
+  display: block;
+  height: 100%;
+  border-radius: 11px;
+  background: linear-gradient(90deg, #ff4b4b, #ff7a7a);
+  box-shadow: 0 0 10px rgba(255, 75, 75, 0.5);
+  transition: width 0.6s ease;
+  position: relative;
+}
+.boss-hp i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 55%);
+}
+
+
+.boss-hp-num {
+  font-size: 15px;
+  font-weight: 900;
+  opacity: 0.7;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- RUN: Practice Card --- */
+.boss-page .practice-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  margin-bottom: 16px;
+}
+
+
+.boss-page .info-line {
+  text-align: center;
+  min-height: 20px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+
+.boss-page .cells-wrap {
+  margin-bottom: 12px;
+}
+
+
+.boss-page #answer-line {
+  text-align: center;
+  min-height: 24px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.boss-page .show-word {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+
+.boss-page .practice-card .controls {
+  justify-content: center;
+  gap: 10px;
+}
+
+
+.boss-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* --- DONE PHASE --- */
+.boss-verdict-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 36px 28px 28px;
+  text-align: center;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.06);
+}
+
+
+.boss-verdict-card .bv-icon {
+  display: block;
+  font-size: 52px;
+  margin-bottom: 10px;
+  line-height: 1;
+}
+
+
+.boss-verdict-card b {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+
+.boss-verdict-card p {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+
+.boss-result-card {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.boss-result-card p {
+  margin-bottom: 6px;
+}
+
+
+.boss-result-card p[style] {
+  font-weight: 800;
+}
+
+/* --- RESPONSIVE 760px --- */
+@media (max-width: 760px) {
+  .boss-page {
+    max-width: 100%;
+    padding: 0 0 32px;
+  }
+
+  .boss-hero {
+    border-radius: 18px;
+    padding: 28px 24px 24px;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .boss-hero-dragon {
+    font-size: 52px;
+  }
+
+  .boss-hero-title {
+    font-size: 20px;
+  }
+
+  .boss-panel {
+    border-radius: 18px;
+    padding: 20px 22px 18px;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .boss-art {
+    font-size: 48px;
+  }
+
+  .boss-hp {
+    height: 18px;
+    border-radius: 9px;
+  }
+  .boss-hp i {
+    border-radius: 9px;
+  }
+  .boss-hp i::after {
+    border-radius: 9px;
+  }
+
+  .boss-page .practice-card {
+    border-radius: 14px;
+    padding: 20px 16px 18px;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .boss-verdict-card {
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 28px 20px 24px;
+    border-radius: 18px;
+  }
+}
+
+/* --- RESPONSIVE 620px --- */
+@media (max-width: 620px) {
+  .boss-page {
+    padding: 0 0 24px;
+  }
+
+  .boss-hero {
+    border-radius: 16px;
+    padding: 24px 18px 22px;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+
+  .boss-hero-dragon {
+    font-size: 46px;
+  }
+
+  .boss-hero-title {
+    font-size: 18px;
+  }
+
+  .boss-hero-desc {
+    font-size: 13px;
+  }
+
+  .boss-army {
+    gap: 6px;
+  }
+  .boss-army-chip {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  .boss-panel {
+    border-radius: 16px;
+    padding: 18px 16px 16px;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+
+  .boss-art {
+    font-size: 42px;
+  }
+
+  .boss-hearts {
+    font-size: 18px;
+  }
+
+  .boss-score-line {
+    font-size: 12px;
+  }
+
+  .boss-hp {
+    height: 16px;
+    border-radius: 8px;
+  }
+  .boss-hp i {
+    border-radius: 8px;
+  }
+  .boss-hp i::after {
+    border-radius: 8px;
+  }
+
+  .boss-hp-num {
+    font-size: 13px;
+  }
+
+  .boss-page .practice-card {
+    border-radius: 14px;
+    padding: 18px 14px 16px;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+
+  .boss-page .practice-card .controls {
+    flex-direction: column;
+  }
+
+  .boss-page .practice-card .controls .btn {
+    width: 100%;
+  }
+
+  .boss-verdict-card {
+    margin-left: 8px;
+    margin-right: 8px;
+    padding: 24px 16px 20px;
+    border-radius: 16px;
+  }
+
+  .boss-verdict-card .bv-icon {
+    font-size: 44px;
+  }
+
+  .boss-verdict-card b {
+    font-size: 19px;
+  }
+
+  .boss-controls {
+    flex-direction: column;
+  }
+
+  .boss-controls .btn {
+    width: 100%;
+  }
+}
+
+/* --- REDUCED MOTION --- */
+@media (prefers-reduced-motion: reduce) {
+  .boss-hero::after,
+  .boss-panel::before {
+    animation: none;
+  }
+  .boss-art.hurt {
+    animation: none;
+  }
+  .boss-hp i {
+    transition: none;
+  }
+}

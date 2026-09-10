@@ -145,30 +145,48 @@ function goCatalog() { location.hash = "#/catalog"; }
   <div v-else-if="!questions.length" class="empty">没有可出题的词</div>
 
   <div v-else-if="q" class="quiz-page">
-    <div class="practice-top">
-      <span class="progress-line">{{ progress }} · 得分 {{ score }}</span>
-      <span class="badge mode-badge">{{ KINDS.find((x) => x.k === kind)?.label }}</span>
+    <!-- 顶部进度条 -->
+    <div class="quiz-strip">
+      <span class="qnum">🎯 {{ progress }}</span>
+      <div class="progress-bar quiz-strip-bar">
+        <span class="progress-fill green"
+          :style="{ width: ((qi + (graded ? 1 : 0)) / questions.length * 100) + '%' }"></span>
+      </div>
+      <span class="quiz-score">⚡ 得分 {{ score }}</span>
     </div>
-    <div class="practice-card">
-      <div class="quiz-kinds" role="tablist" aria-label="题型切换">
-        <button v-for="x in KINDS" :key="x.k" class="btn ghost sm"
-          :class="{ primary: kind === x.k }" :aria-pressed="kind === x.k"
+
+    <!-- 题型切换 + 当前题型徽章 -->
+    <div class="quiz-kind-row">
+      <div class="seg" role="tablist" aria-label="题型切换">
+        <button v-for="x in KINDS" :key="x.k"
+          :class="{ on: kind === x.k }" :aria-pressed="kind === x.k"
           @click="switchKind(x.k)">{{ x.label }}</button>
       </div>
-      <div id="answer-line" aria-live="polite">
-        <span v-if="graded && lastRight" style="color:var(--green);">✔ 答对了！</span>
-        <span v-else-if="graded" style="color:var(--red);">
-          ✗ 正确答案：<span class="show-word">{{ q.text }}</span>
-          <template v-if="targetOpt?.phonetic"> · {{ targetOpt.phonetic }}</template>
-          <template v-if="targetOpt?.meaning && kind !== 'en_zh'"> · {{ targetOpt.meaning }}</template>
-        </span>
+      <div class="quiz-type-badge" :class="'t-' + kind">
+        <span class="ic">{{ kind === 'audio_en' ? '🎯' : kind === 'en_zh' ? '🎧' : '📝' }}</span>
+        {{ KINDS.find((x) => x.k === kind)?.label }} · 第 {{ qi + 1 }} 题
       </div>
-      <!-- 看义选词：题干是中文释义 -->
-      <div v-if="kind === 'zh_en'" class="quiz-prompt">{{ targetOpt?.meaning || '（该词暂无释义）' }}</div>
-      <div v-else class="quiz-play">
-        <button class="btn primary big" aria-label="播放单词发音" @click="play">🔊</button>
+    </div>
+
+    <!-- 题干卡 -->
+    <div class="quiz-qcard">
+      <!-- 看义选词：题干是中文释义，作答前不出声 -->
+      <div v-if="kind === 'zh_en'" class="quiz-prompt-wrap">
+        <div class="quiz-prompt-label">📖 看中文意思，选出正确的单词</div>
+        <div class="quiz-prompt">{{ targetOpt?.meaning || '（该词暂无释义）' }}</div>
       </div>
+      <div v-else class="quiz-audio">
+        <button class="quiz-play-btn" aria-label="播放单词发音" @click="play">▶</button>
+        <div class="quiz-audio-body">
+          <b>🎧 播放单词 · 点按重听</b>
+          <small>🔊 标准发音 · 空格键重听</small>
+        </div>
+        <div class="quiz-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+
       <div class="hint">{{ HINTS[kind] }}</div>
+
+      <!-- 选项 -->
       <div class="quiz-options">
         <button v-for="(o, i) in q.options" :key="o.id" class="quiz-option"
           :style="{ '--qi': i }"
@@ -176,22 +194,50 @@ function goCatalog() { location.hash = "#/catalog"; }
                     wrong: graded && picked === o.id && o.id !== q.id }"
           :disabled="graded" :aria-label="'选项 ' + (i + 1) + '：' + (kind === 'en_zh' ? o.meaning : o.text)"
           @click="answer(o)">
-          <b>{{ kind === 'en_zh' ? (o.meaning || '（无释义）') : o.text }}</b>
-          <small v-if="graded">{{ kind === 'en_zh' ? o.text : o.meaning }}</small>
+          <span class="quiz-opt-letter">{{ 'ABCD'[i] }}</span>
+          <span class="quiz-opt-body">
+            <b>{{ kind === 'en_zh' ? (o.meaning || '（无释义）') : o.text }}</b>
+            <small v-if="graded">{{ kind === 'en_zh' ? o.text : o.meaning }}</small>
+          </span>
         </button>
       </div>
-      <div class="controls" v-if="graded && !lastRight">
-        <button class="btn primary big" @click="next">{{ qi + 1 >= questions.length ? '查看结果' : '下一题 →' }}</button>
+
+      <!-- 判分反馈 -->
+      <div id="answer-line" aria-live="polite">
+        <div v-if="graded && lastRight" class="quiz-feedback ok">
+          <span class="fb-ic">🎉</span>
+          <span class="fb-txt">✔ 答对了！</span>
+        </div>
+        <div v-else-if="graded" class="quiz-feedback no">
+          <span class="fb-ic">💡</span>
+          <span class="fb-txt">
+            ✗ 正确答案：<span class="show-word">{{ q.text }}</span>
+            <template v-if="targetOpt?.phonetic"> · {{ targetOpt.phonetic }}</template>
+            <template v-if="targetOpt?.meaning && kind !== 'en_zh'"> · {{ targetOpt.meaning }}</template>
+          </span>
+        </div>
       </div>
+    </div>
+
+    <!-- 答错手动进下一题（答对自动跳） -->
+    <div class="controls" v-if="graded && !lastRight">
+      <button class="btn primary big full" @click="next">{{ qi + 1 >= questions.length ? '查看结果' : '下一题 →' }}</button>
     </div>
   </div>
 
-  <div v-else class="empty">
-    <div style="font-size:20px;font-weight:700;margin-bottom:10px;">本轮完成 🎉</div>
-    <p>答对 {{ score }} / {{ questions.length }} · 正确率 {{ accuracy }}%</p>
-    <div class="controls" style="margin-top:16px;">
-      <button class="btn primary big" @click="restart">再来一轮</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+  <div v-else class="quiz-page">
+    <div class="quiz-result">
+      <div class="qr-emoji">🎉</div>
+      <h2>本轮完成 🎉</h2>
+      <p>答对 {{ score }} / {{ questions.length }} · 正确率 {{ accuracy }}%</p>
+      <div class="progress-bar qr-bar">
+        <span class="progress-fill" :class="accuracy >= 60 ? 'green' : 'orange'"
+          :style="{ width: accuracy + '%' }"></span>
+      </div>
+      <div class="controls">
+        <button class="btn primary big" @click="restart">再来一轮</button>
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
     </div>
   </div>
 </template>

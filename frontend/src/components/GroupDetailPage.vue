@@ -142,30 +142,57 @@ function windowLabel(c) {
 
 <template>
   <div v-if="!gid" class="empty" role="alert">
-    <p>未指定小组</p>
+    <span class="emoji">🔍</span>
+    <h3>未指定小组</h3>
+    <p>请从小组列表进入。</p>
     <a class="btn primary" href="#/groups">返回小组列表</a>
   </div>
 
   <div v-else-if="!Account.loading && !Account.authenticated" class="empty login-gate" role="alert">
-    <p class="gate-title">小组详情需要登录</p>
-    <p class="gate-sub">登录后可查看小组信息、成员与挑战。</p>
+    <span class="emoji">🔒</span>
+    <h3>小组详情需要登录</h3>
+    <p>登录后可查看小组信息、成员与挑战。</p>
     <a class="btn primary" href="#/account">去登录 / 注册</a>
   </div>
 
   <div v-else-if="error" class="empty" role="alert">
+    <span class="emoji">⚠️</span>
+    <h3>加载失败</h3>
     <p>{{ error }}</p>
     <button class="btn primary" @click="load">重试</button>
   </div>
   <div v-else-if="loading || !data" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="group-detail">
-    <div class="page-heading compact">
-      <span class="eyebrow">GROUP DETAIL</span>
-      <h1>{{ data.name }}</h1>
-      <p>创建者 {{ data.creator_name }} · 成员 {{ data.member_count }} / {{ data.max_members }} · 创建于 {{ String(data.created_at).slice(0,10) }}</p>
-    </div>
+    <!-- Hero -->
+    <section class="gd-hero">
+      <div class="gd-hero-avatar">⚔️</div>
+      <div class="gd-hero-body">
+        <div class="gd-hero-eyebrow">GROUP DETAIL</div>
+        <h1>{{ data.name }}</h1>
+        <p>创建者 {{ data.creator_name }} · 创建于 {{ String(data.created_at).slice(0,10) }}</p>
+        <div class="gd-hero-tags">
+          <span class="gd-hero-tag">👥 {{ data.member_count }} / {{ data.max_members }} 人</span>
+          <span class="gd-hero-tag" v-if="data.role === 'owner'">👑 我是组长</span>
+          <span class="gd-hero-tag" v-else-if="data.is_member">🤝 我是成员</span>
+        </div>
+      </div>
+      <div class="gd-hero-stats">
+        <div class="gd-hero-stat">
+          <div class="ic">👥</div>
+          <div class="val">{{ data.member_count }}</div>
+          <div class="lbl">成员</div>
+        </div>
+        <div class="gd-hero-stat">
+          <div class="ic">🎯</div>
+          <div class="val">{{ data.challenges.length }}</div>
+          <div class="lbl">挑战</div>
+        </div>
+      </div>
+    </section>
 
-    <div class="detail-actions">
+    <!-- Actions -->
+    <div class="gd-actions">
       <template v-if="!data.is_member">
         <button class="btn primary" :disabled="actionLoading === 'join'" @click="join">{{ actionLoading === 'join' ? '加入中…' : '加入小组' }}</button>
       </template>
@@ -173,99 +200,97 @@ function windowLabel(c) {
         <button class="btn ghost sm" @click="copyInvite">{{ inviteCopied ? '已复制 ✓' : '复制邀请链接' }}</button>
         <button class="btn primary sm" @click="challengeOpen = !challengeOpen">{{ challengeOpen ? '收起' : '发起挑战' }}</button>
         <button v-if="data.role !== 'owner'" class="btn ghost sm" :disabled="actionLoading === 'leave'" @click="leave">退出小组</button>
-        <button v-if="data.role === 'owner'" class="btn ghost sm" :disabled="actionLoading === 'dissolve'" style="color:var(--red);border-color:color-mix(in srgb, var(--red), transparent 60%);" @click="dissolve">解散小组</button>
+        <button v-if="data.role === 'owner'" class="btn danger sm" :disabled="actionLoading === 'dissolve'" @click="dissolve">解散小组</button>
       </template>
       <a class="btn ghost sm" href="#/groups">返回列表</a>
     </div>
 
-    <div v-if="challengeOpen" class="challenge-form">
-      <div class="cf-title">发起挑战</div>
-      <div class="cf-kinds">
-        <label class="cf-kind"><input type="radio" value="daily" v-model="challengeKind"> 每日挑战比分</label>
-        <label class="cf-kind"><input type="radio" value="words_target" v-model="challengeKind"> 累计答对词数</label>
+    <!-- Challenge Form -->
+    <div v-if="challengeOpen" class="gd-challenge">
+      <div class="gd-challenge-head">
+        <span class="emoji">🎯</span>
+        <b>发起挑战</b>
       </div>
-      <div class="cf-fields">
-        <label>天数 <input type="number" v-model.number="challengeDays" :min="1" :max="30" class="cf-input"></label>
-        <label v-if="challengeKind === 'words_target'">目标词数 <input type="number" v-model.number="challengeTarget" :min="1" :max="100000" class="cf-input"></label>
+      <div class="gd-cf-kinds">
+        <label class="gd-cf-kind"><input type="radio" value="daily" v-model="challengeKind"> 每日挑战比分</label>
+        <label class="gd-cf-kind"><input type="radio" value="words_target" v-model="challengeKind"> 累计答对词数</label>
       </div>
-      <p v-if="challengeError" class="field-error">{{ challengeError }}</p>
+      <div class="gd-cf-fields">
+        <label>天数 <input type="number" v-model.number="challengeDays" :min="1" :max="30" class="gd-cf-input"></label>
+        <label v-if="challengeKind === 'words_target'">目标词数 <input type="number" v-model.number="challengeTarget" :min="1" :max="100000" class="gd-cf-input"></label>
+      </div>
+      <p v-if="challengeError" class="gd-field-error">{{ challengeError }}</p>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <button class="btn primary sm" :disabled="challengeLoading" @click="submitChallenge">{{ challengeLoading ? '提交中…' : '提交' }}</button>
         <button class="btn ghost sm" @click="challengeOpen = false">取消</button>
       </div>
     </div>
 
-    <div class="section-title"><span>成员</span><small>{{ data.members.length }} 人</small></div>
-    <div class="member-grid">
-      <div v-for="m in data.members" :key="m.user_id" class="member-card" :class="{ me: m.me }">
-        <div class="mc-head">
-          <span class="mc-name">{{ m.name }}</span>
-          <span v-if="m.me" class="chip me-chip">我</span>
-          <span v-if="m.role === 'owner'" class="chip owner-chip">组长</span>
+    <!-- Members -->
+    <div class="gd-section-head">
+      <span class="emoji">👥</span>
+      <h2>成员</h2>
+      <span class="count">{{ data.members.length }} 人</span>
+    </div>
+    <div v-if="!data.members.length" class="empty gd-empty-inline">
+      <span class="emoji">👥</span>
+      <p>还没有成员</p>
+    </div>
+    <div v-else class="gd-member-list stagger-in">
+      <div v-for="(m, mIdx) in data.members" :key="m.user_id" class="gd-member" :class="{ me: m.me }">
+        <div class="gd-mi-avatar" :class="[`gc-av-${mIdx % 4}`, m.today_done ? 'online' : '']">
+          <span>{{ ['🧑','👩','🧔','👧','👦','👨','👩‍🦰','🧑‍🦱'][mIdx % 8] }}</span>
         </div>
-        <div class="mc-meta">Lv.{{ m.level }} {{ m.level_title }} · 连续 {{ m.streak }} 天 · {{ m.xp }} XP<span v-if="m.today_done"> · 今日已练 ✓</span></div>
-        <div class="mc-joined">加入于 {{ String(m.joined_at).slice(0,10) }}</div>
+        <div class="gd-mi-info">
+          <div class="gd-mi-name">
+            <span>{{ m.name }}</span>
+            <span v-if="m.me" class="gd-me-badge">我</span>
+            <span v-if="m.role === 'owner'" class="gd-role-badge">组长</span>
+          </div>
+          <div class="gd-mi-detail">
+            <span>Lv.{{ m.level }} {{ m.level_title }}</span>
+            <span class="gd-dot">·</span>
+            <span class="gd-mi-streak">🔥 连续 {{ m.streak }} 天</span>
+            <span class="gd-dot">·</span>
+            <span>{{ m.xp }} XP</span>
+            <span v-if="m.today_done">· 今日已练 ✓</span>
+          </div>
+          <div class="gd-mi-joined">加入于 {{ String(m.joined_at).slice(0,10) }}</div>
+        </div>
+        <div class="gd-mi-right">
+          <span class="gd-mi-lv">🏆 Lv.{{ m.level }}</span>
+          <span class="gd-mi-xp">{{ m.xp }}</span>
+        </div>
       </div>
     </div>
 
-    <div class="section-title"><span>挑战</span><small>{{ data.challenges.length }} 个</small></div>
-    <div v-if="!data.challenges.length" class="empty" style="padding:28px;">还没有挑战，发起一个吧</div>
-    <div v-else class="challenge-list">
-      <div v-for="c in data.challenges" :key="c.id" class="challenge-card">
-        <div class="ch-head">
-          <b>{{ challengeTitle(c) }}</b>
+    <!-- Challenges -->
+    <div class="gd-section-head">
+      <span class="emoji">🎯</span>
+      <h2>挑战</h2>
+      <span class="count">{{ data.challenges.length }} 个</span>
+    </div>
+    <div v-if="!data.challenges.length" class="empty gd-empty-inline">
+      <span class="emoji">🎯</span>
+      <p>还没有挑战，发起一个吧</p>
+    </div>
+    <div v-else class="gd-challenge-list">
+      <div v-for="(c, cIdx) in data.challenges" :key="c.id" class="gd-challenge-card" :class="{ active: c.active }">
+        <div class="gd-ch-head">
+          <b><span class="gd-ch-icon">{{ c.active ? '🏆' : '📋' }}</span>{{ challengeTitle(c) }}</b>
           <span class="chip" :class="c.active ? 'active-chip' : 'ended-chip'">{{ c.active ? '进行中' : '已结束' }}</span>
         </div>
-        <div class="ch-window">{{ windowLabel(c) }} · 由 {{ c.created_by }} 发起</div>
-        <div v-if="!c.scores.length" class="ch-empty">暂无比分</div>
-        <ol v-else class="ch-scores">
-          <li v-for="(s, idx) in c.scores" :key="s.user_id" class="ch-row">
-            <span class="ch-rank">{{ idx === 0 ? '👑' : idx + 1 }}</span>
-            <span class="ch-name">{{ s.name }}</span>
-            <span class="ch-value">{{ s.value }}</span>
-            <span v-if="c.played_counts && c.played_counts[s.user_id] != null" class="ch-played">({{ c.played_counts[s.user_id] }} 局)</span>
-          </li>
-        </ol>
+        <div class="gd-ch-window">{{ windowLabel(c) }} · 由 {{ c.created_by }} 发起</div>
+        <div v-if="!c.scores.length" class="gd-ch-empty">暂无比分</div>
+        <div v-else class="gd-scores">
+          <div v-for="(s, idx) in c.scores" :key="s.user_id" class="gd-score" :class="{ 'top-1': idx === 0, 'top-2': idx === 1, 'top-3': idx === 2 }">
+            <span class="gd-score-rank" :class="{ top: idx < 3 }">{{ idx === 0 ? '👑' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1 }}</span>
+            <span class="gd-score-name">{{ s.name }}</span>
+            <span class="gd-score-value">{{ s.value }}</span>
+            <span v-if="c.played_counts && c.played_counts[s.user_id] != null" class="gd-score-played">({{ c.played_counts[s.user_id] }} 局)</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.login-gate { text-align: center; gap: 10px; }
-.gate-title { font-size: 17px; font-weight: 750; margin: 0; }
-.gate-sub { color: var(--dim); margin: 0 0 6px; max-width: 420px; }
-.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.challenge-form { margin-bottom: 18px; padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
-.cf-title { font-weight: 750; margin-bottom: 10px; }
-.cf-kinds { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
-.cf-kind { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
-.cf-fields { display: flex; gap: 14px; flex-wrap: wrap; }
-.cf-fields label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; }
-.cf-input { width: 110px; padding: 7px 10px; color: var(--text); background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; outline: none; }
-.field-error { color: var(--red); font-size: 12px; margin-top: 8px; }
-.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.member-card { padding: 14px; background: linear-gradient(160deg, var(--panel), color-mix(in srgb, var(--panel), var(--bg) 12%)); border: 1px solid var(--border); border-radius: 14px; }
-.member-card.me { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.mc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.mc-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; font-size: 10.5px; border-radius: 7px; font-weight: 700; }
-.me-chip { color: var(--accent-text); background: var(--accent-grad); }
-.owner-chip { color: var(--type-text); background: var(--type-bg); }
-.active-chip { color: var(--green); background: var(--audio-bg); }
-.ended-chip { color: var(--dim2); background: var(--panel2); border: 1px solid var(--border); }
-.mc-meta { color: var(--dim); font-size: 12px; }
-.mc-joined { color: var(--dim2); font-size: 11px; margin-top: 4px; }
-.challenge-list { display: flex; flex-direction: column; gap: 12px; }
-.challenge-card { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-soft); }
-.ch-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
-.ch-head b { font-size: 15px; }
-.ch-window { color: var(--dim2); font-size: 11.5px; margin-bottom: 10px; }
-.ch-empty { color: var(--dim2); font-size: 12px; padding: 8px 0; }
-.ch-scores { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.ch-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: color-mix(in srgb, var(--panel2) 70%, transparent); border: 1px solid var(--border); border-radius: 10px; }
-.ch-rank { width: 28px; text-align: center; font-weight: 800; color: var(--dim); }
-.ch-name { flex: 1; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ch-value { font-weight: 800; font-variant-numeric: tabular-nums; }
-.ch-played { color: var(--dim2); font-size: 11px; }
-</style>

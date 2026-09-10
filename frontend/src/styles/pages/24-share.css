@@ -1,8 +1,205 @@
-/* ===== 24-share · 分享卡与语音训练 · ShareCard+SpeechDrill =====
-   对照 design/分享卡与语音训练-desktop.html + 分享卡与语音训练-mobile.html
+/* ===== 24-share · 分享卡与语音训练 · ShareCard + SpeechDrill =====
+   对照 design/daily-desktop.html 的 share 区块 + shadow 稿的录音态
    规则：只写本页专属选择器；通用原语用 base.css 的类
    （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
      .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
      .btn .duo-btn .grid-* .table-wrap .form-input）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
+   动画只用 transform / opacity。
+   级联：legacy.css → base.css → 本文件，同名选择器以本文件为准。
+   注意：DailyPage 也有 .share-box（纯文本分享块），本文件的选择器一律
+   加 .share-modal / .speech-drill 前缀，避免污染别的页面。
 */
+
+/* ============================================================
+   一、语音训练条 SpeechDrill（PracticePage 跟读组件）
+   ============================================================ */
+.speech-drill {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  flex-wrap: wrap; position: relative;
+  min-height: 52px; margin: 12px 0 2px; padding: 10px 16px;
+  border: 1.5px solid var(--border); border-radius: var(--r-lg);
+  background: var(--panel2);
+}
+
+/* 录音中：红色 .red-light 底 + 红点脉动 */
+.speech-drill.rec-on {
+  background: var(--red-light); border-color: rgba(255, 75, 75, .35);
+  color: var(--red-dark);
+}
+:root[data-theme="dark"] .speech-drill.rec-on {
+  background: rgba(255, 75, 75, .14); border-color: rgba(255, 75, 75, .4);
+  color: var(--red);
+}
+.speech-drill.rec-on::before {
+  content: ""; position: absolute; inset: -2px;
+  border: 2px solid var(--red); border-radius: inherit;
+  opacity: 0; animation: ring-pulse 1.6s var(--ease-out) infinite;
+  pointer-events: none;
+}
+
+/* 判分结果：三色底 */
+.speech-drill.good {
+  background: var(--green-bg); border-color: rgba(88, 204, 2, .3); color: var(--green-dark);
+}
+.speech-drill.close {
+  background: var(--orange-light); border-color: rgba(255, 150, 0, .3); color: var(--orange-dark);
+}
+.speech-drill.bad {
+  background: var(--red-light); border-color: rgba(255, 75, 75, .3); color: var(--red);
+}
+:root[data-theme="dark"] .speech-drill.good { background: rgba(88, 204, 2, .14); color: var(--green); }
+:root[data-theme="dark"] .speech-drill.close { background: rgba(255, 150, 0, .14); color: var(--orange); }
+:root[data-theme="dark"] .speech-drill.bad { background: rgba(255, 75, 75, .14); color: var(--red); }
+
+.speech-drill .btn {
+  min-height: 44px; padding: 11px 20px;
+  font-size: 14px; font-weight: 800;
+}
+/* 聆听中的按钮：红底 + 外圈脉动 */
+.speech-drill .btn.listening {
+  background: var(--red); color: #fff; box-shadow: 0 4px 0 var(--red-dark);
+}
+.speech-drill .btn.listening:hover { background: #ff6b6b; }
+.speech-drill .btn.listening:active { box-shadow: 0 1px 0 var(--red-dark); }
+.speech-drill .btn.listening::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 18px;
+  border: 3px solid var(--red); opacity: 0;
+  animation: ring-pulse 1.4s var(--ease-out) infinite;
+  pointer-events: none;
+}
+
+/* 红点脉动（继承 legacy 的 mic-pulse，仅 opacity + transform） */
+.speech-drill .mic-dot {
+  width: 10px; height: 10px; flex: none;
+  background: #fff; animation: mic-pulse 1s ease-in-out infinite;
+}
+
+.speech-drill .speech-verdict { font-size: 14px; font-weight: 900; }
+.speech-drill .speech-verdict b { font-size: 15px; font-weight: 900; }
+.speech-drill .speech-verdict small {
+  font-size: 12px; font-weight: 700; color: var(--text-dim);
+}
+.speech-drill .speech-verdict.good { color: var(--green-dark); }
+.speech-drill .speech-verdict.close { color: var(--orange-dark); }
+.speech-drill .speech-verdict.bad { color: var(--red); }
+:root[data-theme="dark"] .speech-drill .speech-verdict.good { color: var(--green); }
+:root[data-theme="dark"] .speech-drill .speech-verdict.close { color: var(--orange); }
+
+.speech-drill .sd-idle {
+  font-size: 13px; font-weight: 800; color: var(--text-dim);
+}
+
+/* ============================================================
+   二、分享卡 ShareCard（白底圆角 + 3px 下压 + 绿蓝渐变点缀）
+   ============================================================ */
+.share-modal .share-box {
+  width: min(94vw, 462px);
+  max-height: 92vh; overflow-y: auto;
+  padding: 0 0 22px;
+  border-radius: var(--r-hero);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, .08), 0 26px 54px rgba(0, 0, 0, .22);
+}
+:root[data-theme="dark"] .share-modal .share-box {
+  box-shadow: 0 8px 0 #000, 0 28px 58px rgba(0, 0, 0, .5);
+}
+
+/* 顶部绿→蓝渐变点缀 */
+.share-modal .share-topbar {
+  height: 6px;
+  background: linear-gradient(90deg, var(--green), #6fdd1a 46%, var(--blue));
+  border-radius: var(--r-hero) var(--r-hero) 0 0;
+}
+
+.share-modal .share-head {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px 22px 16px;
+  background: linear-gradient(135deg, var(--green-bg) 0%, var(--blue-bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+:root[data-theme="dark"] .share-modal .share-head {
+  background: linear-gradient(135deg, rgba(88, 204, 2, .14), rgba(28, 176, 246, .14));
+}
+.share-modal .share-head::after {
+  content: ""; position: absolute; top: -36px; right: -26px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: rgba(88, 204, 2, .12); pointer-events: none;
+}
+
+.share-modal .share-head-emoji {
+  position: relative; z-index: 1; flex: none;
+  display: grid; place-items: center;
+  width: 50px; height: 50px;
+  font-size: 26px; font-family: var(--emoji);
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .12);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .1));
+}
+
+.share-modal .share-head-body { position: relative; z-index: 1; flex: 1; min-width: 0; }
+.share-modal .share-title {
+  margin: 0; font-size: 18px; font-weight: 900; letter-spacing: -.2px;
+}
+.share-modal .share-head-sub {
+  margin-top: 2px; font-size: 12px; font-weight: 800; color: var(--text-dim);
+}
+.share-modal .share-badge {
+  position: relative; z-index: 1; flex: none;
+  padding: 5px 11px; border-radius: 10px;
+  background: var(--gold-light); color: var(--gold-dark);
+  font-size: 11px; font-weight: 900;
+}
+:root[data-theme="dark"] .share-modal .share-badge {
+  background: rgba(255, 200, 0, .16); color: var(--gold);
+}
+
+.share-modal .share-canvas {
+  display: block; width: 100%;
+  margin: 16px 20px 0;
+  border-radius: 14px; border: 1px solid var(--border);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .08);
+}
+:root[data-theme="dark"] .share-modal .share-canvas {
+  box-shadow: 0 4px 0 #000;
+}
+
+/* 分享文案块：可手动复制的虚线码区 */
+.share-modal .share-text {
+  display: block;
+  margin: 14px 20px 0; padding: 12px 14px;
+  white-space: pre-wrap; word-break: break-word;
+  text-align: left;
+  font-family: var(--sans); font-size: 12.5px; line-height: 1.75;
+  font-weight: 700; color: var(--text);
+  background: var(--panel2);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 12px;
+}
+
+.share-modal .share-ops {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  margin: 16px 20px 0;
+}
+.share-modal .share-ops .btn { flex: 1 1 auto; min-width: 108px; }
+.share-modal .share-ops .btn.primary.big { flex: 1 1 100%; width: 100%; }
+.share-modal .share-ops .btn.copied {
+  background: var(--green); color: #fff; box-shadow: 0 4px 0 var(--green-dark);
+}
+
+/* ---------- 手机：按钮全宽 ---------- */
+@media (max-width: 620px) {
+  .share-modal .share-box { width: 94vw; padding-bottom: 18px; }
+  .share-modal .share-head { padding: 16px 16px 12px; gap: 10px; }
+  .share-modal .share-head-emoji { width: 44px; height: 44px; font-size: 23px; border-radius: 13px; }
+  .share-modal .share-title { font-size: 17px; }
+  .share-modal .share-canvas { margin: 12px 14px 0; }
+  .share-modal .share-text { margin: 12px 14px 0; padding: 11px 12px; font-size: 12px; }
+  .share-modal .share-ops { margin: 14px 14px 0; flex-direction: column; gap: 9px; }
+  .share-modal .share-ops .btn { flex: 1 1 100%; width: 100%; }
+  .speech-drill { padding: 9px 12px; min-height: 48px; }
+  .speech-drill .btn { min-height: 42px; }
+}

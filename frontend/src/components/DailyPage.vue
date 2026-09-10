@@ -341,13 +341,46 @@ function savePoster() {
 </script>
 
 <template>
-  <div v-if="error && !questions.length" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
+  <div v-if="error && !questions.length" class="empty daily-empty" role="alert">
+    <span class="emoji" aria-hidden="true">😵</span>
+    <h3>题目加载失败</h3>
+    <p>{{ error }}</p>
+    <button class="btn primary" @click="load">重试</button>
+  </div>
   <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
-  <div v-else-if="!questions.length" class="empty">没有可出题的词</div>
+  <div v-else-if="!questions.length" class="empty"><span class="emoji" aria-hidden="true">🗂️</span>没有可出题的词</div>
 
+  <!-- ===== 答题态 ===== -->
   <div v-else-if="stage === 'play' && q" class="quiz-page daily-page">
-    <div class="practice-top">
-      <span class="progress-line">{{ progress }} · 得分 {{ picks.filter((p) => p.picked === p.id).length }}</span>
+    <!-- 竞技场头：LIVE 全站同题 + 已答进度环 -->
+    <section class="daily-arena">
+      <div class="daily-arena-left">
+        <span class="daily-live"><i class="live-dot" aria-hidden="true"></i> LIVE · 全站同题</span>
+        <h2 class="daily-arena-title">今日挑战 · {{ listTitle || "每日词汇" }}</h2>
+        <small class="daily-arena-meta">📅 {{ day }} · 每题仅一次机会</small>
+      </div>
+      <div class="daily-arena-right">
+        <div class="daily-mini-ring">
+          <svg width="78" height="78" viewBox="0 0 78 78" aria-hidden="true">
+            <circle class="daily-ring-track" cx="39" cy="39" r="32" stroke-width="7"></circle>
+            <circle class="daily-ring-arc" cx="39" cy="39" r="32" stroke-width="7"
+                    stroke-linecap="round" stroke-dasharray="201.06"
+                    :stroke-dashoffset="201.06 * (1 - picks.length / questions.length)"></circle>
+          </svg>
+          <span class="daily-mini-ring-num">{{ picks.length }}<i>/{{ questions.length }}</i></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 题号进度 + 词库/题型 -->
+    <div class="practice-top daily-top">
+      <span class="progress-line daily-progress">
+        <span class="qnum daily-qnum">{{ progress }}</span>
+        <span class="daily-pips">
+          <span class="daily-pip on">✓ {{ picks.filter((p) => p.picked === p.id).length }}</span>
+          <span class="daily-pip off">✗ {{ picks.filter((p) => p.picked !== p.id).length }}</span>
+        </span>
+      </span>
       <span class="badge mode-badge">
         <select v-model="list" class="daily-list-select" aria-label="选择词库"
                 :disabled="picks.length > 0" @change="switchList">
@@ -356,18 +389,63 @@ function savePoster() {
         <em class="daily-kind-tag">{{ kindLabel }}</em>
       </span>
     </div>
-    <div class="practice-card">
-      <div id="answer-line" aria-live="polite">
-        <span v-if="graded && lastRight" style="color:var(--green);">✔ 答对了！</span>
-        <span v-else-if="graded" style="color:var(--red);">
-          ✗ 正确答案：<span class="show-word">{{ q.text }}</span>
+
+    <!-- 10 题进度格 -->
+    <div class="daily-strip">
+      <div class="daily-strip-head">
+        <span class="card-icon" aria-hidden="true">🎯</span>
+        <div class="daily-strip-body">
+          <b>挑战答题进度</b>
+          <small>全站同题 · 答对自动下一题，答错可看答案</small>
+        </div>
+        <span class="qnum daily-strip-count">
+          <span class="dc-r">✓ {{ picks.filter((p) => p.picked === p.id).length }}</span>
+          <span class="dc-w">✗ {{ picks.filter((p) => p.picked !== p.id).length }}</span>
+          <span class="dc-n">○ {{ questions.length - picks.length }}</span>
+        </span>
+      </div>
+      <div class="qslot-grid">
+        <div v-for="(qm, i) in questions" :key="qm.id" class="qslot"
+             :class="{ correct: !!picks[i] && picks[i].picked === picks[i].id,
+                       wrong: !!picks[i] && picks[i].picked !== picks[i].id,
+                       current: !picks[i] && i === qi }">
+          <span class="qn">Q{{ i + 1 }}</span>
+          <span class="qm" aria-hidden="true">
+            <template v-if="picks[i]">
+              <span v-if="picks[i].picked === picks[i].id">✅</span>
+              <span v-else>❌</span>
+            </template>
+            <span v-else-if="i === qi">🎧</span>
+            <span v-else>🔒</span>
+          </span>
+        </div>
+      </div>
+      <div class="daily-legend">
+        <span><i class="sw sw-c"></i> 答对</span>
+        <span><i class="sw sw-w"></i> 答错</span>
+        <span><i class="sw sw-cur"></i> 当前</span>
+        <span><i class="sw sw-n"></i> 未答</span>
+      </div>
+    </div>
+
+    <!-- 答题卡 -->
+    <div class="practice-card daily-card">
+      <div class="daily-card-head">
+        <span class="badge-soft blue daily-qbadge">{{ kindLabel }}</span>
+        <span class="daily-date">📅 {{ day }}</span>
+      </div>
+      <div id="answer-line" aria-live="polite" class="daily-answer-line">
+        <span v-if="graded && lastRight" class="verdict verdict-right">✅ 答对了！</span>
+        <span v-else-if="graded" class="verdict verdict-wrong">
+          ❌ 正确答案：<span class="show-word">{{ q.text }}</span>
         </span>
       </div>
       <div v-if="q.kind === 'zh_en'" class="quiz-prompt">
         {{ q.options.find((o) => o.id === q.id)?.meaning || '（该词暂无释义）' }}
       </div>
       <div v-else class="quiz-play">
-        <button class="btn primary big" aria-label="播放单词发音" @click="play">🔊</button>
+        <button class="btn primary big daily-play" aria-label="播放单词发音" @click="play">🔊</button>
+        <span class="daily-play-cap">点我听发音</span>
       </div>
       <div class="hint">{{ HINTS[q.kind] }}</div>
       <div class="quiz-options">
@@ -377,8 +455,11 @@ function savePoster() {
                     wrong: graded && picked === o.id && o.id !== q.id }"
           :disabled="graded" :aria-label="'选项 ' + (i + 1) + '：' + (q.kind === 'en_zh' ? o.meaning : o.text)"
           @click="answer(o)">
-          <b>{{ q.kind === 'en_zh' ? (o.meaning || '（无释义）') : o.text }}</b>
-          <small v-if="graded">{{ q.kind === 'en_zh' ? o.text : o.meaning }}</small>
+          <i class="qopt-num" aria-hidden="true">{{ i + 1 }}</i>
+          <span class="qopt-text">
+            <b>{{ q.kind === 'en_zh' ? (o.meaning || '（无释义）') : o.text }}</b>
+            <small v-if="graded">{{ q.kind === 'en_zh' ? o.text : o.meaning }}</small>
+          </span>
         </button>
       </div>
       <div class="controls" v-if="graded && !lastRight">
@@ -387,27 +468,93 @@ function savePoster() {
     </div>
   </div>
 
-  <div v-else class="empty daily-done">
-    <div class="daily-done-title">
-      {{ completed ? '今日挑战完成 🎉' : replaying ? '练习局完成' : '本轮完成' }}
-      <small v-if="replaying">换一批词练手 · 不计成绩</small>
-    </div>
-    <p class="done-score-line">答对 {{ doneScore }} / {{ doneTotal }} · 正确率 {{ doneAcc }}%</p>
-    <div class="daily-grid" aria-label="今日答题网格">
-      <span v-for="(c, i) in gridCells" :key="i" class="grid-cell"
-            :class="c === '🟩' ? 'right' : 'wrong'" :style="{ '--ci': i }"></span>
-    </div>
-    <p v-if="profile && !replaying" class="daily-xp-line">
-      词力 <b>{{ profile.title }}</b> Lv.{{ profile.level }}
-      <template v-if="profile.daily_streak"> · 每日挑战连续 <b>{{ profile.daily_streak }}</b> 天</template>
-    </p>
-    <template v-if="!replaying">
-      <pre class="share-box" aria-label="分享文本">{{ shareText }}</pre>
-      <div class="controls share-actions">
-        <button class="btn primary big" @click="copyShare">{{ copied ? '已复制 ✓' : '复制文本' }}</button>
-        <button class="btn ghost big" @click="savePoster">保存海报 PNG</button>
+  <!-- ===== 结算态 ===== -->
+  <div v-else class="daily-done">
+    <section class="daily-hero">
+      <header class="daily-hero-top">
+        <div class="daily-hero-title">
+          <span class="daily-hero-emoji" aria-hidden="true">
+            <span v-if="completed">🎉</span>
+            <span v-else-if="replaying">🏋️</span>
+            <span v-else>🏁</span>
+          </span>
+          <div class="daily-hero-text">
+            <h2>
+              <template v-if="completed">今日挑战完成 🎉</template>
+              <template v-else-if="replaying">练习局完成</template>
+              <template v-else>本轮完成</template>
+            </h2>
+            <small v-if="replaying">换一批词练手 · 不计成绩</small>
+          </div>
+        </div>
+        <span v-if="completed" class="badge-soft gold">⚡ 已计分</span>
+      </header>
+
+      <div class="daily-hero-body">
+        <div class="daily-ring-wrap">
+          <svg class="daily-ring" width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+            <circle class="daily-ring-track" cx="66" cy="66" r="54" stroke-width="12"></circle>
+            <circle class="daily-ring-arc" cx="66" cy="66" r="54" stroke-width="12"
+                    stroke-dasharray="339.29"
+                    :stroke-dashoffset="339.29 * (1 - doneAcc / 100)"></circle>
+          </svg>
+          <div class="daily-ring-center">
+            <span class="pct">{{ doneAcc }}<i>%</i></span>
+            <span class="sub">正确率</span>
+          </div>
+        </div>
+        <div class="daily-hero-stats">
+          <p class="done-score-line">答对 <b>{{ doneScore }}</b> / {{ doneTotal }} 题</p>
+          <div class="daily-mini-row">
+            <div class="daily-mini">
+              <span class="daily-mini-val"><i>✅</i> {{ doneScore }}</span>
+              <span class="lbl">答对</span>
+            </div>
+            <div class="daily-mini">
+              <span class="daily-mini-val"><i>❌</i> {{ doneTotal - doneScore }}</span>
+              <span class="lbl">答错</span>
+            </div>
+            <div class="daily-mini">
+              <span class="daily-mini-val"><i>🔥</i> {{ profile ? (profile.daily_streak || 0) : 0 }}</span>
+              <span class="lbl">连续打卡</span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <div class="daily-grid-panel">
+        <div class="daily-grid" aria-label="今日答题网格">
+          <span v-for="(c, i) in gridCells" :key="i" class="grid-cell"
+                :class="c === '🟩' ? 'right' : 'wrong'" :style="{ '--ci': i }"></span>
+        </div>
+      </div>
+
+      <p v-if="profile && !replaying" class="daily-xp-line">
+        <span class="daily-xp-badge" aria-hidden="true">💪</span>
+        词力 <b class="daily-xp-name">{{ profile.title }}</b> Lv.{{ profile.level }}
+        <template v-if="profile.daily_streak"> · 每日挑战连续 <b>{{ profile.daily_streak }}</b> 天</template>
+        <span v-if="profile.xp != null" class="daily-xp-num">+{{ profile.xp }}</span>
+      </p>
+    </section>
+
+    <template v-if="!replaying">
+      <section class="daily-share">
+        <div class="daily-share-head">
+          <span class="card-icon" aria-hidden="true">📋</span>
+          <div class="daily-share-body">
+            <b>Wordle 式分享码</b>
+            <small>复制发给好友，对比成绩</small>
+          </div>
+          <span class="badge-soft gold">⚡ 一键复制</span>
+        </div>
+        <pre class="share-box" aria-label="分享文本">{{ shareText }}</pre>
+        <div class="controls share-actions">
+          <button class="btn primary big" @click="copyShare">{{ copied ? '已复制 ✓' : '复制文本' }}</button>
+          <button class="btn ghost big" @click="savePoster">保存海报 PNG</button>
+        </div>
+      </section>
     </template>
+
     <div class="controls more-actions">
       <button class="btn primary sm" @click="startReplay">再玩一次（新词 · 不计分）</button>
       <a class="btn ghost sm" href="#/tree">看看我的小树 →</a>

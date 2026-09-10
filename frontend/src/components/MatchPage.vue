@@ -176,61 +176,140 @@ function mmss(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0
 
 <template>
   <div class="match-page">
-    <!-- 开始页 -->
-    <div v-if="phase === 'start'" class="empty">
-      <div style="font-size:44px;" aria-hidden="true">🀄</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">英中配对消消乐</div>
-      <p>词与释义两两配对，配上一对消一对，清空桌面即通关。</p>
-      <p>配错双方都会抖一下并记一次失误——首配即中的词才有满额经验。</p>
-      <div class="match-setup">
-        <select v-model="list" class="match-select" aria-label="选择词库">
-          <option v-for="l in wordLists" :key="l.key" :value="l.key">{{ l.title }}</option>
-        </select>
-        <select v-model.number="pairsWanted" class="match-select" aria-label="选择对数">
-          <option v-for="n in PAIR_OPTIONS" :key="n" :value="n">{{ n }} 对</option>
-        </select>
-      </div>
-      <p v-if="loadError" role="alert" style="color:var(--red);">{{ loadError }}</p>
-      <div class="controls" style="margin-top:16px;">
-        <button class="btn primary big" @click="deal">🎮 开始配对</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
-      </div>
+    <!-- ============ 开始页 ============ -->
+    <div v-if="phase === 'start'" class="match-start">
+      <section class="match-hero">
+        <div class="mh-top">
+          <span class="mh-eyebrow"><span class="ic">🃏</span> 记忆配对</span>
+          <span class="mh-badge"><span class="ic">🀄</span> 英中互译</span>
+        </div>
+        <h1>英中配对消消乐</h1>
+        <p class="mh-lead">词与释义两两配对，配上一对消一对，清空桌面即通关。</p>
+        <p class="mh-rule">配错双方都会抖一下并记一次失误——首配即中的词才有满额经验。</p>
+      </section>
+
+      <section class="card match-setup-card">
+        <div class="card-title"><span class="card-icon">⚙️</span> 开局设置</div>
+        <div class="setup-grid">
+          <div class="form-group">
+            <label class="form-label" for="match-list">📚 词库</label>
+            <select id="match-list" v-model="list" class="match-select form-select" aria-label="选择词库">
+              <option v-for="l in wordLists" :key="l.key" :value="l.key">{{ l.title }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="match-pairs">🎯 对数</label>
+            <select id="match-pairs" v-model.number="pairsWanted" class="match-select form-select" aria-label="选择对数">
+              <option v-for="n in PAIR_OPTIONS" :key="n" :value="n">{{ n }} 对</option>
+            </select>
+          </div>
+        </div>
+        <p v-if="loadError" role="alert" class="setup-error">⚠️ {{ loadError }}</p>
+        <div class="controls match-cta">
+          <button class="btn primary big full" @click="deal">🎮 开始配对</button>
+          <button class="btn ghost full" @click="goCatalog">📚 返回素材库</button>
+        </div>
+      </section>
+
+      <section class="card match-tips">
+        <div class="card-title"><span class="card-icon">💡</span> 玩法技巧</div>
+        <div class="card-desc">三条心得，命中率翻倍</div>
+        <div class="tip-row">
+          <div class="tip-ic g">🔊</div>
+          <div class="tip-body">
+            <b>先听后配</b>
+            <p>开局会自动念第一个词，点英文牌也会发音——耳朵先记住读音，再找释义更快。</p>
+          </div>
+        </div>
+        <div class="tip-row">
+          <div class="tip-ic b">🎯</div>
+          <div class="tip-body">
+            <b>首配即中才拿满经验</b>
+            <p>配错一次，双方这个词都失去「首配即中」资格。先扫一眼整盘，优先消掉最有把握的一对。</p>
+          </div>
+        </div>
+        <div class="tip-row">
+          <div class="tip-ic o">🔄</div>
+          <div class="tip-body">
+            <b>点错不用慌</b>
+            <p>再点一次就取消选中；连对 2 次进入连击，连击越高经验加成越多。</p>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- 对局中 -->
+    <!-- ============ 对局中 ============ -->
     <template v-else-if="phase === 'run'">
-      <div class="practice-top">
-        <span class="progress-line">已消 {{ matchedCount }}/{{ totalPairs }} · 步数 {{ moves }} · 失误 {{ mistakes }}</span>
-        <span v-if="combo >= 2" class="combo-num" aria-hidden="true">🔥 ×{{ combo }}</span>
-        <span class="match-clock" role="timer" :aria-label="`已用时 ${seconds} 秒`">⏱ {{ mmss(seconds) }}</span>
+      <div class="cockpit">
+        <span class="hud-brand"><span class="ic">🃏</span> 配对中</span>
+        <div class="cockpit-divider"></div>
+        <div class="hud">
+          <span class="timer-pill hud-item" role="timer" :aria-label="`已用时 ${seconds} 秒`">⏱ {{ mmss(seconds) }}</span>
+          <span v-if="combo >= 2" class="hud-item combo" aria-hidden="true">🔥 ×{{ combo }}</span>
+          <span class="hud-item pairs">✅ 已消 {{ matchedCount }}/{{ totalPairs }}</span>
+          <span class="hud-item moves">👣 步数 {{ moves }} · 失误 {{ mistakes }}</span>
+        </div>
       </div>
-      <div ref="gridEl" class="pair-grid" :style="{ '--cols': gridCols }">
-        <button v-for="t in tiles" :key="t.key" class="pair-tile"
-                :class="tileClass(t)"
-                :aria-label="`${t.side === 'en' ? '英文' : '中文'}：${t.text}`"
-                @click="pick(t)">
-          <b>{{ t.text }}</b>
-          <small v-if="t.sub">{{ t.sub }}</small>
-        </button>
-      </div>
-      <div class="hint" style="text-align:center;margin-top:14px;">
-        点一个词再点它的释义（顺序随意）· 点英文会发音 · 再点一次取消选中
+
+      <div class="arena">
+        <div class="arena-top"></div>
+        <div class="arena-inner">
+          <div class="arena-head">
+            <div class="ah-left">
+              <span class="ah-badge"><span class="ic">🎯</span> {{ totalPairs }} 对挑战</span>
+              <span class="ah-title">翻牌配对<small>连对 2 次进入连击加成</small></span>
+            </div>
+            <div class="ah-prog">
+              <div class="progress-bar">
+                <div class="progress-fill green"
+                     :style="{ width: totalPairs ? matchedCount / totalPairs * 100 + '%' : '0%' }"></div>
+              </div>
+              <span class="ah-num">{{ matchedCount }}<small>/{{ totalPairs }}</small></span>
+            </div>
+          </div>
+
+          <div ref="gridEl" class="pair-grid" :style="{ '--cols': gridCols }">
+            <button v-for="t in tiles" :key="t.key" class="pair-tile"
+                    :class="tileClass(t)"
+                    :aria-label="`${t.side === 'en' ? '英文' : '中文'}：${t.text}`"
+                    @click="pick(t)">
+              <b>{{ t.text }}</b>
+              <small v-if="t.sub">{{ t.sub }}</small>
+            </button>
+          </div>
+
+          <div class="arena-foot">
+            <p class="hint">点一个词再点它的释义（顺序随意）· 点英文会发音 · 再点一次取消选中</p>
+            <div class="legend">
+              <span class="lg lg-en">🔤 英文</span>
+              <span class="lg lg-zh">🀄 中文</span>
+            </div>
+          </div>
+        </div>
       </div>
     </template>
 
-    <!-- 结算 -->
-    <div v-else class="empty">
-      <div style="font-size:40px;" aria-hidden="true">{{ '⭐'.repeat(stars) }}</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:10px;">桌面清空！</div>
-      <p>{{ totalPairs }} 对 · 用时 {{ mmss(seconds) }} · 步数 {{ moves }} · 失误 {{ mistakes }}</p>
-      <p v-if="result && result.perfect === result.total" style="color:var(--green);">
-        全部首配即中，经验拿满！</p>
-      <p v-else-if="result" style="color:var(--yellow);">
-        首配即中 {{ result.perfect }}/{{ result.total }} 个词</p>
-      <div class="controls" style="margin-top:16px;">
-        <button class="btn primary big" @click="deal">再来一局</button>
-        <button class="btn ghost big" @click="phase = 'start'; loadError = ''">换词库</button>
-      </div>
+    <!-- ============ 结算 ============ -->
+    <div v-else class="match-done">
+      <section class="hero-card match-result">
+        <div class="mr-stars">{{ '⭐'.repeat(stars) }}</div>
+        <h2>桌面清空！</h2>
+        <p class="mr-lead">{{ totalPairs }} 对 · 用时 {{ mmss(seconds) }} · 步数 {{ moves }} · 失误 {{ mistakes }}</p>
+        <div class="mr-grid">
+          <div class="mr-chip"><div class="v">{{ totalPairs }}</div><div class="l">✅ 消除对数</div></div>
+          <div class="mr-chip"><div class="v">{{ mmss(seconds) }}</div><div class="l">⏱ 用时</div></div>
+          <div class="mr-chip"><div class="v">{{ moves }}</div><div class="l">👣 步数</div></div>
+          <div class="mr-chip"><div class="v">{{ mistakes }}</div><div class="l">⚠️ 失误</div></div>
+        </div>
+        <p v-if="result && result.perfect === result.total" class="mr-perfect">
+          🎉 全部首配即中，经验拿满！</p>
+        <p v-else-if="result" class="mr-partial">
+          首配即中 {{ result.perfect }}/{{ result.total }} 个词</p>
+        <div class="controls match-cta">
+          <button class="btn white big full" @click="deal">🎮 再来一局</button>
+          <button class="btn mr-ghost big full" @click="phase = 'start'; loadError = ''">📚 换词库</button>
+        </div>
+      </section>
     </div>
   </div>
 </template>

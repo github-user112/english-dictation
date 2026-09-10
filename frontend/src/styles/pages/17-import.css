@@ -1,8 +1,858 @@
 /* ===== 17-import · 导入 · ImportPage =====
-   对照 design/导入-desktop.html + 导入-mobile.html
+   对照 design/import-desktop.html + import-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
    （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
      .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
      .btn .duo-btn .grid-* .table-wrap .form-input）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
-*/
+   级联顺序：legacy.css → base.css → 本文件（本页最晚，天然覆盖）
+   动画：仅 transform / opacity
+   ============================================================ */
+
+/* ============================================================
+   1. Import Hero
+   ============================================================ */
+.imp-hero {
+  background: linear-gradient(135deg, var(--blue) 0%, #4dd0ff 45%, var(--green) 100%);
+  border-radius: var(--r-hero);
+  padding: 26px 32px;
+  color: #fff;
+  box-shadow: 0 6px 0 var(--green-dark), 0 12px 32px rgba(28, 176, 246, 0.25);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.imp-hero::after {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -30px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+.imp-hero::before {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+.imp-sparkles {
+  position: absolute;
+  top: 16px;
+  right: 240px;
+  font-size: 18px;
+  opacity: 0.5;
+  z-index: 0;
+  animation: imp-sparkle-bob 2.5s ease-in-out infinite;
+}
+@keyframes imp-sparkle-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-6px) rotate(8deg); }
+}
+.imp-hero-icon {
+  font-size: 64px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  animation: imp-hero-pop 0.6s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+@keyframes imp-hero-pop {
+  0%   { transform: scale(0.5) rotate(-8deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.imp-hero-text {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+.imp-hero-text h1 {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+.imp-hero-text h1 em {
+  font-style: normal;
+  font-weight: 900;
+}
+.imp-hero-text .sub {
+  font-size: 15px;
+  font-weight: 800;
+  opacity: 0.92;
+  margin-bottom: 2px;
+}
+.imp-hero-text .sub2 {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+.imp-hero-stats {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.ihs {
+  text-align: center;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(4px);
+  border-radius: 14px;
+}
+.ihs .hv {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.ihs .hl {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
+/* ============================================================
+   2. Import Pipeline
+   ============================================================ */
+.imp-pipeline-card {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  padding: 16px 20px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+}
+:root[data-theme="dark"] .imp-pipeline-card {
+  box-shadow: 0 4px 0 #000, 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+}
+.imp-pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.imp-pipe-step {
+  flex: 1;
+  text-align: center;
+  padding: 10px 6px 8px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 2px solid transparent;
+  position: relative;
+}
+.imp-pipe-step .ips-emoji {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--emoji);
+}
+.imp-pipe-step .ips-title {
+  font-size: 13px;
+  font-weight: 900;
+  display: block;
+}
+.imp-pipe-step .ips-desc {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 1px;
+}
+/* done */
+.imp-pipe-step.done {
+  background: var(--green-bg);
+  border-color: rgba(88, 204, 2, 0.3);
+}
+.imp-pipe-step.done .ips-title { color: var(--green-dark); }
+.imp-pipe-step.done::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--green);
+}
+/* active */
+.imp-pipe-step.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue-dark);
+  box-shadow: 0 3px 0 var(--blue-dark);
+  transform: translateY(-2px);
+}
+.imp-pipe-step.active .ips-title { color: #fff; }
+.imp-pipe-step.active .ips-desc { color: rgba(255, 255, 255, 0.85); }
+.imp-pipe-step.active .ips-emoji {
+  animation: imp-pipeline-pulse 1.5s ease-in-out infinite;
+}
+@keyframes imp-pipeline-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.1); }
+}
+/* pending */
+.imp-pipe-step.pending { opacity: 0.55; }
+.imp-pipe-step.pending .ips-emoji { opacity: 0.6; }
+
+.imp-pipe-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 16px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   3. Main Grid
+   ============================================================ */
+.imp-main-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.imp-left,
+.imp-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ============================================================
+   4. Method Tabs
+   ============================================================ */
+.imp-method-tabs {
+  display: flex;
+  gap: 12px;
+}
+.imp-method-tab {
+  flex: 1;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+.imp-method-tab .imt-emoji {
+  font-size: 32px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  font-family: var(--emoji);
+}
+.imp-method-tab .imt-body {
+  flex: 1;
+  min-width: 0;
+}
+.imp-method-tab .imt-title {
+  font-size: 15px;
+  font-weight: 900;
+  display: block;
+}
+.imp-method-tab .imt-desc {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.imp-method-tab.active {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  box-shadow: 0 3px 0 rgba(28, 176, 246, 0.2);
+}
+.imp-method-tab.active .imt-title { color: var(--blue-dark); }
+.imp-method-tab .imt-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--blue-dark);
+}
+.imp-method-tab .imt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--blue);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  margin-left: 4px;
+}
+
+/* ============================================================
+   5. Content Type Row
+   ============================================================ */
+.imp-ctype-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.imp-ctype-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.imp-ctype-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+  transition: all 0.2s;
+}
+.imp-ctype-opt.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green-dark);
+  box-shadow: 0 3px 0 var(--green-dark);
+}
+
+/* ============================================================
+   6. Paste Zone
+   ============================================================ */
+.imp-paste-zone {
+  background: var(--panel);
+  border: 2px solid var(--blue);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 0 rgba(28, 176, 246, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+.imp-paste-zone::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(28, 176, 246, 0.5) 50%, transparent 100%);
+  animation: imp-scan-line 3s linear infinite;
+  pointer-events: none;
+}
+@keyframes imp-scan-line {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+.imp-paste-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.imp-paste-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green);
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--green-dark);
+  flex-shrink: 0;
+}
+.imp-pb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  animation: pulse 1.5s ease infinite;
+}
+.imp-paste-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--gold-dark);
+  background: var(--gold-light);
+  padding: 5px 12px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+:root[data-theme="dark"] .imp-paste-count {
+  color: var(--gold);
+}
+.imp-paste-textarea {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--panel2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(28, 176, 246, 0.15);
+  color: var(--text);
+  resize: vertical;
+  min-height: 220px;
+  outline: none;
+  transition: border-color .15s;
+}
+.imp-paste-textarea:focus {
+  border-color: var(--blue);
+  background: var(--panel);
+}
+.imp-paste-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  gap: 8px;
+}
+
+/* ============================================================
+   7. Options Card
+   ============================================================ */
+.imp-options-card {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  padding: 18px 20px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="dark"] .imp-options-card {
+  box-shadow: 0 4px 0 #000, 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+}
+.imp-oc-title {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.imp-option-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.imp-option-row:last-child { border-bottom: none; }
+.imp-or-body {
+  flex: 1;
+  min-width: 0;
+}
+.imp-or-body b {
+  font-size: 13px;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 2px;
+}
+.imp-or-body small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.imp-toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--border-strong);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.imp-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+.imp-toggle.on { background: var(--green); }
+.imp-toggle.on::after { transform: translateX(20px); }
+
+/* ============================================================
+   8. Format Spec Card
+   ============================================================ */
+.imp-format-card {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  padding: 18px 20px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="dark"] .imp-format-card {
+  box-shadow: 0 4px 0 #000, 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+}
+.imp-fc-title {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.imp-fc-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.imp-fc-tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--panel2);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text-dim);
+  transition: all 0.2s;
+}
+.imp-fc-tab.active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 2px 0 var(--blue-dark);
+}
+.imp-fc-code {
+  background: var(--panel2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  border: 1px solid rgba(28, 176, 246, 0.15);
+  margin-bottom: 10px;
+  overflow-x: auto;
+}
+.imp-fcc-line { display: block; }
+.imp-fcc-text { color: var(--text); font-weight: 700; }
+.imp-fcc-comment { color: var(--text-faint); font-style: italic; }
+.imp-fc-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================================
+   9. Tips Banner
+   ============================================================ */
+.imp-tips {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--orange-light);
+  border: 1px solid rgba(255, 150, 0, 0.25);
+}
+.imp-tb-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: var(--emoji);
+}
+.imp-tb-body {
+  flex: 1;
+  min-width: 0;
+}
+.imp-tb-body b {
+  font-size: 13px;
+  font-weight: 900;
+  color: #8a5500;
+  display: block;
+  margin-bottom: 3px;
+}
+.imp-tb-body p {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8a5500;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .imp-tips {
+  background: rgba(255, 150, 0, 0.13);
+  border-color: rgba(255, 150, 0, 0.3);
+}
+:root[data-theme="dark"] .imp-tb-body b,
+:root[data-theme="dark"] .imp-tb-body p {
+  color: var(--orange);
+}
+
+/* ============================================================
+   10. Action Bar
+   ============================================================ */
+.imp-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+  gap: 12px;
+}
+:root[data-theme="dark"] .imp-action-bar {
+  box-shadow: 0 4px 0 #000, 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+}
+.imp-ab-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--green-bg);
+  border: 1px solid rgba(88, 204, 2, 0.2);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--green-dark);
+  flex: 1;
+}
+.imp-ai-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.5s ease infinite;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   11. Footer
+   ============================================================ */
+.imp-footer {
+  display: block;
+  text-align: center;
+  margin: 14px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   12. Message (error / success)
+   ============================================================ */
+.imp-action-bar + .account-message {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* ============================================================
+   13. Mobile — ≤ 760px
+   ============================================================ */
+@media (max-width: 760px) {
+
+  /* Hero → stack */
+  .imp-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 18px;
+    margin-bottom: 14px;
+  }
+  .imp-hero-icon {
+    font-size: 44px;
+  }
+  .imp-hero-text h1 { font-size: 19px; }
+  .imp-hero-text .sub { font-size: 12px; }
+  .imp-hero-text .sub2 { font-size: 10px; }
+  .imp-hero-stats {
+    width: 100%;
+    gap: 8px;
+  }
+  .ihs {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 12px;
+  }
+  .ihs .hv { font-size: 20px; }
+  .ihs .hl { font-size: 10px; }
+
+  .imp-sparkles {
+    top: 12px;
+    right: 16px;
+    font-size: 14px;
+  }
+
+  /* Pipeline → smaller */
+  .imp-pipeline-card {
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .imp-pipeline { gap: 4px; }
+  .imp-pipe-step {
+    padding: 8px 4px 6px;
+    border-radius: 10px;
+  }
+  .imp-pipe-step .ips-emoji { font-size: 18px; }
+  .imp-pipe-step .ips-title { font-size: 10px; }
+  .imp-pipe-step .ips-desc { font-size: 8px; }
+  .imp-pipe-arrow { font-size: 12px; }
+
+  /* Main grid → single column */
+  .imp-main-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .imp-left,
+  .imp-right {
+    gap: 14px;
+  }
+
+  /* Method tabs → centered, stacked text */
+  .imp-method-tabs { gap: 10px; }
+  .imp-method-tab {
+    padding: 14px 12px;
+    flex-direction: column;
+    text-align: center;
+    gap: 4px;
+    align-items: center;
+  }
+  .imp-method-tab .imt-emoji { font-size: 30px; margin-bottom: 2px; }
+  .imp-method-tab .imt-title { font-size: 14px; }
+  .imp-method-tab .imt-desc { font-size: 10px; }
+  .imp-method-tab .imt-check {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+  .imp-method-tab .imt-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 9px;
+    padding: 2px 7px;
+  }
+
+  /* Content type */
+  .imp-ctype-row { gap: 8px; }
+  .imp-ctype-opt {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+
+  /* Paste zone */
+  .imp-paste-zone {
+    padding: 14px 16px;
+    margin-bottom: 0;
+  }
+  .imp-paste-textarea {
+    font-size: 11px;
+    line-height: 1.7;
+    min-height: 160px;
+    padding: 10px 12px;
+  }
+  .imp-paste-badge { font-size: 10px; padding: 4px 10px; }
+  .imp-pb-dot { width: 6px; height: 6px; }
+  .imp-paste-count { font-size: 10px; padding: 4px 10px; }
+  .imp-paste-footer {
+    font-size: 10px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* Options */
+  .imp-options-card { padding: 16px 14px; }
+  .imp-oc-title { font-size: 14px; margin-bottom: 12px; }
+  .imp-option-row { padding: 8px 0; }
+  .imp-or-body b { font-size: 12px; }
+  .imp-or-body small { font-size: 10px; }
+  .imp-toggle {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+  }
+  .imp-toggle::after {
+    width: 18px;
+    height: 18px;
+  }
+  .imp-toggle.on::after { transform: translateX(18px); }
+
+  /* Format spec */
+  .imp-format-card { padding: 16px 14px; }
+  .imp-fc-title { font-size: 14px; margin-bottom: 10px; }
+  .imp-fc-tabs { gap: 5px; }
+  .imp-fc-tab { padding: 5px 12px; font-size: 11px; border-radius: 7px; }
+  .imp-fc-code {
+    font-size: 10px;
+    line-height: 1.7;
+    padding: 10px 12px;
+  }
+  .imp-fc-hint { font-size: 10px; }
+
+  /* Tips */
+  .imp-tips { padding: 12px 14px; border-radius: 12px; }
+  .imp-tb-emoji { font-size: 18px; }
+  .imp-tb-body b { font-size: 12px; }
+  .imp-tb-body p { font-size: 10px; }
+
+  /* Action bar */
+  .imp-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .imp-ab-info {
+    justify-content: center;
+    text-align: center;
+    font-size: 11px;
+  }
+  .imp-action-bar .btn {
+    width: 100%;
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+
+  /* Footer */
+  .imp-footer {
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 16px 14px 8px;
+  }
+}

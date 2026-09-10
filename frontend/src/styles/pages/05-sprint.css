@@ -1,8 +1,968 @@
 /* ===== 05-sprint · 限时冲刺 · SprintPage =====
-   对照 design/限时冲刺-desktop.html + 限时冲刺-mobile.html
+   对照 design/sprint-desktop.html + design/sprint-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
    （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
      .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
      .btn .duo-btn .grid-* .table-wrap .form-input）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
-*/
+
+   动效只用 transform / opacity；最后 10 秒红脉动用 opacity + scale。
+   倒计时环沿用脚本常量 RING_LEN（r=22），不改半径、只改显示尺寸与笔画。
+   所有选择器以 .sprint-page 打头，避免污染 legacy/base 的同名类
+   （.combo-num / .controls / .hint / .info-line / .cells-wrap 等）。
+   ============================================================ */
+
+.sprint-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+/* 开始页各区块独立成列（phase 包裹层不参与 .sprint-page 的 gap） */
+.sprint-page .start-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ============================================================
+   1. 开始页 · Race Hero（深色赛道主题）
+   ============================================================ */
+.sprint-page .race-hero {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 150, 0, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(28, 176, 246, 0.14) 0%, transparent 45%),
+    linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f1e3f 100%);
+  border-radius: var(--r-hero);
+  padding: 26px 32px;
+  color: #fff;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.28), 0 16px 40px rgba(0, 0, 0, 0.32);
+  position: relative;
+  overflow: hidden;
+}
+.sprint-page .race-hero::after {
+  content: "";
+  position: absolute;
+  top: -60px; right: -40px;
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 0, 0.14), transparent 70%);
+  pointer-events: none;
+}
+.sprint-page .race-hero::before {
+  content: "";
+  position: absolute;
+  bottom: -70px; left: -50px;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(88, 204, 2, 0.12), transparent 70%);
+  pointer-events: none;
+}
+/* 赛道速度线：纯装饰 */
+.sprint-page .speed-lines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg,
+    transparent 0, transparent 60px,
+    rgba(255, 255, 255, 0.022) 60px, rgba(255, 255, 255, 0.022) 62px);
+  pointer-events: none;
+}
+.sprint-page .race-body {
+  display: grid;
+  grid-template-columns: 1.15fr auto 1fr;
+  gap: 28px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.sprint-page .race-left { min-width: 0; }
+.sprint-page .race-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 150, 0, 0.18);
+  color: var(--orange);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  letter-spacing: 0.4px;
+}
+.sprint-page .race-live .pulse-dot {
+  width: 7px; height: 7px;
+  background: var(--orange);
+}
+.sprint-page .race-title {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.sprint-page .race-sub {
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-bottom: 18px;
+}
+.sprint-page .mode-row { display: flex; gap: 10px; }
+.sprint-page .mode-pill {
+  flex: 1;
+  max-width: 132px;
+  padding: 12px 8px;
+  border-radius: 14px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+.sprint-page .mode-pill .mi {
+  font-size: 20px;
+  margin-bottom: 4px;
+  font-family: var(--emoji);
+  line-height: 1;
+}
+.sprint-page .mode-pill .mt {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .mode-pill .ms {
+  font-size: 10px;
+  font-weight: 800;
+  opacity: 0.7;
+  margin-top: 5px;
+}
+.sprint-page .mode-pill.active {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 4px 0 var(--green-dark);
+  transform: translateY(-3px);
+}
+
+/* --- 中央倒计时大环（起始态：满环待命） --- */
+.sprint-page .race-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.sprint-page .cd-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+.sprint-page .cd-svg { width: 100%; height: 100%; display: block; }
+.sprint-page .cd-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 3.6; }
+.sprint-page .cd-fg {
+  fill: none;
+  stroke: url(#cd-grad);
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 0, 0.45));
+  transition: stroke-dashoffset 0.3s linear;
+}
+.sprint-page .cd-ticks line {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.sprint-page .cd-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.sprint-page .cd-num .cn-big {
+  font-size: 62px;
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 4px 16px rgba(255, 200, 0, 0.35);
+}
+.sprint-page .cd-num .cn-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.75;
+  margin-top: 5px;
+  letter-spacing: 1px;
+}
+
+/* --- 右侧得分 / 连击 / 开始按钮 --- */
+.sprint-page .race-right { display: flex; flex-direction: column; gap: 12px; }
+.sprint-page .rr-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sprint-page .rr-emoji {
+  font-size: 26px;
+  flex-shrink: 0;
+  font-family: var(--emoji);
+  line-height: 1;
+}
+.sprint-page .rr-body { flex: 1; min-width: 0; }
+.sprint-page .rr-lbl { font-size: 11px; font-weight: 800; opacity: 0.7; }
+.sprint-page .rr-val {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .rr-val.gold { color: var(--gold); }
+.sprint-page .rr-val.orange { color: var(--orange); }
+.sprint-page .rr-val small { font-size: 12px; font-weight: 700; opacity: 0.75; }
+/* 白色行动按钮：3px 下压阴影，按下吃掉阴影 */
+.sprint-page .btn-start {
+  width: 100%;
+  background: #fff;
+  color: #1a1a2e;
+  border: none;
+  cursor: pointer;
+  padding: 16px 28px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.1s var(--ease-out), box-shadow 0.1s, filter 0.12s;
+}
+.sprint-page .btn-start:hover { filter: brightness(1.03); }
+.sprint-page .btn-start:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28); }
+.sprint-page .btn-start:disabled { opacity: 0.45; pointer-events: none; }
+.sprint-page .btn-start .arrow { font-size: 20px; }
+
+/* --- 开始页信息卡 --- */
+.sprint-page .start-info,
+.sprint-page .challenge-card { padding: 22px 24px; }
+.sprint-page .start-info .card-desc,
+.sprint-page .challenge-card .card-desc { margin-bottom: 14px; }
+.sprint-page .rule-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+}
+.sprint-page .rule-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+.sprint-page .rl-ic {
+  font-size: 17px;
+  flex-shrink: 0;
+  font-family: var(--emoji);
+  line-height: 1.4;
+}
+.sprint-page .rule-list kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--panel3);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.sprint-page .start-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.sprint-page .start-actions .btn { flex: 0 1 210px; }
+.sprint-page .err-text {
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+}
+
+/* --- 加载失败 --- */
+.sprint-page .sprint-err {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  padding: 36px 28px;
+  text-align: center;
+  border: 2px solid rgba(255, 75, 75, 0.3);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="dark"] .sprint-page .sprint-err { border-color: rgba(255, 75, 75, 0.4); }
+.sprint-page .sprint-err .err-emoji { font-size: 52px; margin-bottom: 10px; font-family: var(--emoji); line-height: 1; }
+.sprint-page .sprint-err h3 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+.sprint-page .sprint-err p { color: var(--red); font-size: 14px; font-weight: 700; margin-bottom: 18px; }
+
+/* --- 挑战对战：对手得分榜 --- */
+.sprint-page .score-list {
+  max-width: 380px;
+  margin: 14px auto 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sprint-page .score-list:empty { display: none; margin: 0; }
+.sprint-page .score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+.sprint-page .sr-rank {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  font-family: var(--emoji);
+  line-height: 1;
+}
+.sprint-page .sr-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sprint-page .sr-combo {
+  color: var(--orange);
+  font-weight: 900;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.sprint-page .sr-score {
+  width: 56px;
+  text-align: right;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   2. 冲刺中 · 页缘红晕 + Live 卡
+   ============================================================ */
+.sprint-page .run-wrap { position: relative; }
+.sprint-page .urg {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  animation: fade-in 0.5s ease both;
+  background: radial-gradient(120rem 80rem at 50% 55%, transparent 48%, rgba(255, 75, 75, 0.16));
+}
+/* 红晕脉动层：只动 opacity + scale */
+.sprint-page .urg::after {
+  content: "";
+  position: absolute;
+  inset: -40px;
+  background: radial-gradient(120rem 80rem at 50% 55%, transparent 52%, rgba(255, 75, 75, 0.22));
+  animation: urg-pulse 1s var(--ease-inout) infinite;
+}
+@keyframes urg-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.02); }
+}
+
+.sprint-page .live-card {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06), 0 8px 22px rgba(0, 0, 0, 0.05);
+}
+:root[data-theme="dark"] .sprint-page .live-card { border: 1px solid var(--border); }
+.sprint-page .live-top-bar {
+  height: 6px;
+  background: linear-gradient(90deg, var(--green) 0%, #ffd84d 60%, var(--orange) 100%);
+}
+.sprint-page .live-inner { padding: 20px 24px 22px; }
+.sprint-page .live-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sprint-page .live-head-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sprint-page .live-head-emoji {
+  font-size: 24px;
+  font-family: var(--emoji);
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+  flex-shrink: 0;
+}
+.sprint-page .live-head-title { font-size: 17px; font-weight: 900; }
+.sprint-page .live-head-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.sprint-page .live-head-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: var(--red);
+  color: #fff;
+  padding: 5px 11px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--red-dark);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sprint-page .live-head-badge .pulse-dot { width: 6px; height: 6px; }
+
+/* --- 计分条：得分 / 连击 / 幽灵 / 倒计时环 --- */
+.sprint-page .score-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel2);
+  margin-bottom: 14px;
+}
+:root[data-theme="dark"] .sprint-page .score-bar { border: 1px solid var(--border); }
+.sprint-page .sb-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 132px;
+  min-width: 0;
+}
+.sprint-page .sb-emoji { font-size: 22px; font-family: var(--emoji); line-height: 1; flex-shrink: 0; }
+.sprint-page .sb-body { min-width: 0; }
+.sprint-page .sb-lbl {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.4px;
+  margin-bottom: 1px;
+}
+.sprint-page .sb-val {
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .sb-val.gold { color: var(--gold-dark); }
+.sprint-page .sb-val.orange { color: var(--orange); }
+:root[data-theme="dark"] .sprint-page .sb-val.gold { color: var(--gold); }
+
+/* 连击数字：橙色 + 弹跳（沿用 .combo-pop-* 过渡） */
+.sprint-page .combo-num {
+  display: inline-block;
+  color: var(--orange);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* 幽灵竞速药丸 */
+.sprint-page .ghost-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--panel3);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  flex: 1 1 176px;
+  min-width: 0;
+  align-self: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sprint-page .ghost-pill b { font-weight: 900; color: var(--red); flex-shrink: 0; }
+.sprint-page .ghost-pill.ahead {
+  border-color: rgba(88, 204, 2, 0.45);
+  color: var(--green-dark);
+  background: var(--green-bg);
+}
+.sprint-page .ghost-pill.ahead b { color: var(--green-dark); }
+:root[data-theme="dark"] .sprint-page .ghost-pill.ahead {
+  border-color: rgba(88, 204, 2, 0.4);
+  color: var(--green);
+  background: rgba(88, 204, 2, 0.14);
+}
+:root[data-theme="dark"] .sprint-page .ghost-pill.ahead b { color: var(--green); }
+
+/* 倒计时小环（冲刺中常驻） */
+.sprint-page .cd-mini {
+  position: relative;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  align-self: center;
+  isolation: isolate;
+}
+.sprint-page .cd-mini svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.sprint-page .cm-bg { fill: none; stroke: var(--border-strong); stroke-width: 4.6; opacity: 0.5; }
+.sprint-page .cm-fg {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 4.6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear, stroke 0.2s;
+  filter: drop-shadow(0 0 4px rgba(88, 204, 2, 0.35));
+}
+.sprint-page .cm-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .cm-num small { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-left: 1px; }
+
+/* 最后 10 秒紧迫态：红环 + 红晕脉动 + 数字闪烁 */
+.sprint-page .cd-mini.urgent .cm-fg {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px rgba(255, 75, 75, 0.55));
+}
+.sprint-page .cd-mini.urgent .cm-num { color: var(--red); animation: sprint-blink 1s steps(2) infinite; }
+.sprint-page .cd-mini.urgent { box-shadow: 0 0 0 3px rgba(255, 75, 75, 0.16); }
+.sprint-page .cd-mini.urgent::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 75, 75, 0.32), transparent 70%);
+  z-index: -1;
+  animation: cd-urg-pulse 1s var(--ease-inout) infinite;
+}
+@keyframes cd-urg-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(1.2); }
+}
+
+/* --- 当前题目 --- */
+.sprint-page .qnow {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--green-bg);
+  border: 2px solid rgba(88, 204, 2, 0.3);
+  margin-bottom: 14px;
+}
+:root[data-theme="dark"] .sprint-page .qnow {
+  background: rgba(88, 204, 2, 0.1);
+  border-color: rgba(88, 204, 2, 0.35);
+}
+.sprint-page .qnow-play {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  align-self: center;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-family: var(--emoji);
+  line-height: 1;
+  box-shadow: 0 4px 0 var(--green-dark);
+  animation: q-pulse 1.4s var(--ease-inout) infinite;
+  transition: filter 0.12s;
+}
+.sprint-page .qnow-play:hover { filter: brightness(1.06); }
+.sprint-page .qnow-play:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--green-dark);
+  animation: none;
+}
+.sprint-page .qnow-play.playing {
+  background: var(--orange);
+  box-shadow: 0 4px 0 var(--orange-dark);
+  animation: q-pulse-fast 0.8s var(--ease-inout) infinite;
+}
+.sprint-page .qnow-play.playing:active { box-shadow: 0 1px 0 var(--orange-dark); }
+@keyframes q-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes q-pulse-fast { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+.sprint-page .qnow-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.sprint-page .qnow-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green-dark);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+:root[data-theme="dark"] .sprint-page .qnow-label { color: var(--green); }
+.sprint-page .info-line { min-height: 22px; margin: 0 0 10px; }
+.sprint-page #meaning { color: var(--text-dim); font-size: 13px; }
+
+/* WordCells 覆写：设计稿的「绿色下划线格子」 */
+.sprint-page .cells-wrap { margin: 0 0 10px; gap: 12px 8px; }
+.sprint-page .cells-wrap .cell.letter-line {
+  width: 38px;
+  min-width: 38px;
+  height: 54px;
+  padding: 0;
+  background: var(--panel);
+  border-bottom-width: 3px;
+  border-bottom-color: var(--green);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0;
+  color: var(--text);
+}
+:root[data-theme="dark"] .sprint-page .cells-wrap .cell.letter-line {
+  background: rgba(255, 255, 255, 0.06);
+}
+.sprint-page .cells-wrap .cell.letter-line.current {
+  background: var(--green);
+  color: #fff;
+  border-bottom-color: var(--green-dark);
+}
+/* 满格高亮时不需要再叠光标 */
+.sprint-page .cells-wrap .cell.letter-line.current::after { display: none; }
+
+.sprint-page #answer-line {
+  min-height: 24px;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+.sprint-page .reveal-ans { color: var(--red-dark); font-weight: 800; font-size: 14px; }
+:root[data-theme="dark"] .sprint-page .reveal-ans { color: var(--red); }
+.sprint-page .reveal-ans .show-word {
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* --- 时间进度条 --- */
+.sprint-page .time-progress {
+  height: 14px;
+  background: var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 7px;
+  position: relative;
+}
+.sprint-page .time-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--orange), var(--red));
+  border-radius: 14px;
+  transition: width 0.3s linear;
+  position: relative;
+}
+.sprint-page .time-fill::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 22px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5));
+  border-radius: 0 14px 14px 0;
+}
+.sprint-page .time-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .time-labels .tl-left { color: var(--green-dark); }
+.sprint-page .time-labels .tl-right { color: var(--red); }
+:root[data-theme="dark"] .sprint-page .time-labels .tl-left { color: var(--green); }
+
+/* --- 连击条（金色渐变） --- */
+.sprint-page .combo-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--gold-light), #fff3b8);
+  border: 1px solid rgba(255, 200, 0, 0.4);
+  margin-bottom: 16px;
+}
+:root[data-theme="dark"] .sprint-page .combo-strip {
+  background: rgba(255, 200, 0, 0.13);
+  border-color: rgba(255, 200, 0, 0.35);
+}
+.sprint-page .combo-strip .cs-emoji {
+  font-size: 22px;
+  font-family: var(--emoji);
+  flex-shrink: 0;
+  line-height: 1;
+}
+.sprint-page .combo-strip .cs-body { flex: 1; min-width: 0; }
+.sprint-page .combo-strip .cs-title { font-size: 13px; font-weight: 900; color: #8a6400; }
+.sprint-page .combo-strip .cs-sub { font-size: 11px; font-weight: 700; color: #a88020; margin-top: 1px; }
+:root[data-theme="dark"] .sprint-page .combo-strip .cs-title { color: var(--gold); }
+:root[data-theme="dark"] .sprint-page .combo-strip .cs-sub { color: rgba(255, 200, 0, 0.7); }
+.sprint-page .combo-strip .cs-mult {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--gold-dark);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+:root[data-theme="dark"] .sprint-page .combo-strip .cs-mult { color: var(--gold); }
+
+/* --- 底部操作 --- */
+.sprint-page .live-inner .controls { justify-content: center; gap: 10px; margin-bottom: 12px; }
+.sprint-page .live-inner .controls .btn { flex: 1 1 150px; }
+.sprint-page .live-inner .hint {
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ============================================================
+   3. 结算页 · 大字分数 + 战报
+   ============================================================ */
+.sprint-page .result-card {
+  background: var(--panel);
+  border-radius: var(--r-card);
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+:root[data-theme="dark"] .sprint-page .result-card { border: 1px solid var(--border); }
+.sprint-page .result-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 40% at 50% 0%, rgba(88, 204, 2, 0.15), transparent 70%);
+  pointer-events: none;
+}
+.sprint-page .result-card > * { position: relative; }
+.sprint-page .rc-emoji {
+  font-size: 62px;
+  line-height: 1;
+  margin-bottom: 6px;
+  font-family: var(--emoji);
+  animation: pop-in-spring 0.5s var(--ease-spring) both;
+}
+.sprint-page .rc-title {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+.sprint-page .rc-big {
+  font-size: 78px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -3px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+  text-shadow: 0 4px 16px rgba(255, 200, 0, 0.25);
+  animation: pop-in 0.45s var(--ease-out) 0.1s both;
+}
+.sprint-page .rc-big.gold { color: var(--gold-dark); }
+:root[data-theme="dark"] .sprint-page .rc-big.gold { color: var(--gold); }
+.sprint-page .rc-big small {
+  font-size: 22px;
+  font-weight: 800;
+  opacity: 0.7;
+  margin-left: 5px;
+  letter-spacing: 0;
+}
+.sprint-page .rc-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.sprint-page .rc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.sprint-page .rc-stat {
+  padding: 14px 10px;
+  border-radius: 14px;
+  background: var(--panel2);
+}
+:root[data-theme="dark"] .sprint-page .rc-stat { border: 1px solid var(--border); }
+.sprint-page .rs-emoji { font-size: 22px; margin-bottom: 4px; font-family: var(--emoji); line-height: 1; }
+.sprint-page .rs-val {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.sprint-page .rs-val.green { color: var(--green-dark); }
+.sprint-page .rs-val.orange { color: var(--orange); }
+.sprint-page .rs-val.blue { color: var(--blue); }
+:root[data-theme="dark"] .sprint-page .rs-val.green { color: var(--green); }
+.sprint-page .rs-lbl { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 3px; }
+.sprint-page .best-line {
+  color: var(--gold-dark);
+  font-weight: 800;
+  font-size: 13.5px;
+  margin: 0 0 16px;
+}
+:root[data-theme="dark"] .sprint-page .best-line { color: var(--gold); }
+.sprint-page .result-card .ghost-verdict {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--red);
+  margin: 0 0 14px;
+}
+.sprint-page .result-card .ghost-verdict.ahead { color: var(--green-dark); }
+:root[data-theme="dark"] .sprint-page .result-card .ghost-verdict.ahead { color: var(--green); }
+.sprint-page .result-card .controls { margin-top: 4px; }
+.sprint-page .result-card .controls .btn { flex: 1 1 168px; }
+
+/* 挑战链接已复制提示 */
+.sprint-page .result-card .pk-share {
+  max-width: 420px;
+  margin: 0 auto 16px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(88, 204, 2, 0.45);
+  border-radius: 12px;
+  background: var(--green-bg);
+  color: var(--green-dark);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.sprint-page .result-card .pk-share code { word-break: break-all; }
+:root[data-theme="dark"] .sprint-page .result-card .pk-share {
+  background: rgba(88, 204, 2, 0.12);
+  color: var(--green);
+}
+
+/* ============================================================
+   4. 响应式（对照 design/sprint-mobile.html：单列 / 全宽 / 小环）
+   ============================================================ */
+@media (max-width: 880px) {
+  .sprint-page, .sprint-page .start-wrap { gap: 16px; }
+  .sprint-page .race-hero { padding: 24px 26px; }
+  .sprint-page .race-body { grid-template-columns: 1fr auto 1fr; gap: 20px; }
+  .sprint-page .cd-wrap { width: 156px; height: 156px; }
+  .sprint-page .cd-num .cn-big { font-size: 54px; }
+}
+
+@media (max-width: 760px) {
+  .sprint-page .race-hero { padding: 22px 18px; border-radius: 18px; }
+  .sprint-page .race-body { grid-template-columns: 1fr; gap: 18px; }
+  .sprint-page .race-left { order: 1; }
+  .sprint-page .race-center { order: 2; }
+  .sprint-page .race-right { order: 3; }
+  .sprint-page .race-title { font-size: 23px; }
+  .sprint-page .race-sub { font-size: 13px; }
+  .sprint-page .cd-wrap { width: 150px; height: 150px; }
+  .sprint-page .cd-num .cn-big { font-size: 50px; letter-spacing: -2.5px; }
+  .sprint-page .mode-pill { max-width: none; }
+  .sprint-page .rr-block { padding: 11px 14px; }
+  .sprint-page .rr-val { font-size: 20px; }
+  .sprint-page .btn-start { padding: 15px 22px; font-size: 16px; }
+  .sprint-page .start-actions .btn { flex: 1 1 100%; }
+}
+
+@media (max-width: 620px) {
+  .sprint-page .live-inner { padding: 16px; }
+  .sprint-page .live-head { margin-bottom: 12px; }
+  .sprint-page .live-head-title { font-size: 15px; }
+  .sprint-page .live-head-sub { font-size: 10px; }
+  .sprint-page .score-bar { padding: 10px 11px; gap: 8px; }
+  .sprint-page .sb-val { font-size: 21px; }
+  .sprint-page .sb-emoji { font-size: 19px; }
+  .sprint-page .ghost-pill { font-size: 11px; padding: 7px 10px; flex: 1 1 100%; }
+  .sprint-page .cd-mini { width: 64px; height: 64px; }
+  .sprint-page .cm-bg, .sprint-page .cm-fg { stroke-width: 5; }
+  .sprint-page .cm-num { font-size: 18px; }
+  .sprint-page .qnow { flex-direction: column; align-items: stretch; padding: 14px; }
+  .sprint-page .qnow-play { width: 50px; height: 50px; border-radius: 14px; font-size: 21px; align-self: flex-start; }
+  .sprint-page .qnow-label { margin-bottom: 6px; }
+  .sprint-page .cells-wrap { gap: 10px 5px; margin-bottom: 8px; }
+  .sprint-page .cells-wrap .cell.letter-line {
+    width: 30px; min-width: 30px; height: 44px;
+    font-size: 18px; border-bottom-width: 3px;
+  }
+  .sprint-page .time-progress { height: 12px; }
+  .sprint-page .time-labels { font-size: 10px; margin-bottom: 12px; }
+  .sprint-page .combo-strip { margin-bottom: 14px; padding: 10px 12px; }
+  .sprint-page .combo-strip .cs-mult { font-size: 21px; }
+  .sprint-page .live-inner .controls .btn { flex: 1 1 100%; }
+  .sprint-page .result-card { padding: 26px 18px; }
+  .sprint-page .rc-emoji { font-size: 52px; }
+  .sprint-page .rc-title { font-size: 21px; }
+  .sprint-page .rc-big { font-size: 58px; letter-spacing: -2px; }
+  .sprint-page .rc-big small { font-size: 17px; }
+  .sprint-page .rc-stats { gap: 8px; }
+  .sprint-page .rs-val { font-size: 20px; }
+  .sprint-page .result-card .controls { flex-direction: column; }
+  .sprint-page .result-card .controls .btn { flex: 1 1 auto; }
+}

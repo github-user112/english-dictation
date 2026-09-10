@@ -1,8 +1,651 @@
 /* ===== 03-memorize · 背单词 · MemorizePage =====
-   对照 design/背单词-desktop.html + 背单词-mobile.html
+   对照 design/memorize-desktop.html + memorize-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
+   级联位置 3，覆盖 legacy.css 的 .flash-card/.face/.front/.back/.fw/.fp/.fm 兜底样式。
 */
+
+/* ============ Page wrapper ============ */
+.mem-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* ============ Progress ring ============ */
+.mem-ring-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+}
+.mem-ring-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mem-ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 5;
+}
+.mem-ring-fg {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  stroke-dasharray: 100;
+  transition: stroke-dashoffset 0.8s var(--ease-out);
+  filter: drop-shadow(0 0 4px rgba(88, 204, 2, 0.3));
+}
+.mem-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.mem-ring-pct {
+  font-weight: 900;
+  font-size: 22px;
+  color: var(--green-dark);
+  line-height: 1.1;
+}
+.mem-ring-sub {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ============ Session header ============ */
+.mem-sess {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.mem-sess-body {
+  flex: 1;
+  min-width: 0;
+}
+.mem-sess-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--green-dark);
+  margin-bottom: 8px;
+}
+.mem-sess-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+.mem-sess-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.mem-sess-meta .sep {
+  color: var(--text-faint);
+}
+
+/* ============ Phase strip ============ */
+.mem-phase {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 12px rgba(0, 0, 0, 0.03);
+}
+.mem-phase-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text-dim);
+  transition: background 0.2s;
+}
+.mem-phase-step.active {
+  background: var(--green-bg);
+  color: var(--green-dark);
+}
+.mem-phase-step.locked {
+  opacity: 0.4;
+}
+.mem-phase-step .step-ic {
+  font-size: 16px;
+}
+.mem-phase-conn {
+  width: 24px;
+  height: 2px;
+  flex-shrink: 0;
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0, var(--border-strong) 4px, transparent 4px, transparent 8px);
+}
+
+/* ============ Two-column layout ============ */
+.mem-main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  align-items: start;
+}
+.mem-left {
+  min-width: 0;
+}
+
+/* ============ Flashcard (overrides legacy.css) ============ */
+.flash-card {
+  position: relative;
+  height: auto !important;
+  min-height: 340px;
+  margin: 0 0 16px;
+  perspective: 1200px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.flash-card .face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--panel);
+  border: 2px solid rgba(88, 204, 2, 0.2);
+  border-radius: 22px;
+  backface-visibility: hidden;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.04);
+  transition: transform 0.6s var(--ease-inout);
+  overflow: hidden;
+}
+.flash-card .face::before {
+  content: "";
+  position: absolute;
+  top: -50px;
+  right: -30px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(88, 204, 2, 0.06), transparent 70%);
+  pointer-events: none;
+}
+.flash-card .face::after {
+  content: "";
+  position: absolute;
+  bottom: -30px;
+  left: -20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(28, 176, 246, 0.04), transparent 70%);
+  pointer-events: none;
+}
+.flash-card .front {
+  transform: rotateY(0deg);
+  z-index: 2;
+}
+.flash-card .back {
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+.flash-card.flipped .front {
+  transform: rotateY(-180deg);
+  z-index: 1;
+}
+.flash-card.flipped .back {
+  transform: rotateY(0deg);
+  z-index: 2;
+}
+
+/* Front face: word */
+.flash-card .fw {
+  font-family: var(--sans);
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--green-dark), var(--green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
+}
+.flash-card .fp {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-dim);
+  display: inline-block;
+  padding: 4px 14px;
+  background: var(--panel2);
+  border-radius: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Back face: meaning */
+.flash-card .fm {
+  padding: 0 24px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============ Learn controls ============ */
+.mem-learn-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.mem-learn-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 700;
+  padding: 12px;
+}
+
+/* ============ Word queue ============ */
+.mem-wq {
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 6px 12px rgba(0, 0, 0, 0.03);
+}
+.mem-wq-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mem-wq-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 900;
+}
+.mem-wq-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+.mem-wq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.mem-wq-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+.mem-wq-item.done {
+  opacity: 0.55;
+}
+.mem-wq-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  background: var(--panel);
+  color: var(--text-dim);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+}
+.mem-wq-item.done .mem-wq-num {
+  background: var(--green);
+  color: #fff;
+}
+.mem-wq-en {
+  flex: 1;
+  min-width: 0;
+}
+.mem-wq-zh {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+/* ============ Sidebar ============ */
+.mem-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Accuracy hero card */
+.mem-acc-hero {
+  background: linear-gradient(135deg, var(--green), #6fdd1a);
+  border-radius: 20px;
+  padding: 22px;
+  color: #fff;
+  box-shadow: 0 6px 0 var(--green-dark), 0 10px 28px rgba(88, 204, 2, 0.2);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.mem-acc-hero::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+.mem-acc-hero .mem-ah-label {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.9;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+.mem-acc-hero .mem-ah-val {
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  position: relative;
+  z-index: 1;
+}
+.mem-acc-hero .mem-ah-sub {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-top: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Stats mini grid */
+.mem-stats-mini {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mem-stat-box {
+  text-align: center;
+  padding: 14px 10px;
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.04);
+}
+.mem-stat-val {
+  font-size: 22px;
+  font-weight: 900;
+}
+.mem-stat-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ============ Done state ============ */
+.mem-done {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--panel);
+  border-radius: 22px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+.mem-done-emoji {
+  font-size: 56px;
+  margin-bottom: 10px;
+}
+.mem-done h3 {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+.mem-done p {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.mem-done .controls {
+  margin-top: 20px;
+}
+
+/* ============ Quiz phase (overrides legacy .practice-card) ============ */
+.mem-quiz-wrap .practice-card {
+  max-width: 100%;
+  min-height: 420px;
+  margin: 0;
+  border-radius: 22px;
+  border: 2px solid rgba(88, 204, 2, 0.15);
+  background: var(--panel);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.03);
+}
+
+/* Quiz meaning display */
+.mem-quiz-meaning {
+  text-align: center;
+  margin-bottom: 16px;
+  padding: 14px 20px;
+  background: var(--blue-bg);
+  border-radius: 14px;
+  border: 2px solid rgba(28, 176, 246, 0.15);
+}
+.mem-quiz-meaning-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--blue-dark);
+  margin-bottom: 4px;
+}
+.mem-quiz-meaning-text {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+/* Answer feedback */
+.mem-answer-line {
+  min-height: 24px;
+  margin: 8px 0 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mem-answer-line .show-word {
+  color: var(--text);
+  font-weight: 800;
+  font-size: 15px;
+}
+.mem-answer-line .mem-note {
+  font-size: 13px;
+}
+
+/* Quiz controls */
+.mem-quiz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.mem-quiz-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 700;
+  padding: 10px;
+}
+
+/* Save error */
+.mem-save-error {
+  color: var(--red);
+  font-size: 12px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ============ Result check mark ============ */
+.mem-result-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 var(--green-dark);
+}
+
+/* ============ Mobile ============ */
+@media (max-width: 880px) {
+  .mem-page {
+    max-width: 100%;
+    padding: 0 14px 32px;
+  }
+  .mem-main {
+    grid-template-columns: 1fr;
+  }
+  .mem-sess {
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+  }
+  .mem-ring-wrap {
+    width: 80px;
+    height: 80px;
+  }
+  .mem-ring-pct {
+    font-size: 18px;
+  }
+  .mem-sess-title {
+    font-size: 18px;
+  }
+  .mem-sess-meta {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .mem-phase {
+    padding: 10px 12px;
+    gap: 4px;
+  }
+  .mem-phase-step {
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 5px;
+  }
+  .mem-phase-conn {
+    width: 16px;
+  }
+  .flash-card {
+    min-height: 300px;
+  }
+  .flash-card .fw {
+    font-size: 34px;
+  }
+  .flash-card .fp {
+    font-size: 14px;
+    padding: 3px 10px;
+  }
+  .flash-card .fm {
+    font-size: 20px;
+    padding: 0 16px;
+  }
+  .mem-acc-hero {
+    border-radius: 16px;
+    padding: 18px;
+  }
+  .mem-acc-hero .mem-ah-val {
+    font-size: 34px;
+  }
+}
+
+@media (max-width: 620px) {
+  .mem-learn-controls {
+    flex-direction: column;
+  }
+  .mem-learn-controls .btn {
+    width: 100%;
+  }
+  .mem-quiz-controls {
+    flex-direction: column;
+  }
+  .mem-quiz-controls .btn {
+    width: 100%;
+  }
+  .mem-ring-wrap {
+    width: 64px;
+    height: 64px;
+  }
+  .mem-ring-pct {
+    font-size: 14px;
+  }
+  .mem-ring-sub {
+    font-size: 8px;
+  }
+  .mem-sess-eyebrow {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+  .mem-sess-title {
+    font-size: 16px;
+  }
+  .mem-phase-step {
+    font-size: 11px;
+  }
+  .flash-card {
+    min-height: 260px;
+  }
+  .flash-card .fw {
+    font-size: 30px;
+  }
+  .mem-quiz-meaning-text {
+    font-size: 18px;
+  }
+}

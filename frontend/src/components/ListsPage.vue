@@ -201,6 +201,8 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
     <button class="btn primary" @click="load">重试</button>
   </div>
   <div v-else class="catalog-page">
+
+    <!-- ════ Hero 区域 ════ -->
     <section class="catalog-hero">
       <div>
         <span class="eyebrow"><span class="hero-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>DAILY LISTENING PRACTICE</span>
@@ -213,27 +215,31 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div><b>{{ today.memorize_right }}</b><span>背诵答对</span></div>
       </div>
     </section>
-    <!-- 每日挑战横幅：每天一个固定回来的理由 -->
-    <a v-if="Profile.ready" class="daily-banner" href="#/daily"
-       :aria-label="Profile.dailyDoneToday ? '每日挑战今日已完成' : '开始每日挑战'">
-      <span class="db-icon" aria-hidden="true">🗓️</span>
-      <span class="db-body">
-        <b>今日词力 · 每日挑战</b>
-        <small>{{ Profile.dailyDoneToday
-          ? `今天已完成 · 连续 ${Profile.dailyStreak} 天，重玩不计分`
-          : "10 道全站同题 · 完成即给小树浇水" }}</small>
-      </span>
-      <em class="db-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</em>
-    </a>
-    <!-- 趣味小游戏入口：英中配对消消乐 -->
-    <a class="daily-banner fun-banner" href="#/match" aria-label="开始英中配对消消乐">
-      <span class="db-icon" aria-hidden="true">🀄</span>
-      <span class="db-body">
-        <b>英中配对消消乐</b>
-        <small>词与释义翻牌配对 · 首配即中拿满经验</small>
-      </span>
-      <em class="db-go">去玩一局 →</em>
-    </a>
+
+    <!-- ════ Banner 入口 ════ -->
+    <div class="catalog-banners">
+      <a v-if="Profile.ready" class="daily-banner" href="#/daily"
+         :aria-label="Profile.dailyDoneToday ? '每日挑战今日已完成' : '开始每日挑战'">
+        <span class="db-icon" aria-hidden="true">🗓️</span>
+        <span class="db-body">
+          <b>今日词力 · 每日挑战</b>
+          <small>{{ Profile.dailyDoneToday
+            ? `今天已完成 · 连续 ${Profile.dailyStreak} 天，重玩不计分`
+            : "10 道全站同题 · 完成即给小树浇水" }}</small>
+        </span>
+        <em class="db-go">{{ Profile.dailyDoneToday ? "已打卡 ✓" : "去挑战 →" }}</em>
+      </a>
+      <a class="daily-banner fun-banner" href="#/match" aria-label="开始英中配对消消乐">
+        <span class="db-icon" aria-hidden="true">🀄</span>
+        <span class="db-body">
+          <b>英中配对消消乐</b>
+          <small>词与释义翻牌配对 · 首配即中拿满经验</small>
+        </span>
+        <em class="db-go">去玩一局 →</em>
+      </a>
+    </div>
+
+    <!-- ════ 继续学习 ════ -->
     <template v-if="active.length">
       <div class="section-title"><span>继续学习</span><small>从上次停下的地方开始</small></div>
       <div class="resume-list">
@@ -244,14 +250,40 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
       </div>
     </template>
 
+    <!-- ════ 词汇听打 ════ -->
     <div class="section-title"><span>词汇听打</span><small>先背诵，再通过听写巩固</small></div>
     <template v-for="g in wordGroups" :key="g.title">
     <div class="section-sub">{{ g.title }}</div>
     <div class="card-grid word-grid">
       <div v-for="l in g.lists" :key="l.key" class="card" :aria-label="l.title + ' 词汇听打，共 ' + l.total + ' 个'">
-        <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">单词</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
-        <div class="meta">共 {{ l.total }} · 已背 {{ l.memorized }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
-        <div class="progress" role="progressbar" :aria-valuenow="(l.total ? l.known : 0)" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
+        <!-- 卡片顶部：封面 + 标题/徽章 -->
+        <div class="card-header">
+          <div class="card-cover green">📘</div>
+          <div class="card-info">
+            <div class="row1">
+              <span class="name">
+                <span>{{ l.title }}</span>
+                <span class="badge type" aria-hidden="true">单词</span>
+                <span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span>
+                <span v-if="goals[l.key]" class="active-tag"><span class="dot"></span> 学习中</span>
+              </span>
+            </div>
+            <div class="meta">共 {{ l.total }} · 已背 {{ l.memorized }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
+          </div>
+        </div>
+        <!-- 数据统计行 -->
+        <div class="card-stats">
+          <div class="card-stat"><div class="val green">{{ l.total }}</div><div class="lbl">总词数</div></div>
+          <div class="card-stat-divider"></div>
+          <div class="card-stat"><div class="val">{{ l.memorized }}</div><div class="lbl">已背</div></div>
+          <div class="card-stat-divider"></div>
+          <div class="card-stat"><div class="val red">{{ l.new }}</div><div class="lbl">未开始</div></div>
+        </div>
+        <!-- 进度条 -->
+        <div class="card-progress" role="progressbar" :aria-valuenow="(l.total ? l.known : 0)" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'">
+          <div class="prog-head"><span>掌握进度</span><span class="pct">{{ l.total ? Math.round(l.known / l.total * 100) : 0 }}%</span></div>
+          <div class="prog-bar"><div class="prog-fill" :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
+        </div>
         <!-- 学习计划：N 天背完的进度环 + 每日目标 -->
         <div v-if="goalEditing === l.key" class="goal-row">
           <span class="goal-text"><b>N 天背完：</b></span>
@@ -296,12 +328,37 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
     </div>
     </template>
 
+    <!-- ════ 句子听写 ════ -->
     <div class="section-title"><span>句子听写</span><small>在完整语境里训练听力</small></div>
     <div class="card-grid sentence-grid">
       <div v-for="l in sents" :key="l.key" class="card" :aria-label="l.title + ' 句子听写，共 ' + l.total + ' 个'">
-        <div class="name">{{ l.title }}<span class="badge type" aria-hidden="true">句子</span><span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span></div>
-        <div class="meta">共 {{ l.total }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
-        <div class="progress" role="progressbar" :aria-valuenow="l.known" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'"><div :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
+        <!-- 卡片顶部：封面 + 标题/徽章 -->
+        <div class="card-header">
+          <div class="card-cover blue">💬</div>
+          <div class="card-info">
+            <div class="row1">
+              <span class="name">
+                <span>{{ l.title }}</span>
+                <span class="badge type" aria-hidden="true">句子</span>
+                <span v-if="l.audio_done >= l.total" class="badge audio" aria-label="音频已就绪">✓ 音频</span>
+              </span>
+            </div>
+            <div class="meta">共 {{ l.total }} · 掌握 {{ l.known }} · 未开始 {{ l.new }}</div>
+          </div>
+        </div>
+        <!-- 数据统计行 -->
+        <div class="card-stats">
+          <div class="card-stat"><div class="val green">{{ l.total }}</div><div class="lbl">总句数</div></div>
+          <div class="card-stat-divider"></div>
+          <div class="card-stat"><div class="val">{{ l.known }}</div><div class="lbl">掌握</div></div>
+          <div class="card-stat-divider"></div>
+          <div class="card-stat"><div class="val red">{{ l.new }}</div><div class="lbl">未开始</div></div>
+        </div>
+        <!-- 进度条 -->
+        <div class="card-progress" role="progressbar" :aria-valuenow="l.known" :aria-valuemax="l.total" :aria-label="'掌握进度：' + (l.total ? Math.round(l.known / l.total * 100) : 0) + '%'">
+          <div class="prog-head"><span>掌握进度</span><span class="pct">{{ l.total ? Math.round(l.known / l.total * 100) : 0 }}%</span></div>
+          <div class="prog-bar"><div class="prog-fill blue" :style="{width: (l.total ? l.known / l.total * 100 : 0) + '%'}"></div></div>
+        </div>
         <select v-if="l.lesson_count && lessons[l.key]" v-model.number="selectedLesson[l.key]" class="lesson-select"
                 aria-label="选择课程" @change="pickLesson(l.key, $event)">
           <option v-for="x in lessons[l.key]" :key="x.lesson" :value="x.lesson">{{ lessonLabel(l, x) }}</option>
@@ -315,6 +372,8 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         </div>
       </div>
     </div>
+
+    <!-- ════ 我的文章 ════ -->
     <div class="section-title"><span>我的文章</span><small>粘贴任意英文，自动分句变成听写素材 · <a href="#/import" style="color:var(--accent);font-weight:700;">＋ 导入文章</a></small></div>
     <div v-if="customs.length" class="resume-list">
       <div v-for="m in customs" :key="m.id" class="resume-card" style="cursor:default;">

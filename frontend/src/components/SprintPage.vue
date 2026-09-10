@@ -274,80 +274,233 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
 
 <template>
   <div class="sprint-page">
-    <!-- 开始页 -->
-    <div v-if="phase === 'start'" class="empty">
+    <!-- ============ 开始页 ============ -->
+    <div v-if="phase === 'start'" class="start-wrap">
       <template v-if="loadError">
-        <p role="alert" style="color:var(--red);">{{ loadError }}</p>
-        <div class="controls" style="margin-top:16px;"><button class="btn primary big" @click="restart">重试</button></div>
-      </template>
-      <template v-else-if="challenge">
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚔️ 来自 {{ challenge.owner }} 的冲刺挑战</div>
-        <p>{{ challenge.items.length }} 个词 · 同一条词流，看看谁的手速和耳力更强。</p>
-        <div v-if="challenge.scores?.length" style="max-width:340px;margin:12px auto 0;text-align:left;">
-          <div v-for="(s, i) in challenge.scores" :key="s.name + i" class="pk-row">
-            <span>{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
-            <b style="flex:1;margin-left:8px;">{{ s.name }}</b>
-            <span class="combo-num">×{{ s.combo }}</span>
-            <b style="width:56px;text-align:right;">{{ s.score }}</b>
+        <div class="sprint-err">
+          <div class="err-emoji" aria-hidden="true">🚧</div>
+          <h3>题目加载失败</h3>
+          <p role="alert">{{ loadError }}</p>
+          <div class="start-actions">
+            <button class="btn primary big" @click="restart">重试</button>
           </div>
         </div>
-        <div class="controls" style="margin-top:16px;">
-          <button class="btn primary big" :disabled="!items.length" @click="start">开始应战</button>
-          <button class="btn ghost" @click="goCatalog">返回素材库</button>
-        </div>
       </template>
+
       <template v-else>
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚡ 限时冲刺</div>
-        <p>{{ DURATION }} 秒内听音打词，答对越多连击越高，音调随连击上升。</p>
-        <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
-        <div class="controls" style="margin-top:16px;">
-          <button class="btn primary big" :disabled="!items.length" @click="start">开始冲刺</button>
-          <button class="btn ghost" @click="goCatalog">返回素材库</button>
-        </div>
-        <p v-if="pkError" role="alert" style="color:var(--red);margin-top:10px;">{{ pkError }}</p>
-        <div class="controls" style="margin-top:6px;">
+        <!-- 赛道主题：标题 + 倒计时大环 + 战绩与出发 -->
+        <section class="race-hero">
+          <div class="speed-lines" aria-hidden="true"></div>
+          <div class="race-body">
+
+            <!-- 左：标题 + 模式 -->
+            <div class="race-left">
+              <div class="race-live"><span class="pulse-dot" aria-hidden="true"></span> 冲刺进行中 · 服务端权威判分</div>
+              <h1 class="race-title">🏁 限时单词听打</h1>
+              <p class="race-sub">{{ DURATION }} 秒内听音打词 · 打对自动切下一个 · 连击越久音调越高</p>
+              <div class="mode-row">
+                <div class="mode-pill active">
+                  <div class="mi" aria-hidden="true">⚡</div>
+                  <div class="mt">{{ DURATION }}s</div>
+                  <div class="ms">标准冲刺</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 中：倒计时大环 -->
+            <div class="race-center">
+              <div class="cd-wrap">
+                <svg class="cd-svg" viewBox="0 0 52 52" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="cd-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style="stop-color:#58cc02"></stop>
+                      <stop offset="55%" style="stop-color:#ffc800"></stop>
+                      <stop offset="100%" style="stop-color:#ff9600"></stop>
+                    </linearGradient>
+                  </defs>
+                  <circle class="cd-bg" cx="26" cy="26" r="22"></circle>
+                  <circle class="cd-fg" cx="26" cy="26" r="22"
+                          :stroke-dasharray="RING_LEN"
+                          :stroke-dashoffset="RING_LEN * (1 - remain / DURATION)"></circle>
+                  <g class="cd-ticks">
+                    <line x1="26" y1="0.8" x2="26" y2="5.6"></line>
+                    <line x1="51.2" y1="26" x2="46.4" y2="26"></line>
+                    <line x1="26" y1="51.2" x2="26" y2="46.4"></line>
+                    <line x1="0.8" y1="26" x2="5.6" y2="26"></line>
+                  </g>
+                </svg>
+                <div class="cd-num">
+                  <div class="cn-big">{{ remain }}</div>
+                  <div class="cn-lbl">剩余秒数</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右：战绩 + 出发 -->
+            <div class="race-right">
+              <div class="rr-block">
+                <div class="rr-emoji" aria-hidden="true">⭐</div>
+                <div class="rr-body">
+                  <div class="rr-lbl">个人最佳</div>
+                  <div class="rr-val gold">{{ best ? best.score : '—' }} <small>分</small></div>
+                </div>
+              </div>
+              <div class="rr-block">
+                <div class="rr-emoji" aria-hidden="true">🔥</div>
+                <div class="rr-body">
+                  <div class="rr-lbl">最高连击</div>
+                  <div class="rr-val orange">×{{ best ? best.combo : '—' }}</div>
+                </div>
+              </div>
+              <button class="btn-start" :disabled="!items.length" @click="start">
+                ▶ 立即开始冲刺
+                <span class="arrow" aria-hidden="true">🏁</span>
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 挑战对战信息 -->
+        <section v-if="challenge" class="card challenge-card">
+          <div class="card-title"><span class="card-icon">⚔️</span> 来自 {{ challenge.owner }} 的冲刺挑战</div>
+          <p class="card-desc">{{ challenge.items.length }} 个词 · 同一条词流，看看谁的手速和耳力更强。</p>
+          <div v-if="challenge.scores?.length" class="score-list">
+            <div v-for="(s, i) in challenge.scores" :key="s.name + i" class="score-row">
+              <span class="sr-rank">{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
+              <b class="sr-name">{{ s.name }}</b>
+              <span class="sr-combo">×{{ s.combo }}</span>
+              <b class="sr-score">{{ s.score }}</b>
+            </div>
+          </div>
+        </section>
+
+        <!-- 玩法说明 -->
+        <section v-if="!challenge" class="card start-info">
+          <div class="card-title"><span class="card-icon">🎧</span> 玩法</div>
+          <p class="card-desc">听音 → 打字 → 判分。打对自动切下一个词，连击不断，音调随连击逐题升高。</p>
+          <ul class="rule-list">
+            <li><span class="rl-ic" aria-hidden="true">🔊</span> 点绿色发音按钮或按 <kbd>Esc</kbd> 重听</li>
+            <li><span class="rl-ic" aria-hidden="true">⌨️</span> 逐字母输入，打满自动提交；按 <kbd>Enter</kbd> 可手动提交</li>
+            <li><span class="rl-ic" aria-hidden="true">⏭️</span> 不确定可跳过，跳过不计入连击</li>
+            <li><span class="rl-ic" aria-hidden="true">✍️</span> 打错看一眼答案再继续，答错的词自动收入错词本</li>
+          </ul>
+        </section>
+
+        <div class="start-actions">
+          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
           <button class="btn ghost big" :disabled="pkCreating || !items.length" @click="createPkRoom">
             {{ pkCreating ? "生成中…" : "⚔️ 实时PK对战" }}
           </button>
         </div>
+        <p v-if="pkError" role="alert" class="err-text">{{ pkError }}</p>
       </template>
     </div>
 
-    <!-- 冲刺中 -->
-    <div v-else-if="phase === 'run'">
+    <!-- ============ 冲刺中 ============ -->
+    <div v-else-if="phase === 'run'" class="run-wrap">
       <div v-if="remain <= 10" class="urg" aria-hidden="true"></div>
-      <div class="practice-top">
-        <span class="progress-line">得分 {{ score }} · 连击 <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">×{{ combo }}</b></Transition></span>
-        <!-- 幽灵竞速：个人最佳按均匀配速换算的实时期望分 -->
-        <span v-if="ghostTarget > 0" class="ghost-line" :class="{ ahead: ghostDelta >= 0 }"
-              :aria-label="`幽灵期望 ${ghost} 分，你${ghostDelta >= 0 ? '领先' : '落后'} ${Math.abs(ghostDelta)} 分`">
-          👻 {{ ghost }} · 你 {{ score }}
-          <b>{{ ghostDelta >= 0 ? `领先 ${ghostDelta}` : `落后 ${-ghostDelta}` }}</b>
-        </span>
-        <span class="sprint-timer" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
-          <svg viewBox="0 0 52 52" aria-hidden="true">
-            <circle class="st-bg" cx="26" cy="26" r="22"></circle>
-            <circle class="st-fg" cx="26" cy="26" r="22"
-                    :stroke-dasharray="RING_LEN" :stroke-dashoffset="RING_LEN * (1 - remain / DURATION)"></circle>
-          </svg>
-          <b>{{ remain }}<small>s</small></b>
-        </span>
+
+      <div class="live-card">
+        <div class="live-top-bar" aria-hidden="true"></div>
+        <div class="live-inner">
+
+          <!-- 状态栏 -->
+          <div class="live-head">
+            <div class="live-head-l">
+              <span class="live-head-emoji" aria-hidden="true">🎧</span>
+              <div>
+                <div class="live-head-title">正在冲刺 · 第 {{ idx + 1 }} 题</div>
+                <div class="live-head-sub">听音 → 打字 → 计分 · 服务端权威判分</div>
+              </div>
+            </div>
+            <div class="live-head-badge"><span class="pulse-dot" aria-hidden="true"></span> LIVE · {{ remain }}s</div>
+          </div>
+
+          <!-- 计分条 -->
+          <div class="score-bar">
+            <div class="sb-block">
+              <span class="sb-emoji" aria-hidden="true">⭐</span>
+              <div class="sb-body">
+                <div class="sb-lbl">得分</div>
+                <div class="sb-val gold">{{ score }}</div>
+              </div>
+            </div>
+            <div class="sb-block">
+              <span class="sb-emoji" aria-hidden="true">🔥</span>
+              <div class="sb-body">
+                <div class="sb-lbl">连击</div>
+                <div class="sb-val orange">
+                  <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">×{{ combo }}</b></Transition>
+                </div>
+              </div>
+            </div>
+
+            <!-- 幽灵竞速：个人最佳按均匀配速换算的实时期望分 -->
+            <span v-if="ghostTarget > 0" class="ghost-pill" :class="{ ahead: ghostDelta >= 0 }"
+                  :aria-label="`幽灵期望 ${ghost} 分，你${ghostDelta >= 0 ? '领先' : '落后'} ${Math.abs(ghostDelta)} 分`">
+              👻 {{ ghost }} · 你 {{ score }}
+              <b>{{ ghostDelta >= 0 ? `领先 ${ghostDelta}` : `落后 ${-ghostDelta}` }}</b>
+            </span>
+
+            <!-- 倒计时环：stroke-dashoffset 随剩余时间更新 -->
+            <div class="cd-mini" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
+              <svg viewBox="0 0 52 52" aria-hidden="true">
+                <circle class="cm-bg" cx="26" cy="26" r="22"></circle>
+                <circle class="cm-fg" cx="26" cy="26" r="22"
+                        :stroke-dasharray="RING_LEN"
+                        :stroke-dashoffset="RING_LEN * (1 - remain / DURATION)"></circle>
+              </svg>
+              <b class="cm-num">{{ remain }}<small>s</small></b>
+            </div>
+          </div>
+
+          <!-- 当前题目 -->
+          <div class="qnow">
+            <button class="qnow-play" type="button" aria-label="重播发音"
+                    :class="{ playing: audioPlaying }" @mousedown.prevent @click="play">🔊</button>
+            <div class="qnow-body">
+              <div class="qnow-label">Q{{ idx + 1 }} · 请听音拼写</div>
+              <div class="info-line"><span id="meaning"></span></div>
+              <div class="cells-wrap">
+                <WordCells ref="cells" :tokens="item" :submitted="false"
+                  :feedback="revealing" practice-mode="assisted"></WordCells>
+              </div>
+              <div id="answer-line" aria-live="polite">
+                <span v-if="revealing" class="reveal-ans">✗ 答案：<span class="show-word">{{ item.text }}</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 时间进度 -->
+          <div class="time-progress">
+            <div class="time-fill" :style="{ width: (100 * (1 - remain / DURATION)) + '%' }"></div>
+          </div>
+          <div class="time-labels">
+            <span class="tl-left">⏱️ 已过 {{ DURATION - remain }}s</span>
+            <span class="tl-right">🎯 剩余 {{ remain }}s</span>
+          </div>
+
+          <!-- 连击条 -->
+          <div class="combo-strip">
+            <span class="cs-emoji" aria-hidden="true">🔥</span>
+            <div class="cs-body">
+              <div class="cs-title">{{ combo >= 10 ? '超神连击' : combo >= 5 ? '连击火热' : '连击进行中' }}</div>
+              <div class="cs-sub">答错即清零 · 答对自动切下一个词</div>
+            </div>
+            <div class="cs-mult">
+              <Transition name="combo-pop" mode="out-in"><b class="combo-num" :key="combo">{{ combo }}</b></Transition> 连
+            </div>
+          </div>
+
+          <div class="controls">
+            <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="重播发音" @mousedown.prevent @click="play">🔊 重听</button>
+            <button class="btn ghost" :disabled="revealing" aria-label="跳过当前词" @mousedown.prevent @click="skip">⏭ 跳过</button>
+          </div>
+          <div class="hint">听音打词 · 打对自动下一个 · 打错看一眼答案继续 · Esc 重听</div>
+        </div>
       </div>
-      <div class="practice-card">
-        <div class="info-line"><span id="meaning"></span></div>
-        <div class="cells-wrap">
-          <WordCells ref="cells" :tokens="item" :submitted="false"
-            :feedback="revealing" practice-mode="assisted"></WordCells>
-        </div>
-        <div id="answer-line" aria-live="polite">
-          <span v-if="revealing" style="color:var(--red);">✗ 答案：<span class="show-word">{{ item.text }}</span></span>
-        </div>
-        <div class="controls">
-          <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="重播发音" @mousedown.prevent @click="play">🔊</button>
-          <button class="btn ghost" :disabled="revealing" aria-label="跳过当前词" @mousedown.prevent @click="skip">跳过</button>
-        </div>
-        <div class="hint">听音打词 · 打对自动下一个 · 打错看一眼答案继续 · Esc 重听</div>
-      </div>
+
       <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
              autocapitalize="off" spellcheck="false" enterkeyhint="done"
              style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"
@@ -355,42 +508,74 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
              @input="onInput" @focusout="onCatchBlur">
     </div>
 
-    <!-- 结算 -->
-    <div v-else class="empty">
-      <template v-if="challenge">
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">⚔️ 战报 · 你得到 {{ score }} 分</div>
-        <div style="max-width:340px;margin:12px auto;text-align:left;">
-          <div v-for="(s, i) in challenge.scores || []" :key="s.name + i" class="pk-row">
-            <span>{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
-            <b style="flex:1;margin-left:8px;">{{ s.name }}</b>
-            <span class="combo-num">×{{ s.combo }}</span>
-            <b style="width:56px;text-align:right;">{{ s.score }}</b>
+    <!-- ============ 结算 ============ -->
+    <div v-else>
+      <section v-if="challenge" class="result-card">
+        <div class="rc-emoji" aria-hidden="true">⚔️</div>
+        <h2 class="rc-title">战报</h2>
+        <div class="rc-big gold">{{ score }}<small>分</small></div>
+        <p class="rc-sub">你得到 {{ score }} 分</p>
+
+        <div class="score-list">
+          <div v-for="(s, i) in challenge.scores || []" :key="s.name + i" class="score-row">
+            <span class="sr-rank">{{ ['🥇','🥈','🥉'][i] || (i + 1) + '.' }}</span>
+            <b class="sr-name">{{ s.name }}</b>
+            <span class="sr-combo">×{{ s.combo }}</span>
+            <b class="sr-score">{{ s.score }}</b>
           </div>
         </div>
-      </template>
-      <template v-else>
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</div>
-        <p>答对 {{ score }} 题 · 最高连击 ×{{ maxCombo }} · 作答 {{ answered }} 次</p>
+
+        <div class="controls">
+          <button class="btn primary big" @click="restart">{{ challengeId ? '再战一局' : '再来一轮' }}</button>
+          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+        </div>
+      </section>
+
+      <section v-else class="result-card">
+        <div class="rc-emoji" aria-hidden="true">{{ isRecord ? '🏆' : '⏰' }}</div>
+        <h2 class="rc-title">时间到！{{ isRecord ? '🏆 新纪录！' : '' }}</h2>
+        <div class="rc-big gold">{{ score }}<small>分</small></div>
+
+        <div class="rc-stats">
+          <div class="rc-stat">
+            <div class="rs-emoji" aria-hidden="true">✅</div>
+            <div class="rs-val green">{{ score }}</div>
+            <div class="rs-lbl">答对</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rs-emoji" aria-hidden="true">🔥</div>
+            <div class="rs-val orange">×{{ maxCombo }}</div>
+            <div class="rs-lbl">最高连击</div>
+          </div>
+          <div class="rc-stat">
+            <div class="rs-emoji" aria-hidden="true">⌨️</div>
+            <div class="rs-val blue">{{ answered }}</div>
+            <div class="rs-lbl">作答次数</div>
+          </div>
+        </div>
+
         <!-- 幽灵竞速结果：ghostTarget 是开局捕获的个人最佳 -->
         <p v-if="ghostTarget > 0" class="ghost-verdict" :class="{ ahead: score >= ghostTarget }">
           {{ score >= ghostTarget
             ? (score === ghostTarget ? `👻 与幽灵战平（${ghostTarget} 分）` : `👻 胜过幽灵！超出 ${score - ghostTarget} 分`)
             : `👻 惜败幽灵，还差 ${ghostTarget - score} 分` }}
         </p>
-        <p v-if="best" style="color:var(--yellow);">个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
-      </template>
 
-      <!-- 发起挑战：生成同题链接 -->
-      <div v-if="!challengeId && challengeLink" class="pk-share">
-        挑战链接已复制，发给好友吧：<br><code>{{ challengeLink }}</code>
-      </div>
-      <div class="controls" style="margin-top:16px;">
-        <button class="btn primary big" @click="restart">{{ challengeId ? '再战一局' : '再来一轮' }}</button>
-        <button v-if="!challengeId && !challengeLink" class="btn ghost big" :disabled="creatingChallenge" @click="createChallenge">
-          {{ creatingChallenge ? '生成中…' : '⚔️ 向好友发起挑战' }}
-        </button>
-        <button class="btn ghost big" @click="goCatalog">返回素材库</button>
-      </div>
+        <p v-if="best" class="best-line">📌 个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+
+        <!-- 发起挑战：生成同题链接 -->
+        <div v-if="!challengeId && challengeLink" class="pk-share">
+          挑战链接已复制，发给好友吧：<br><code>{{ challengeLink }}</code>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary big" @click="restart">{{ challengeId ? '再战一局' : '再来一轮' }}</button>
+          <button v-if="!challengeId && !challengeLink" class="btn ghost big" :disabled="creatingChallenge" @click="createChallenge">
+            {{ creatingChallenge ? '生成中…' : '⚔️ 向好友发起挑战' }}
+          </button>
+          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+        </div>
+      </section>
     </div>
   </div>
 </template>

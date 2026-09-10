@@ -137,7 +137,7 @@ defineExpose({ typeWordChar, backspace, paint, markWrong, reset, isCorrect, seri
 </script>
 
 <template>
-  <div ref="box" class="cells-wrap" style="margin:0;">
+  <div ref="box" class="cells-wrap" :class="{ err: feedback }" style="margin:0;">
     <span v-if="!showSequence" class="cell word-line pure-line" :class="{ current: !submitted && !feedback }"
           :style="{ '--chars': Math.max(10, answerText().length) }">{{ answerText() }}</span>
     <template v-for="(w, i) in displayWords" v-else :key="i">

@@ -360,83 +360,163 @@ function playAgain() { location.hash = "#/pk"; }
 <template>
   <div class="pk-page">
     <!-- 初始屏：创建 / 加入 -->
-    <div v-if="!roomParam" class="empty">
+    <div v-if="!roomParam" class="pk-lobby-page">
       <div class="page-heading compact">
         <span class="eyebrow">REALTIME BATTLE</span>
-        <h1>实时 PK 对战</h1>
+        <h1>⚔️ 实时 PK 对战</h1>
         <p>开个房间，把链接发给好友，同一份词流比谁听得准、写得快。</p>
       </div>
       <div v-if="errored" class="account-message error" role="alert" style="margin-bottom:14px;">{{ errored }}</div>
       <div class="pk-lobby">
-        <div class="pk-lobby-card">
-          <div class="pk-lobby-title">创建房间</div>
-          <label class="pk-list-label">词库
-            <select v-model="createList" class="daily-list-select" aria-label="选择词库">
+        <div class="card pk-lobby-card">
+          <div class="card-title"><span class="card-icon">🎮</span> 创建房间</div>
+          <div class="form-group">
+            <label class="form-label">词库</label>
+            <select v-model="createList" class="form-select" aria-label="选择词库">
               <option v-for="l in lobbyLists" :key="l.key" :value="l.key">{{ l.title }}</option>
             </select>
-          </label>
-          <button class="btn primary big" :disabled="creating" @click="createRoom">
-            {{ creating ? "生成中…" : "创建并进入" }}
+          </div>
+          <button class="btn primary big full" :disabled="creating" @click="createRoom">
+            {{ creating ? "⏳ 生成中…" : "🎮 创建并进入" }}
           </button>
         </div>
-        <div class="pk-lobby-card">
-          <div class="pk-lobby-title">加入房间</div>
-          <p class="pk-hint-sm">已有 6 位房间口令？</p>
-          <input v-model="joinCode" class="pk-code-input" maxlength="6" placeholder="输入口令"
+        <div class="card pk-lobby-card">
+          <div class="card-title"><span class="card-icon">🚪</span> 加入房间</div>
+          <p class="form-hint">已有 6 位房间口令？</p>
+          <input v-model="joinCode" class="form-input pk-code-input" maxlength="6" placeholder="输入口令"
                  @keyup.enter="joinRoom" style="text-transform:uppercase;">
-          <button class="btn ghost big" :disabled="!joinCode.trim()" @click="joinRoom">加入</button>
+          <button class="btn ghost big full" :disabled="!joinCode.trim()" @click="joinRoom">加入</button>
         </div>
       </div>
     </div>
 
     <!-- 连接 / 错误 -->
     <div v-else-if="errored" class="empty" role="alert">
+      <span class="emoji">⚠️</span>
+      <h3>连接失败</h3>
       <p>{{ errored }}</p>
       <div class="controls" style="margin-top:16px;">
         <button class="btn primary" @click="connect(roomParam)">重试</button>
         <button class="btn ghost" @click="playAgain">返回</button>
       </div>
     </div>
-    <div v-else-if="!snap" class="empty">连接中…</div>
+    <div v-else-if="!snap" class="empty loading">
+      <span class="spin"></span>
+      <span class="load-text">连接中…</span>
+    </div>
 
     <!-- 等待大厅 -->
-    <div v-else-if="snap.phase === 'waiting'" class="empty">
-      <div class="pk-code">{{ code }}</div>
-      <p class="pk-code-cap">房间口令 · 把链接发给好友即可同桌</p>
-      <div class="controls" style="margin-top:8px;">
-        <button class="btn ghost sm" @click="copyInvite">复制邀请链接</button>
-      </div>
-      <div class="pk-seats">
-        <div v-for="s in seatsView" :key="s.seat" class="pk-seat" :class="{ empty: !s.joined }">
-          <span class="pk-seat-tag">{{ SEAT_LABEL[s.seat] }}</span>
-          <b>{{ s.name }}</b>
-          <span v-if="!s.joined" class="pk-waiting">等待对手…</span>
+    <div v-else-if="snap.phase === 'waiting'" class="pk-waiting">
+      <div class="card pk-wait-card">
+        <div class="card-title"><span class="card-icon">⏳</span> 等待对手加入</div>
+        <div class="card-desc">把房间口令分享给好友，对方加入后即可开始对战</div>
+        <div class="pk-code-chip">{{ code }}</div>
+        <p class="pk-code-cap">房间口令 · 把链接发给好友即可同桌</p>
+        <div class="controls" style="margin-top:8px;">
+          <button class="btn ghost sm" @click="copyInvite">📋 复制邀请链接</button>
         </div>
       </div>
-      <button v-if="snap.role !== 'spectator'" class="btn primary big" style="margin-top:18px;" @click="startGame">开始对战</button>
-      <p v-else class="pk-hint-sm">你正在旁观，对战开始后即可看到实时比分。</p>
+      <div class="pk-seats">
+        <div v-for="s in seatsView" :key="s.seat" class="card pk-seat" :class="{ empty: !s.joined }">
+          <span class="pk-seat-tag">{{ SEAT_LABEL[s.seat] }}</span>
+          <b>{{ s.name }}</b>
+          <span v-if="!s.joined" class="pk-waiting-text">等待对手…</span>
+        </div>
+      </div>
+      <button v-if="snap.role !== 'spectator'" class="btn primary big full" style="margin-top:18px;" @click="startGame">🚀 开始对战</button>
+      <p v-else class="pk-hint-sm">👁️ 你正在旁观，对战开始后即可看到实时比分。</p>
     </div>
 
     <!-- 对战中 -->
     <div v-else-if="snap.phase === 'playing'" class="pk-play">
-      <div class="pk-hud">
-        <div v-for="p in displayPlayers" :key="p.seat" class="pk-hud-col" :class="{ me: snap.role !== 'spectator' && p.seat === snap.role }">
-          <span class="pk-hud-name">{{ p.name }}<small>{{ SEAT_LABEL[p.seat] }}</small></span>
-          <b class="pk-hud-score">{{ p.score }}</b>
-          <span class="pk-hud-combo">连击 ×{{ p.combo }}</span>
-        </div>
-        <div class="pk-timer" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
-          <b>{{ remain }}<small>s</small></b>
+      <!-- Arena Hero -->
+      <div class="arena-hero">
+        <div class="arena-glow"></div>
+        <div class="arena-row">
+          <div class="player-side" :class="snap.role === 'spectator' ? 'left' : (displayPlayers[0] && displayPlayers[0].seat === snap.role ? 'left' : 'right')">
+            <div class="p-avatar-wrap">
+              <div class="p-avatar-ring">
+                <div class="p-avatar-inner">{{ displayPlayers[0] && displayPlayers[0].seat === snap.role ? '🦉' : '🐯' }}</div>
+              </div>
+              <div class="p-live-dot">LIVE</div>
+            </div>
+            <div class="p-name">{{ displayPlayers[0]?.name }}</div>
+            <div class="p-meta">
+              <span class="m-item">{{ SEAT_LABEL[displayPlayers[0]?.seat] }}</span>
+              <span class="m-item">⚡ ×{{ displayPlayers[0]?.combo || 0 }}</span>
+            </div>
+            <div class="p-score">{{ displayPlayers[0]?.score || 0 }}</div>
+            <div class="p-score-lbl">当前得分</div>
+          </div>
+          <div class="vs-center">
+            <div class="vs-badge">VS</div>
+            <div class="vs-round">第 {{ Math.min(idx + 1, total) }} / {{ total }} 词</div>
+            <div class="vs-timer timer-pill" :class="{ urgent: remain <= 10 }" role="timer" :aria-label="`剩余 ${remain} 秒`">
+              ⏱️ {{ remain }}s
+            </div>
+          </div>
+          <div class="player-side" :class="snap.role === 'spectator' ? 'right' : (displayPlayers[1] && displayPlayers[1].seat === snap.role ? 'left' : 'right')">
+            <div class="p-avatar-wrap">
+              <div class="p-avatar-ring">
+                <div class="p-avatar-inner">{{ displayPlayers[1] && displayPlayers[1].seat === snap.role ? '🦉' : '🐯' }}</div>
+              </div>
+              <div class="p-live-dot">LIVE</div>
+            </div>
+            <div class="p-name">{{ displayPlayers[1]?.name }}</div>
+            <div class="p-meta">
+              <span class="m-item">{{ SEAT_LABEL[displayPlayers[1]?.seat] }}</span>
+              <span class="m-item">⚡ ×{{ displayPlayers[1]?.combo || 0 }}</span>
+            </div>
+            <div class="p-score">{{ displayPlayers[1]?.score || 0 }}</div>
+            <div class="p-score-lbl">当前得分</div>
+          </div>
         </div>
       </div>
-      <div v-if="localDone" class="pk-done-note">你已交卷，等待对手完成…</div>
+
+      <!-- Live Card -->
+      <div class="live-card">
+        <div class="live-card-top"></div>
+        <div class="live-inner">
+          <div class="live-head">
+            <div class="l">
+              <span class="live-ic">🎯</span>
+              <b>实时对战<small>第 {{ Math.min(idx + 1, total) }} / {{ total }} 词</small></b>
+            </div>
+            <button class="btn blue sm pk-tts-btn" aria-label="播放音频" @click="playCurrent">🔊 播放</button>
+          </div>
+
+          <div class="dual-bars">
+            <div v-for="p in displayPlayers" :key="'bar-' + p.seat" class="db-row">
+              <div class="db-avatar" :class="snap.role !== 'spectator' && p.seat === snap.role ? 'me' : 'op'">
+                {{ snap.role !== 'spectator' && p.seat === snap.role ? '🦉' : '🐯' }}
+              </div>
+              <div class="db-info">
+                <div class="db-info-top">
+                  <div class="db-name">{{ p.name }}<span v-if="snap.role !== 'spectator' && p.seat === snap.role" class="me-tag">我</span></div>
+                  <div class="db-score" :class="snap.role !== 'spectator' && p.seat === snap.role ? 'me' : 'op'">{{ p.score }}<small>分</small></div>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" :class="snap.role !== 'spectator' && p.seat === snap.role ? 'green' : 'blue'" :style="{ width: (total > 0 ? Math.min((p.answered / total) * 100, 100) : 0) + '%' }"></div>
+                </div>
+              </div>
+              <div class="db-status">
+                <span class="s-dot" :class="p.finished ? '' : 'go'"></span> {{ p.finished ? '已完成' : '进行中' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="localDone" class="pk-done-note">✅ 你已交卷，等待对手完成…</div>
       <div v-else class="pk-board">
-        <div class="pk-progress">第 {{ Math.min(idx + 1, total) }} / {{ total }} 词</div>
-        <button class="btn ghost pk-play-btn" aria-label="重播发音" @click="playCurrent">🔊</button>
-        <input ref="inputEl" v-model="input" class="pk-catch" :disabled="localDone"
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               placeholder="听音打词，回车提交" @keyup.enter="submitWord">
-        <div v-if="revealed" class="pk-warn" role="alert">✗ 拼错了，再试一次</div>
+        <div class="word-display">
+          <div class="word-label">本轮单词</div>
+          <input ref="inputEl" v-model="input" class="pk-catch" :disabled="localDone"
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                 placeholder="听音打词，回车提交" @keyup.enter="submitWord">
+          <div v-if="revealed" class="pk-warn" role="alert">✗ 拼错了，再试一次</div>
+          <div v-else class="word-hint">🎧 听音后输入英文拼写 · 回车提交</div>
+        </div>
         <div class="controls" style="margin-top:10px;">
           <button class="btn ghost sm" :disabled="localDone" @click="skipWord">跳过</button>
           <button class="btn primary sm" :disabled="localDone" @click="submitWord">提交</button>
@@ -445,20 +525,21 @@ function playAgain() { location.hash = "#/pk"; }
     </div>
 
     <!-- 结算 -->
-    <div v-else class="empty">
-      <div class="pk-verdict" :class="{ win: snap.winner === snap.me, draw: snap.winner === 'draw', lose: snap.role !== 'spectator' && snap.winner && snap.winner !== snap.me }">
-        {{ verdictText() }}
+    <div v-else class="pk-finished">
+      <div class="hero-card pk-verdict-card" :class="{ win: snap.winner === snap.me, draw: snap.winner === 'draw', lose: snap.role !== 'spectator' && snap.winner && snap.winner !== snap.me }">
+        <div class="pk-verdict-emoji">{{ snap.winner === 'draw' ? '🤝' : snap.winner === snap.me ? '🏆' : '💔' }}</div>
+        <div class="pk-verdict">{{ verdictText() }}</div>
       </div>
       <div class="pk-result-rows">
-        <div v-for="p in displayPlayers" :key="p.seat" class="pk-result-row">
+        <div v-for="p in displayPlayers" :key="p.seat" class="card pk-result-row" :class="{ win: snap.winner && snap.winner === p.user }">
           <span class="pk-rr-name">{{ p.user === snap.me ? "🙋 " : "" }}{{ p.name }}<small>{{ SEAT_LABEL[p.seat] }}</small></span>
           <b class="pk-rr-score">{{ p.score }}</b>
           <span v-if="snap.winner && snap.winner === p.user" class="pk-crown">👑</span>
         </div>
       </div>
       <div class="controls" style="margin-top:16px;">
-        <button class="btn primary" @click="shareOpen = true">分享战报</button>
-        <button class="btn ghost" @click="playAgain">再来一局</button>
+        <button class="btn primary" @click="shareOpen = true">📤 分享战报</button>
+        <button class="btn ghost" @click="playAgain">🔄 再来一局</button>
       </div>
     </div>
 
@@ -467,68 +548,5 @@ function playAgain() { location.hash = "#/pk"; }
 </template>
 
 <style scoped>
-.pk-lobby { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-.pk-lobby-card {
-  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-  padding: 18px 16px; width: min(320px, 86vw); display: flex; flex-direction: column; gap: 12px; align-items: stretch;
-}
-.pk-lobby-title { font-weight: 750; font-size: 15px; }
-.pk-list-label { font-size: 12px; color: var(--dim); display: flex; flex-direction: column; gap: 6px; }
-.pk-hint-sm { color: var(--dim); font-size: 12px; margin: 0; }
-.pk-code-input {
-  text-align: center; letter-spacing: .25em; font-size: 20px; font-weight: 700;
-  padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel2); color: var(--text);
-}
-.pk-code {
-  font-family: "Avenir Next", monospace; font-size: 44px; font-weight: 800; letter-spacing: .18em;
-  color: var(--accent-strong); margin-top: 6px;
-}
-.pk-code-cap { color: var(--dim); font-size: 13px; margin: 4px 0 0; }
-.pk-seats { display: flex; gap: 14px; margin: 18px auto 0; flex-wrap: wrap; justify-content: center; }
-.pk-seat {
-  min-width: 160px; padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border);
-  background: var(--panel); display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
-}
-.pk-seat.empty { opacity: .7; border-style: dashed; }
-.pk-seat-tag { font-size: 11px; color: var(--accent); font-weight: 700; }
-.pk-waiting { color: var(--dim); font-size: 12px; }
-.pk-play { max-width: 520px; margin: 0 auto; }
-.pk-hud { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 14px; }
-.pk-hud-col {
-  flex: 1; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel);
-  display: flex; flex-direction: column; gap: 2px; text-align: center;
-}
-.pk-hud-col.me { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
-.pk-hud-name { font-size: 13px; font-weight: 700; }
-.pk-hud-name small { color: var(--dim); font-weight: 400; margin-left: 6px; }
-.pk-hud-score { font-size: 34px; line-height: 1; }
-.pk-hud-combo { font-size: 12px; color: var(--dim); }
-.pk-timer {
-  min-width: 64px; padding: 12px; border-radius: 14px; background: var(--panel3); text-align: center;
-}
-.pk-timer.urgent b { color: var(--red); }
-.pk-timer b { font-size: 28px; }
-.pk-timer small { font-size: 12px; color: var(--dim); }
-.pk-board { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; text-align: center; }
-.pk-progress { color: var(--dim); font-size: 13px; margin-bottom: 10px; }
-.pk-play-btn { font-size: 20px; }
-.pk-catch {
-  width: 100%; margin-top: 10px; padding: 12px 14px; font-size: 17px; text-align: center;
-  border-radius: 12px; border: 1px solid var(--border); background: var(--panel2); color: var(--text);
-}
-.pk-catch:disabled { opacity: .5; }
-.pk-warn { color: var(--red); font-size: 13px; margin-top: 8px; }
-.pk-done-note { text-align: center; color: var(--yellow); font-size: 14px; margin: 10px 0; }
-.pk-verdict { font-size: 26px; font-weight: 800; margin: 6px 0 14px; }
-.pk-verdict.win { color: var(--green); }
-.pk-verdict.draw { color: var(--accent); }
-.pk-result-rows { max-width: 340px; margin: 0 auto; }
-.pk-result-row {
-  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px;
-  border: 1px solid var(--border); background: var(--panel); margin-bottom: 10px;
-}
-.pk-rr-name { flex: 1; text-align: left; font-weight: 700; }
-.pk-rr-name small { color: var(--dim); font-weight: 400; margin-left: 6px; }
-.pk-rr-score { font-size: 22px; }
-.pk-crown { font-size: 20px; }
+/* 所有页面专属样式已移至 styles/pages/21-pk.css */
 </style>

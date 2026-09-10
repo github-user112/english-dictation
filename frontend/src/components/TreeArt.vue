@@ -79,8 +79,8 @@ const s = props.stage;
 </template>
 
 <style scoped>
-.tree-art { display: block; overflow: visible; }
-.tree-art.wilted { filter: saturate(.3) brightness(.82); }
+.tree-art { display: block; overflow: visible; filter: drop-shadow(0 6px 12px rgba(0,0,0,.15)); }
+.tree-art.wilted { filter: saturate(.3) brightness(.82) drop-shadow(0 6px 12px rgba(0,0,0,.1)); }
 
 /* 通用生长弹入：以自身包围盒为中心缩放，--d 做部件间的错峰 */
 .tree-art .gp {

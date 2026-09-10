@@ -35,6 +35,18 @@ let mounted = true;
 const prog = computed(() => "剩余 " + (queue.value.length + (cur.value && phase.value === "quiz" ? 1 : 0)));
 const learnTotal = computed(() => items.value.length);
 
+/* ---- 进度环百分比 ---- */
+const ringPct = computed(() => {
+  if (!learnTotal.value) return 0;
+  return Math.round(((learnIndex.value + (flipped.value ? 1 : 0)) / learnTotal.value) * 100);
+});
+const ringOffset = computed(() => 100 - ringPct.value);
+const doneCount = computed(() => learnIndex.value + (flipped.value ? 1 : 0));
+const correctPct = computed(() => {
+  const total = stat.value.right + stat.value.wrong;
+  return total ? Math.round((stat.value.right / total) * 100) : 0;
+});
+
 const SS_KEY = "dict_memorize";
 
 function saveState() {
@@ -379,69 +391,140 @@ function goCatalog() { window.location.hash = "#/catalog"; }
     </div>
   </div>
 
-  <!-- 学习态：英→中翻卡 -->
-  <div v-else-if="phase === 'learn'">
-    <div class="practice-top">
-      <span class="progress-line">先认个脸：{{ items.indexOf(cur) + 1 }} / {{ learnTotal }}</span>
-      <button class="btn ghost" aria-label="跳过学习，直接自测" @click="startQuiz">跳过学习，直接自测</button>
+  <div v-else class="mem-page">
+
+    <!-- ===== Session header ===== -->
+    <div class="mem-sess">
+      <div class="mem-sess-body">
+        <div v-if="phase === 'learn'" class="mem-sess-eyebrow"><span class="pulse-dot" aria-hidden="true"></span> 第 {{ lesson || '—' }} 课 · 英→中 翻卡学习</div>
+        <div v-else-if="phase === 'quiz'" class="mem-sess-eyebrow" style="background:var(--blue);box-shadow:0 2px 0 var(--blue-dark);"><span class="pulse-dot" aria-hidden="true"></span> 自测中 · 中→英 拼写</div>
+        <div v-else class="mem-sess-eyebrow" style="background:var(--gold);color:#7a5c00;box-shadow:0 2px 0 var(--gold-dark);">🏆 本轮完成</div>
+        <div class="mem-sess-title">📖 {{ phase === 'learn' ? '英→中 翻卡学习' : phase === 'quiz' ? '中→英 拼写自测' : '本轮完成 🎉' }}</div>
+        <div class="mem-sess-meta">
+          <span>📚 本课 <b>{{ learnTotal }}</b> 词</span>
+          <span class="sep">·</span>
+          <span style="color:var(--blue-dark);">🎯 正确率 <b>{{ correctPct }}%</b></span>
+          <span v-if="phase === 'learn'" class="sep">·</span>
+          <span v-if="phase === 'learn'" style="color:var(--text-dim);">📖 进度 <b>{{ doneCount }}/{{ learnTotal }}</b></span>
+        </div>
+      </div>
+      <div v-if="phase === 'learn'" class="mem-ring-wrap">
+        <svg viewBox="0 0 36 36">
+          <circle class="mem-ring-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+          <circle class="mem-ring-fg" cx="18" cy="18" r="15.9155" pathLength="100" :style="{ strokeDashoffset: ringOffset }"/>
+        </svg>
+        <div class="mem-ring-center">
+          <span class="mem-ring-pct">{{ ringPct }}%</span>
+          <span class="mem-ring-sub">{{ doneCount }}/{{ learnTotal }} 词</span>
+        </div>
+      </div>
     </div>
-    <div class="practice-card">
-      <Transition name="pop" mode="out-in">
-        <div class="flash-card" :key="cur.text" :class="{ flipped }" role="button" aria-label="点击翻面查看释义" tabindex="0" @click="flip">
-          <div class="face front">
-            <div class="fw">{{ cur.text }}</div>
-            <div class="fp">{{ cur.phonetic }}</div>
+
+    <!-- ===== Phase strip ===== -->
+    <div class="mem-phase">
+      <div class="mem-phase-step" :class="{ active: phase === 'learn', done: phase !== 'learn' }">
+        <span class="step-ic">📖</span> 学习
+      </div>
+      <div class="mem-phase-conn"></div>
+      <div class="mem-phase-step" :class="{ active: phase === 'quiz', done: phase === 'done', locked: phase === 'learn' }">
+        <span class="step-ic">📝</span> 自测
+      </div>
+      <div class="mem-phase-conn"></div>
+      <div class="mem-phase-step" :class="{ active: phase === 'done', locked: phase !== 'done' }">
+        <span class="step-ic">🏆</span> 完成
+      </div>
+    </div>
+
+    <!-- ===== Learn phase ===== -->
+    <template v-if="phase === 'learn'">
+      <div class="mem-main">
+        <div class="mem-left">
+          <div class="flash-card" :key="cur.text" :class="{ flipped }" role="button" aria-label="点击翻面查看释义" tabindex="0" @click="flip">
+            <Transition name="pop" mode="out-in">
+              <div class="face front" :key="'f-'+cur.text">
+                <div class="fw">{{ cur.text }}</div>
+                <div class="fp">{{ cur.phonetic }}</div>
+              </div>
+            </Transition>
+            <Transition name="pop" mode="out-in">
+              <div class="face back" :key="'b-'+cur.text">
+                <div class="fm">{{ cur.meaning }}</div>
+              </div>
+            </Transition>
           </div>
-          <div class="face back">
-            <div class="fm">{{ cur.meaning }}</div>
+          <div class="mem-learn-controls">
+            <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 发音</button>
+            <button class="btn primary big" @mousedown.prevent @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
+          </div>
+          <div class="mem-learn-hint">点击卡片翻面 · 记住拼写后开始自测</div>
+        </div>
+        <div class="mem-sidebar">
+          <div class="mem-acc-hero">
+            <div class="mem-ah-label">🎯 当前正确率</div>
+            <div class="mem-ah-val">{{ correctPct }}%</div>
+            <div class="mem-ah-sub">{{ stat.right }} 知道 · {{ stat.wrong }} 不认识</div>
+          </div>
+          <div class="mem-stats-mini">
+            <div class="mem-stat-box">
+              <div class="mem-stat-val" style="color:var(--green);">✓ {{ stat.memorized }}</div>
+              <div class="mem-stat-lbl">已掌握</div>
+            </div>
+            <div class="mem-stat-box">
+              <div class="mem-stat-val" style="color:var(--blue);">📖 {{ learnTotal - doneCount }}</div>
+              <div class="mem-stat-lbl">剩余</div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:0;">
+            <button class="btn ghost btn-full" aria-label="跳过学习，直接自测" @click="startQuiz">跳过学习，直接自测 →</button>
           </div>
         </div>
-      </Transition>
-      <div class="controls" style="margin-top:16px;">
-        <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 发音</button>
-        <button class="btn primary big" @mousedown.prevent @click="learnNext">{{ items.indexOf(cur) === items.length - 1 ? '开始自测 →' : '下一个 →' }}</button>
       </div>
-      <div class="hint">点击卡片翻面 · 记住拼写后开始自测</div>
-    </div>
-  </div>
+    </template>
 
-  <!-- 自测态：中→英打字 -->
-  <div v-else-if="phase === 'quiz'" @pointerdown="focusCatch">
-    <div class="practice-top">
-      <span class="progress-line">{{ prog }} · 已背 {{ stat.memorized }}</span>
-      <span class="badge" style="background:#24402d;color:#7fdcab;">{{ cur.phase === 'review' ? '复习' : '新词' }}</span>
+    <!-- ===== Quiz phase ===== -->
+    <div v-else-if="phase === 'quiz'" class="mem-quiz-wrap" @pointerdown="focusCatch">
+      <div class="practice-card">
+        <div class="mem-quiz-meaning">
+          <div class="mem-quiz-meaning-label">🇨🇳 中文释义</div>
+          <div class="mem-quiz-meaning-text" id="meaning">{{ cur.meaning }}</div>
+        </div>
+        <div class="cells-wrap">
+          <WordCells ref="cells" :key="quizRound" :tokens="cur" :submitted="submitted"></WordCells>
+        </div>
+        <div id="answer-line" aria-live="polite">
+          <template v-if="submitted">
+            <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}<span v-if="cur.phonetic"> · {{ cur.phonetic }}</span></span>
+            <span v-if="lastRight" class="mem-note">{{ lastNote }}</span>
+          </template>
+        </div>
+        <div class="mem-quiz-controls">
+          <div v-if="saveError" class="mem-save-error" role="alert">保存失败：{{ saveError }}</div>
+          <button class="btn primary big" :disabled="saving" @mousedown.prevent @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
+          <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 听发音</button>
+        </div>
+        <div class="mem-quiz-hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
+      </div>
+      <div class="mem-phase" style="margin-top:16px;">
+        <div class="mem-phase-step done"><span class="step-ic">📖</span> 学习</div>
+        <div class="mem-phase-conn"></div>
+        <div class="mem-phase-step active"><span class="step-ic">📝</span> 自测</div>
+        <div class="mem-phase-conn"></div>
+        <div class="mem-phase-step locked"><span class="step-ic">🏆</span> 完成</div>
+      </div>
     </div>
-    <div class="practice-card">
-      <div class="info-line" style="margin-bottom:10px;">
-        <span id="meaning" style="font-size:18px;">{{ cur.meaning }}</span>
-      </div>
-      <div class="cells-wrap">
-        <WordCells ref="cells" :key="quizRound" :tokens="cur" :submitted="submitted"></WordCells>
-      </div>
-      <div id="answer-line" aria-live="polite">
-        <template v-if="submitted">
-          <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}<span v-if="cur.phonetic"> · {{ cur.phonetic }}</span></span>
-          <span v-if="lastRight">{{ lastNote }}</span>
-        </template>
-      </div>
+
+    <!-- ===== Done ===== -->
+    <div v-else class="mem-done">
+      <div class="mem-done-emoji">🎉</div>
+      <h3>本轮完成</h3>
+      <p>已背 {{ stat.memorized }} 个 · 答对 {{ stat.right }} 次 · 答错 {{ stat.wrong }} 次</p>
       <div class="controls">
-        <div v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</div>
-        <button class="btn primary big" :disabled="saving" @mousedown.prevent @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
-        <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 听发音</button>
+        <button class="btn primary big" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
+        <button class="btn ghost" @click="redo">再背一轮</button>
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
       </div>
-      <div class="hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
     </div>
-  </div>
 
-  <!-- 结束 -->
-  <div v-else class="empty">
-    <div style="font-size:20px;font-weight:700;margin-bottom:10px;">本轮完成 🎉</div>
-    <p>已背 {{ stat.memorized }} 个 · 答对 {{ stat.right }} 次 · 答错 {{ stat.wrong }} 次</p>
-    <div class="controls" style="margin-top:16px;">
-      <button class="btn primary big" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
-      <button class="btn ghost" @click="redo">再背一轮</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
-    </div>
   </div>
 
   <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"

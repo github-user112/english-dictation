@@ -210,28 +210,30 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
         </div>
       </template>
       <template v-else>
-        <div style="font-size:52px;" aria-hidden="true">🐲</div>
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">错词 Boss 战</div>
-        <p>{{ items.length }} 个最常错的词盘踞成一只 Boss——它的血条就是它们。</p>
-        <p>听音打词：打对扣它一点血、该词从错词本除名；打错扣你一颗心。你有 {{ HEARTS }} 颗心。</p>
-        <div class="boss-army" aria-label="本次讨伐的词">
-          <span v-for="it in items" :key="it.list + it.id" class="army-chip">
-            {{ it.text }}<i>×{{ it.wrong_count }}</i>
-          </span>
-        </div>
-        <div class="controls" style="margin-top:16px;">
-          <button class="btn primary big" @click="start">⚔️ 开始讨伐</button>
-          <button class="btn ghost" @click="goWrong">返回错词本</button>
+        <div class="boss-hero">
+          <span class="boss-hero-dragon" aria-hidden="true">🐲</span>
+          <div class="boss-hero-title">错词 Boss 战</div>
+          <p class="boss-hero-desc">{{ items.length }} 个最常错的词盘踞成一只 Boss——它的血条就是它们。</p>
+          <p class="boss-hero-desc">听音打词：打对扣它一点血、该词从错词本除名；打错扣你一颗心。你有 {{ HEARTS }} 颗心。</p>
+          <div class="boss-army" aria-label="本次讨伐的词">
+            <span v-for="it in items" :key="it.list + it.id" class="army-chip boss-army-chip">
+              {{ it.text }}<i>×{{ it.wrong_count }}</i>
+            </span>
+          </div>
+          <div class="boss-controls">
+            <button class="btn primary big" @click="start">⚔️ 开始讨伐</button>
+            <button class="btn ghost" @click="goWrong">返回错词本</button>
+          </div>
         </div>
       </template>
     </div>
 
     <!-- 战斗中 -->
     <div v-else-if="phase === 'run'">
-      <div class="practice-top">
-        <span class="hearts" role="img"
+      <div class="boss-topbar">
+        <span class="boss-hearts" role="img"
               :aria-label="`剩余 ${hearts} 颗心`">{{ heartsLine }}</span>
-        <span class="progress-line">得分 {{ score }} · 连击 ×{{ combo }}</span>
+        <span class="boss-score-line">得分 {{ score }} · 连击 ×{{ combo }}</span>
       </div>
       <div class="boss-panel">
         <div class="boss-art" :class="{ hurt: hurtFx }" aria-hidden="true">🐲</div>
@@ -254,7 +256,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
           <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="重播发音" @mousedown.prevent @click="play">🔊</button>
           <button class="btn ghost" :disabled="locked" aria-label="撤退并结算" @click="retreat">🏳️ 撤退</button>
         </div>
-        <div class="hint">听音打词 · 打对扣 Boss 血并从错词本除名 · 打错扣一颗心 · Esc 重听</div>
+        <div class="hint boss-hint">听音打词 · 打对扣 Boss 血并从错词本除名 · 打错扣一颗心 · Esc 重听</div>
       </div>
       <input id="catch" ref="catchEl" autocomplete="off" autocorrect="off"
              autocapitalize="off" spellcheck="false" enterkeyhint="done"
@@ -265,18 +267,22 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
 
     <!-- 战报 -->
     <div v-else class="empty">
-      <div class="boss-verdict" :class="outcome" aria-live="polite">
-        <span class="bv-icon" aria-hidden="true">{{ outcome === 'win' ? '🏆' : outcome === 'lose' ? '💀' : '🏳️' }}</span>
-        <b>{{ outcome === 'win' ? 'Boss 击破！' : outcome === 'lose' ? '心力耗尽……' : '鸣金收兵' }}</b>
-        <p v-if="outcome === 'lose'">Boss 逃回错词本了，喘口气再来讨伐。</p>
-        <p v-else-if="outcome === 'flee'">残血 Boss 逃走了，下次它还会回来。</p>
+      <div class="boss-verdict-card">
+        <div class="boss-verdict" :class="outcome" aria-live="polite">
+          <span class="bv-icon" aria-hidden="true">{{ outcome === 'win' ? '🏆' : outcome === 'lose' ? '💀' : '🏳️' }}</span>
+          <b>{{ outcome === 'win' ? 'Boss 击破！' : outcome === 'lose' ? '心力耗尽……' : '鸣金收兵' }}</b>
+          <p v-if="outcome === 'lose'">Boss 逃回错词本了，喘口气再来讨伐。</p>
+          <p v-else-if="outcome === 'flee'">残血 Boss 逃走了，下次它还会回来。</p>
+        </div>
+        <div class="boss-result-card">
+          <p>答对 {{ score }} / {{ answers.length }} 题
+            <template v-if="result">· 斩落 {{ result.cleared }} 词（已从错词本除名）</template></p>
+          <p v-if="result && result.wrong_remaining > 0" style="color:var(--yellow);">
+            错词本还剩 {{ result.wrong_remaining }} 个词等着被讨伐</p>
+          <p v-if="result && result.wrong_remaining === 0" style="color:var(--green);">🎉 错词本全清！</p>
+        </div>
       </div>
-      <p>答对 {{ score }} / {{ answers.length }} 题
-        <template v-if="result">· 斩落 {{ result.cleared }} 词（已从错词本除名）</template></p>
-      <p v-if="result && result.wrong_remaining > 0" style="color:var(--yellow);">
-        错词本还剩 {{ result.wrong_remaining }} 个词等着被讨伐</p>
-      <p v-if="result && result.wrong_remaining === 0" style="color:var(--green);">🎉 错词本全清！</p>
-      <div class="controls" style="margin-top:16px;">
+      <div class="boss-controls">
         <button class="btn primary big" @click="restart">再战一局</button>
         <button class="btn ghost big" @click="goWrong">返回错词本</button>
       </div>

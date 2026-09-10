@@ -1,8 +1,356 @@
 /* ===== 09-tree · 单词树 · TreePage =====
-   对照 design/单词树-desktop.html + 单词树-mobile.html
+   对照 design/tree-desktop.html + tree-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
+   级联：legacy.css → base.css → 本文件（天然覆盖旧样式）
 */
+
+/* ---- 页面容器 ---- */
+.tree-page { max-width: 1100px; margin: 0 auto; }
+
+/* ---- Page head ---- */
+.tree-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin: 14px 0 18px; gap: 16px; flex-wrap: wrap;
+}
+.tree-head h1 {
+  font-size: clamp(24px, 4vw, 32px); font-weight: 900; letter-spacing: -0.5px;
+  line-height: 1.1; display: flex; align-items: center; gap: 10px;
+}
+.tree-head h1 .emoji { font-size: 1.1em; }
+.tree-head p { font-size: 14px; font-weight: 700; color: var(--text-dim); margin-top: 4px; }
+.tree-head .head-status { display: inline-flex; align-items: center; }
+
+/* ============================================================
+   TREE HERO — 绿色渐变主卡
+   ============================================================ */
+.tree-hero {
+  background: linear-gradient(135deg, #58cc02 0%, #7be22a 55%, #6fdd1a 100%);
+  border-radius: var(--r-hero); padding: 28px 32px; color: #fff;
+  box-shadow: 0 6px 0 var(--green-dark), 0 12px 32px rgba(88,204,2,.28);
+  position: relative; overflow: hidden; margin-bottom: 18px;
+}
+.tree-hero::after {
+  content: ''; position: absolute; top: -80px; right: -50px;
+  width: 280px; height: 280px; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+}
+.tree-hero::before {
+  content: ''; position: absolute; bottom: -100px; left: -60px;
+  width: 220px; height: 220px; border-radius: 50%;
+  background: rgba(255,255,255,.05);
+}
+
+/* Hero top row */
+.hero-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; position: relative; z-index: 2; flex-wrap: wrap; gap: 12px;
+}
+.hero-stage-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.22); backdrop-filter: blur(4px);
+  padding: 8px 18px; border-radius: 14px;
+  font-size: 16px; font-weight: 900;
+}
+.hero-stage-badge .em { font-size: 22px; }
+.hero-day-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--orange), #ffb347);
+  padding: 8px 18px; border-radius: 14px;
+  font-size: 15px; font-weight: 900; color: #fff;
+  box-shadow: 0 3px 0 var(--orange-dark);
+}
+.hero-day-pill .em { font-size: 18px; }
+
+/* ============================================================
+   TREE SCENE — 天空 + 云朵 + 太阳 + 水滴 + 草地 + 花
+   ============================================================ */
+.tree-scene {
+  position: relative; height: 300px;
+  background: linear-gradient(180deg, #e8f7ff 0%, #f0fff5 60%, #f7f7f7 100%);
+  border-radius: 18px; overflow: hidden; margin: 0 -6px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.04);
+}
+
+/* Sun */
+.sun {
+  position: absolute; top: 18px; right: 28px; width: 44px; height: 44px;
+  border-radius: 50%; background: radial-gradient(circle, var(--gold), #ffb300);
+  box-shadow: 0 0 30px rgba(255,200,0,.5), 0 0 60px rgba(255,200,0,.2);
+  animation: sun-pulse 3s ease-in-out infinite;
+}
+@keyframes sun-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+/* Clouds */
+.cloud {
+  position: absolute; background: #fff; border-radius: 24px;
+  box-shadow: 0 3px 6px rgba(0,0,0,.06);
+  animation: cloud-drift 18s linear infinite;
+}
+.cloud.c1 { top: 24px; left: 60px; width: 56px; height: 22px; }
+.cloud.c2 { top: 50px; left: 100px; width: 42px; height: 17px; animation-delay: -6s; }
+.cloud.c3 { top: 36px; right: 160px; width: 64px; height: 24px; animation-delay: -12s; }
+@keyframes cloud-drift { 0% { transform: translateX(0); } 100% { transform: translateX(-40px); } }
+
+/* Water drops */
+.drop {
+  position: absolute; width: 7px; height: 11px; background: var(--blue);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  box-shadow: 0 0 6px rgba(28,176,246,.6);
+  animation: drop-fall 2s ease-in infinite;
+}
+@keyframes drop-fall {
+  0%   { transform: translateY(-40px); opacity: 0; }
+  20%  { opacity: 1; }
+  90%  { transform: translateY(280px); opacity: 1; }
+  100% { transform: translateY(300px); opacity: 0; }
+}
+
+/* Watering can */
+.watering-can {
+  position: absolute; top: 22px; left: 48px;
+  font-size: 48px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2));
+  animation: can-pour 3s ease-in-out infinite;
+}
+@keyframes can-pour {
+  0%,100% { transform: rotate(-15deg) translateY(0); }
+  50%     { transform: rotate(-20deg) translateY(-4px); }
+}
+
+/* Ground */
+.ground {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 44px;
+  background: linear-gradient(180deg, #a8d878, #7cb94a);
+  border-radius: 50% 50% 0 0 / 30% 30% 0 0;
+}
+.ground-flowers {
+  position: absolute; bottom: 8px; left: 0; right: 0;
+  display: flex; justify-content: space-around; padding: 0 8%;
+}
+.flower { font-size: 14px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.1)); }
+
+/* Tree SVG position */
+.tree-svg-wrap {
+  position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+}
+/* 圆形底座 */
+.tree-svg-wrap::before {
+  content: ''; position: absolute; bottom: -12px; left: 50%;
+  transform: translateX(-50%); width: 140px; height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(88,204,2,.22) 0%, rgba(88,204,2,.06) 100%);
+}
+
+/* 长大了！浮标 */
+.tree-grew {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  background: var(--gold); color: #5a3e00;
+  padding: 4px 14px; border-radius: 10px;
+  font-size: 13px; font-weight: 900;
+  box-shadow: 0 3px 0 var(--gold-dark);
+  white-space: nowrap; z-index: 3;
+}
+
+/* Hero hint (status line) */
+.hero-hint {
+  position: relative; z-index: 2; margin: 14px 0 0;
+  font-size: 14px; font-weight: 700; text-align: center; opacity: .92;
+}
+
+/* Hero bottom row */
+.hero-bottom {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 16px; position: relative; z-index: 2; flex-wrap: wrap; gap: 14px;
+}
+.hero-stats { display: flex; gap: 12px; }
+.hero-stat {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,.18); backdrop-filter: blur(4px);
+  padding: 10px 18px; border-radius: 14px; min-width: 90px;
+}
+.hero-stat .em { font-size: 18px; }
+.hero-stat .v { font-size: 26px; font-weight: 900; line-height: 1; }
+.hero-stat .v.gold { color: var(--gold); }
+.hero-stat .k { font-size: 11px; font-weight: 800; opacity: .9; margin-top: 3px; }
+
+.water-btn-wrap { display: flex; gap: 10px; }
+
+/* ============================================================
+   ROW: STATS + GROWTH TIMELINE
+   ============================================================ */
+.tree-row-stats {
+  display: grid; grid-template-columns: 1fr 1.2fr; gap: 18px; margin-bottom: 18px;
+}
+
+/* Stat tile (compact grid cell) */
+.tree-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-tile {
+  background: var(--panel2); border-radius: var(--r-step); padding: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-align: center;
+}
+.stat-tile .em { font-size: 24px; margin-bottom: 2px; }
+.stat-tile .v { font-size: 22px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat-tile .v small { font-size: 0.6em; font-weight: 800; opacity: .8; }
+.stat-tile .v.green { color: var(--green-dark); }
+.stat-tile .v.blue { color: var(--blue-dark); }
+.stat-tile .v.orange { color: var(--orange); }
+.stat-tile .v.gold { color: var(--gold-dark); }
+.stat-tile .v.purple { color: var(--purple); }
+.stat-tile .k { font-size: 11px; font-weight: 800; color: var(--text-dim); }
+:root[data-theme="dark"] .stat-tile { border: 1px solid var(--border); }
+
+/* ============================================================
+   STAGE TIMELINE — 8 节点 + 连线
+   ============================================================ */
+.stage-timeline {
+  position: relative; display: flex; justify-content: space-between;
+  padding: 0 10px; margin-top: 12px;
+}
+.stage-node {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1; position: relative; z-index: 2;
+}
+.stage-emoji {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel3);
+  box-shadow: 0 3px 0 rgba(0,0,0,.08);
+  transition: all 0.3s;
+}
+.stage-node.done .stage-emoji { background: var(--green); box-shadow: 0 3px 0 var(--green-dark); }
+.stage-node.current .stage-emoji {
+  background: var(--green); box-shadow: 0 3px 0 var(--green-dark), 0 0 0 5px rgba(88,204,2,.2);
+  animation: node-pulse 2s ease-inout infinite;
+}
+.stage-node.locked .stage-emoji { background: var(--panel3); opacity: .55; }
+:root[data-theme="dark"] .stage-emoji { border: 1px solid var(--border); }
+
+@keyframes node-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+.stage-name { font-size: 12px; font-weight: 800; color: var(--text-dim); text-align: center; }
+.stage-node.done .stage-name { color: var(--green-dark); }
+.stage-node.current .stage-name { color: var(--green-dark); font-weight: 900; }
+.stage-node.locked .stage-name { color: var(--text-faint); }
+.stage-info { font-size: 10px; font-weight: 700; color: var(--text-faint); text-align: center; }
+.stage-node.done .stage-info { color: var(--green-dark); opacity: .7; }
+
+.stage-line {
+  position: absolute; top: 26px; left: 50%; right: -50%; height: 4px;
+  background: var(--border); z-index: 1; border-radius: 2px;
+}
+.stage-node.done .stage-line,
+.stage-node.current .stage-line { background: var(--green); }
+.stage-node:last-child .stage-line { display: none; }
+
+/* Stage detail box */
+.stage-detail-box {
+  margin-top: 20px; padding: 16px 18px;
+  background: linear-gradient(135deg, var(--green-bg), var(--panel));
+  border: 2px solid rgba(88,204,2,.3); border-radius: 14px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+:root[data-theme="dark"] .stage-detail-box {
+  background: linear-gradient(135deg, rgba(88,204,2,.1), var(--panel2));
+  border-color: rgba(88,204,2,.25);
+}
+.stage-detail-box .em-big { font-size: 40px; flex-shrink: 0; }
+.stage-detail-info { flex: 1; min-width: 200px; }
+.stage-detail-info .title { font-size: 16px; font-weight: 900; color: var(--green-dark); margin-bottom: 2px; }
+.stage-detail-info .desc { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+.stage-detail-info .next { font-size: 12px; font-weight: 800; color: var(--blue-dark); margin-top: 4px; }
+.stage-detail-info .next b { color: var(--blue-dark); }
+
+/* ============================================================
+   WEEK BAR CHART
+   ============================================================ */
+.week-bar {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  height: 120px; gap: 6px; padding: 0 4px; margin-bottom: 12px;
+}
+.week-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; height: 100%; justify-content: flex-end;
+}
+.week-bar-val { font-size: 10px; font-weight: 900; color: var(--green-dark); }
+.week-bar-fill {
+  width: 100%; max-width: 34px; border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, var(--blue), #4dd0ff);
+  box-shadow: 0 -2px 0 rgba(28,176,246,.2) inset;
+  min-height: 6px; position: relative;
+  transition: height 0.4s var(--ease-out);
+}
+.week-bar-fill.on { background: linear-gradient(180deg, var(--green), #6fdd1a); }
+.week-bar-fill.today { background: linear-gradient(180deg, var(--orange), #ffb347); }
+.week-bar-fill.today.on { background: linear-gradient(180deg, var(--orange), #ffb347); }
+.week-bar-label { font-size: 10px; font-weight: 800; color: var(--text-dim); }
+.week-bar-label.today { color: var(--orange); }
+
+.week-summary { display: flex; gap: 10px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
+
+/* ============================================================
+   CTA — 覆盖 base.css .banner 在本页的间距
+   ============================================================ */
+.tree-page > .banner { margin-bottom: 6px; }
+
+/* ============================================================
+   手机端适配
+   ============================================================ */
+@media (max-width: 880px) {
+  .tree-row-stats { grid-template-columns: 1fr; }
+  .tree-hero { padding: 20px; }
+  .tree-scene { height: 220px; }
+  .sun { top: 12px; right: 18px; width: 32px; height: 32px; }
+  .cloud.c1 { top: 18px; left: 40px; width: 40px; height: 16px; }
+  .cloud.c2 { top: 34px; left: 68px; width: 30px; height: 12px; }
+  .cloud.c3 { top: 26px; right: 100px; width: 44px; height: 17px; }
+  .ground { height: 30px; }
+  .ground-flowers { bottom: 5px; }
+  .flower { font-size: 11px; }
+  .tree-svg-wrap { bottom: 22px; }
+  .watering-can { top: 14px; left: 30px; font-size: 36px; }
+  .drop { width: 5px; height: 8px; }
+  .hero-stat { padding: 8px 12px; min-width: 70px; }
+  .hero-stat .v { font-size: 20px; }
+  .hero-stat .k { font-size: 10px; }
+  .hero-stat .em { font-size: 14px; }
+  .hero-day-pill { font-size: 13px; padding: 6px 14px; }
+  .hero-day-pill .em { font-size: 16px; }
+  .hero-stage-badge { font-size: 14px; padding: 6px 14px; }
+  .hero-stage-badge .em { font-size: 18px; }
+  .stage-emoji { width: 42px; height: 42px; }
+  .stage-name { font-size: 10px; }
+  .stage-info { font-size: 9px; }
+  .stage-line { top: 21px; height: 3px; }
+  .stage-timeline { padding: 0 4px; }
+  .week-bar { height: 100px; }
+  .week-bar-fill { max-width: 28px; }
+  .tree-stat-grid { gap: 8px; }
+  .stat-tile { padding: 10px 6px; }
+  .stat-tile .em { font-size: 18px; }
+  .stat-tile .v { font-size: 16px; }
+  .stat-tile .k { font-size: 10px; }
+  .stage-detail-box { padding: 14px 16px; gap: 12px; }
+  .stage-detail-box .em-big { font-size: 32px; }
+  .stage-detail-info .title { font-size: 14px; }
+  .stage-detail-info .desc { font-size: 12px; }
+  .stage-detail-info .next { font-size: 11px; }
+  .water-btn-wrap { width: 100%; }
+  .water-btn-wrap .btn { width: 100%; }
+}
+
+@media (max-width: 620px) {
+  .tree-head { margin: 10px 0 12px; }
+  .tree-head h1 { font-size: 22px; }
+  .tree-head h1 .emoji { font-size: 24px; }
+  .hero-bottom { flex-direction: column-reverse; align-items: stretch; }
+  .hero-stats { flex-wrap: wrap; justify-content: center; }
+  .hero-stat { min-width: 64px; }
+  .week-bar { height: 88px; gap: 4px; }
+  .week-bar-fill { max-width: 24px; }
+  .stat-tile { padding: 8px 4px; }
+  .stat-tile .v { font-size: 15px; }
+}

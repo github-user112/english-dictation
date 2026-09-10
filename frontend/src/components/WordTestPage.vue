@@ -144,30 +144,33 @@ function goCatalog() {
 <template>
 <div class="wt-page">
   <!-- 开始页 -->
-  <div v-if="phase === 'idle'" class="empty">
-    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">📊 词汇量等级测试</div>
+  <div v-if="phase === 'idle'" class="wt-intro empty">
+    <span class="wt-intro-icon">📊</span>
+    <h2>词汇量等级测试</h2>
     <p>25 道「听音选义」题，难度随答对自动上升、答错自动下降。</p>
     <p>最终根据你达到的难度等级，估算 CEFR 等级与可识别词汇量。</p>
 
-    <div class="stat-cards" style="margin:20px 0 12px;">
+    <div class="stat-cards">
       <div class="stat-card" v-for="cefr in CEFR_ORDER" :key="cefr">
         <div class="num" :style="{ color: CEFR_COLOR[cefr] }">{{ cefr }}</div>
         <div class="lab">{{ CEFR_TITLE[cefr] }}</div>
       </div>
     </div>
 
-    <div class="controls" style="margin-top:16px;">
+    <div class="controls">
       <button class="btn primary big" @click="start">开始测试</button>
       <button class="btn ghost" @click="goCatalog">返回素材库</button>
     </div>
 
-    <div v-if="historyList.length" class="history-box">
+    <div v-if="historyList.length" class="wt-history-section">
       <div class="section-title"><span>最近测试</span><small>{{ historyList.length }} 次</small></div>
-      <div v-for="h in historyList.slice(0, 5)" :key="h.created_at" class="history-row">
-        <span class="wt-cefr" :style="{ color: CEFR_COLOR[h.cefr] || 'var(--accent)' }">{{ h.cefr }}</span>
-        <span>{{ CEFR_TITLE[h.cefr] || h.cefr }}</span>
-        <span>≈ {{ h.word_count }} 词</span>
-        <span class="hist-meta">{{ h.created_at.slice(5, 10) }}</span>
+      <div class="wt-history-box">
+        <div v-for="h in historyList.slice(0, 5)" :key="h.created_at" class="wt-history-row">
+          <span class="wt-cefr" :style="{ color: CEFR_COLOR[h.cefr] || 'var(--accent)' }">{{ h.cefr }}</span>
+          <span>{{ CEFR_TITLE[h.cefr] || h.cefr }}</span>
+          <span>≈ {{ h.word_count }} 词</span>
+          <span class="hist-meta">{{ h.created_at.slice(5, 10) }}</span>
+        </div>
       </div>
     </div>
 
@@ -175,9 +178,9 @@ function goCatalog() {
   </div>
 
   <!-- 测试中 -->
-  <div v-else-if="phase === 'testing'">
-    <div class="practice-top">
-      <span class="progress-line">
+  <div v-else-if="phase === 'testing'" class="wt-testing">
+    <div class="practice-top wt-practice-header">
+      <span class="progress-line wt-practice-info">
         难度 <b>L{{ level }}</b> · 第 {{ answered + 1 }} / {{ MAX_QUESTIONS }} 题
       </span>
       <svg class="wt-bar" viewBox="0 0 52 52" aria-hidden="true">
@@ -188,10 +191,10 @@ function goCatalog() {
       </svg>
     </div>
 
-    <div class="practice-card" style="margin-top:12px;">
+    <div class="practice-card wt-question-card">
       <div class="wt-word">{{ question?.word || "" }}</div>
       <div class="wt-phonetic">{{ question?.phonetic || "" }}</div>
-      <div class="controls" style="margin:8px 0 12px;">
+      <div class="controls wt-replay-row">
         <button class="btn ghost" aria-label="重播发音" @click="play">🔊 重听</button>
       </div>
 
@@ -210,7 +213,7 @@ function goCatalog() {
         <span>📈 答对难度+1</span><span>📉 答错难度-1</span>
       </div>
 
-      <div class="wt-history" v-if="history.length > 0">
+      <div class="wt-history-strip wt-history" v-if="history.length > 0">
         <span v-for="h in history.slice(-8)" :key="h.word">
           <span :class="h.right ? 'wt-h-right' : 'wt-h-wrong'">
             {{ h.word }}
@@ -223,25 +226,38 @@ function goCatalog() {
   </div>
 
   <!-- 结果页 -->
-  <div v-else-if="phase === 'done' && result" class="empty">
-    <div class="wt-result">
-      <div class="wt-cefr-big" :style="{ color: CEFR_COLOR[result.cefr] || 'var(--accent)' }">
-        {{ result.cefr }}
-      </div>
-      <div class="wt-cefr-title">{{ result.cefr_title }} · ≈ {{ result.word_count }} 词</div>
-      <div class="wt-result-stats">
-        <div class="wt-stat"><div class="wt-stat-num">{{ result.correct }}</div><div class="wt-stat-lab">答对</div></div>
-        <div class="wt-stat"><div class="wt-stat-num">{{ result.answered - result.correct }}</div><div class="wt-stat-lab">答错</div></div>
-        <div class="wt-stat"><div class="wt-stat-num">L{{ result.level }}</div><div class="wt-stat-lab">最终难度</div></div>
+  <div v-else-if="phase === 'done' && result" class="wt-result-section empty">
+    <div class="wt-hero">
+      <span class="wt-hero-confetti">🎉</span>
+      <div class="wt-hero-body">
+        <div class="wt-hero-icon">🏆</div>
+        <div class="wt-hero-label">词汇量测试完成！</div>
+        <div class="wt-hero-sub">{{ result.cefr_title }} · ≈ {{ result.word_count }} 词</div>
+        <div class="wt-cefr-big" :style="{ color: CEFR_COLOR[result.cefr] || 'var(--accent)' }">
+          {{ result.cefr }}
+        </div>
+        <div class="wt-hero-badges">
+          <span class="wt-hero-badge">📊 CEFR <b>{{ result.cefr }}</b></span>
+          <span class="wt-hero-badge">📏 词汇量 <b>≈{{ result.word_count }}</b></span>
+          <span class="wt-hero-badge">🎯 正确率 <b>{{ result.answered ? Math.round(result.correct / result.answered * 100) : 0 }}%</b></span>
+        </div>
       </div>
     </div>
 
-    <div class="controls" style="margin-top:18px;">
-      <button class="btn primary big" @click="start">🔄 再测一次</button>
-      <button class="btn ghost big" @click="shareOpen = true">📤 分享结果</button>
+    <div class="wt-stats-grid">
+      <div class="wt-stat-card"><div class="wt-stat-num" style="color:var(--green);">✓ {{ result.correct }}</div><div class="wt-stat-lab">答对</div></div>
+      <div class="wt-stat-card"><div class="wt-stat-num" style="color:var(--red);">✕ {{ result.answered - result.correct }}</div><div class="wt-stat-lab">答错</div></div>
+      <div class="wt-stat-card"><div class="wt-stat-num" style="color:var(--blue);">L{{ result.level }}</div><div class="wt-stat-lab">最终难度</div></div>
     </div>
-    <div class="controls" style="margin-top:6px;">
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+
+    <div class="wt-result-actions">
+      <div class="controls">
+        <button class="btn primary big" @click="start">🔄 再测一次</button>
+        <button class="btn ghost big" @click="shareOpen = true">📤 分享结果</button>
+      </div>
+      <div class="controls">
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
     </div>
   </div>
 

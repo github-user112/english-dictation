@@ -1,8 +1,502 @@
 /* ===== 19-friends · 好友 · FriendsPage =====
-   对照 design/好友-desktop.html + 好友-mobile.html
+   对照 design/friends-desktop.html + design/friends-mobile.html
    规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
+   （.btn .card .step-item .badge .badge-soft .mini-bar .progress-bar
+     .stat-box .sec-head .empty .form-input .page-heading .eyebrow
+     .grid-* .container .stagger-in）
+   级联位置 3，天然覆盖 legacy.css 的旧 .friend-* / .fr-* 兜底。
    禁止改 styles/base.css、styles.css、styles/legacy.css。
 */
+
+/* ---- 页内 token（双主题兼容）---- */
+.friends-page {
+  --fp-line: color-mix(in srgb, var(--border) 60%, #ffffff);
+  --fp-row-bg: color-mix(in srgb, var(--panel) 86%, var(--bg));
+  --fp-row-hover: color-mix(in srgb, var(--panel) 78%, var(--bg));
+  --fp-soft: color-mix(in srgb, var(--border) 76%, #ffffff);
+  padding-bottom: 30px;
+}
+
+/* ============================================================
+   1. 页头：标题 + 操作
+   ============================================================ */
+.fp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.fp-head .page-heading { margin: 0; }
+.fp-emoji { font-size: 1.1em; font-family: var(--emoji); margin-right: 6px; }
+.fp-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+
+/* ============================================================
+   2. 社交圈总览 hero（蓝色渐变，对应稿子 .social-hero）
+   ============================================================ */
+.fp-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin-bottom: 20px;
+  padding: 24px 28px;
+  border-radius: var(--r-hero);
+  color: #fff;
+  background: linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
+  box-shadow: 0 6px 0 var(--blue-dark), 0 14px 30px color-mix(in srgb, var(--blue) 26%, transparent);
+}
+.fp-hero::after {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: -40px;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .1);
+  pointer-events: none;
+}
+.fp-hero::before {
+  content: "";
+  position: absolute;
+  bottom: -80px;
+  left: 28%;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  pointer-events: none;
+}
+.fp-hero-id {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.fp-hero-emoji {
+  width: 74px;
+  height: 74px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+  font-family: var(--emoji);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .2);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .14);
+}
+.fp-hero-text { min-width: 0; }
+.fp-hero-name {
+  font-size: 23px;
+  font-weight: 900;
+  letter-spacing: -.4px;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+.fp-hero-sub {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: .93;
+  line-height: 1.5;
+}
+.fp-hero-stats {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fp-hs {
+  min-width: 92px;
+  padding: 11px 15px;
+  border-radius: 14px;
+  text-align: center;
+  background: rgba(255, 255, 255, .18);
+}
+.fp-hs .ic { display: block; font-size: 20px; font-family: var(--emoji); }
+.fp-hs .v {
+  display: block;
+  margin-top: 3px;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.fp-hs .v small { font-size: 12px; font-weight: 800; opacity: .8; }
+.fp-hs .k { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; opacity: .88; }
+
+/* ============================================================
+   3. 主网格
+   ============================================================ */
+.fp-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.fp-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* ============================================================
+   4. 区块卡片
+   ============================================================ */
+.fp-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 20px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, .06), 0 8px 20px rgba(0, 0, 0, .04);
+}
+.fp-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.fp-head-row .t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -.2px;
+}
+.fp-head-row .t .ic {
+  font-size: 22px;
+  font-family: var(--emoji);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .12));
+}
+.fp-head-row .c { font-size: 12px; font-weight: 800; color: var(--text-dim); }
+.fp-head-row .c b { font-size: 14px; font-weight: 900; color: var(--green-dark); }
+.fp-side .fp-head-row .c b { color: var(--blue-dark); }
+
+/* ============================================================
+   5. 好友行（.step-item 定制：排名 + 圆形头像 + 名称 + 等级 + 连击 + 操作）
+   ============================================================ */
+.fp-rows { display: flex; flex-direction: column; }
+.fp-row { position: relative; gap: 13px; }
+.fp-row:last-child { margin-bottom: 0; }
+
+/* 排名角标（后端 /friends 已按 streak↓ → xp↓ 排序） */
+.fp-rank {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border-radius: 9px;
+  background: var(--fp-soft);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .07);
+}
+.fp-rank.top1 { background: linear-gradient(135deg, var(--gold), #ffdf6b); color: #5a3e00; box-shadow: 0 2px 0 var(--gold-dark); }
+.fp-rank.top2 { background: linear-gradient(135deg, #c6c6c6, #e2e2e2); color: #4a4a4a; }
+.fp-rank.top3 { background: linear-gradient(135deg, #cd7f32, #e0a060); color: #fff; }
+
+/* 圆形 emoji 头像 */
+.fp-avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  font-family: var(--emoji);
+  border-radius: 50%;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .14);
+}
+.fp-avatar.sm { width: 38px; height: 38px; font-size: 20px; }
+.fp-avatar.green  { background: linear-gradient(135deg, var(--green),  #6fdd1a); }
+.fp-avatar.blue   { background: linear-gradient(135deg, var(--blue),   #4dd0ff); }
+.fp-avatar.orange { background: linear-gradient(135deg, var(--orange), #ffb347); }
+.fp-avatar.gold   { background: linear-gradient(135deg, var(--gold),   #ffdf6b); }
+.fp-avatar.purple { background: linear-gradient(135deg, var(--purple), #e0aaff); }
+.fp-avatar.red    { background: linear-gradient(135deg, var(--red),    #ff7a7a); }
+
+.fp-body { flex: 1; min-width: 0; }
+.fp-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -.2px;
+}
+.fp-name .uname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.fp-name .badge { padding: 2px 8px; font-size: 10.5px; border-radius: 8px; box-shadow: 0 2px 0 var(--purple-dark); }
+.fp-name .lv-title { font-size: 12px; font-weight: 800; color: var(--purple); }
+:root[data-theme="dark"] .fp-name .lv-title { color: var(--purple-light); }
+
+.fp-meta {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.fp-meta .ic { font-family: var(--emoji); margin-right: 2px; }
+.fp-meta .fp-dim { color: var(--text-faint); }
+
+/* 连击对比条：绿色填充 + 橙色底轨 + 白色平均标记线 */
+.fp-cmp { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
+.fp-cmp-ic { font-size: 13px; font-family: var(--emoji); flex-shrink: 0; }
+.fp-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 7px;
+  border-radius: 7px;
+  overflow: visible;
+  background: color-mix(in srgb, var(--orange) 24%, var(--fp-soft));
+}
+.fp-bar .mini-bar-fill { border-radius: 7px; }
+.fp-cmp-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .18);
+}
+:root[data-theme="dark"] .fp-cmp-mark { background: rgba(255, 255, 255, .85); }
+.fp-cmp-val {
+  flex-shrink: 0;
+  min-width: 34px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 900;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.fp-cmp-val small { font-size: 10px; font-weight: 800; color: var(--text-dim); margin-left: 1px; }
+
+/* 行右侧：今日状态 + 删除 */
+.fp-acts {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.fp-acts .badge-soft { padding: 5px 11px; font-size: 11.5px; border-radius: 9px; }
+.badge-soft.gray { background: var(--panel3); color: var(--text-dim); }
+.fp-del {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 9px;
+  background: var(--hover);
+  color: var(--text-dim);
+  font-size: 13px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .07);
+  cursor: pointer;
+  transition: color .12s, background .12s, transform .1s;
+}
+.fp-del:hover { color: var(--red); background: color-mix(in srgb, var(--red) 12%, var(--hover)); }
+.fp-del:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, .07); }
+
+/* ============================================================
+   6. 搜索 + 搜索结果 + 申请行
+   ============================================================ */
+.fp-search { position: relative; margin-bottom: 14px; }
+.fp-search .form-input { padding-left: 40px; padding-right: 40px; }
+.fp-search .s-ic {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 17px;
+  font-family: var(--emoji);
+  pointer-events: none;
+}
+.fp-search .search-spin {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text-dim);
+  animation: empty-breathe 1.2s var(--ease-inout) infinite;
+}
+.fp-hint {
+  margin: 0;
+  padding: 12px 4px 2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.fp-slist { display: flex; flex-direction: column; gap: 9px; }
+.fp-srow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: var(--r-step);
+  background: var(--fp-row-bg);
+  border: 1px solid var(--fp-line);
+}
+.fp-sinfo { flex: 1; min-width: 0; }
+.fp-sinfo b {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-sinfo small { display: block; font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.fp-srow .btn.sm { flex-shrink: 0; }
+.fp-srow .badge-soft { flex-shrink: 0; padding: 5px 11px; font-size: 11.5px; }
+
+.fp-req-sub {
+  font-size: 12.5px;
+  font-weight: 900;
+  color: var(--text-dim);
+  margin: 14px 0 9px;
+  letter-spacing: .2px;
+}
+.fp-req-sub:first-of-type { margin-top: 0; }
+
+/* ============================================================
+   7. 动态时间线
+   ============================================================ */
+.fp-actlist { display: flex; flex-direction: column; }
+.fp-act {
+  display: flex;
+  gap: 11px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--fp-line);
+}
+.fp-act:first-child { padding-top: 2px; }
+.fp-act:last-child { border-bottom: none; padding-bottom: 2px; }
+.fp-act-ic {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-family: var(--emoji);
+  border-radius: 50%;
+  background: var(--fp-row-bg);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .08);
+}
+.fp-act-body { flex: 1; min-width: 0; }
+.fp-act-text {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.fp-act-time {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+/* ============================================================
+   8. 空态（base .empty 微调；门控/错误态在组件 scoped 块）
+   ============================================================ */
+.fp-empty { padding: 34px 20px; margin: 0; }
+.fp-empty .emoji { animation: pop-in-spring .6s var(--ease-spring) both; }
+.fp-empty h3 { font-size: 17px; }
+.fp-empty p { font-size: 13px; max-width: 340px; margin: 0 auto; }
+
+/* ============================================================
+   9. 响应式 —— 手机端（friends-mobile.html）
+   ============================================================ */
+@media (max-width: 920px) {
+  .fp-main { grid-template-columns: 1fr; gap: 18px; }
+  .fp-hero { flex-direction: column; align-items: stretch; gap: 18px; }
+  .fp-hero-stats { margin-left: 0; width: 100%; }
+  .fp-hs { flex: 1; min-width: 0; }
+}
+
+@media (max-width: 640px) {
+  .fp-head { align-items: flex-start; margin-bottom: 14px; }
+  .fp-head .page-heading { flex: 1; min-width: 0; }
+  .fp-head .page-heading h1 { font-size: 23px; }
+  .fp-actions { width: 100%; }
+  .fp-actions .btn { flex: 1; }
+
+  .fp-hero { padding: 18px 16px; gap: 14px; margin-bottom: 16px; }
+  .fp-hero-id { gap: 13px; }
+  .fp-hero-emoji { width: 56px; height: 56px; font-size: 29px; }
+  .fp-hero-name { font-size: 18px; }
+  .fp-hero-sub { font-size: 11.5px; }
+  .fp-hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .fp-hs { padding: 9px 6px; }
+  .fp-hs .ic { font-size: 17px; }
+  .fp-hs .v { font-size: 17px; }
+  .fp-hs .k { font-size: 10px; }
+
+  .fp-card { padding: 16px; }
+  .fp-head-row { margin-bottom: 12px; }
+  .fp-head-row .t { font-size: 15.5px; }
+  .fp-head-row .t .ic { font-size: 19px; }
+  .fp-head-row .c { font-size: 11px; }
+
+  /* 好友行：单列换行、操作按钮收成图标 */
+  .fp-row { flex-wrap: wrap; gap: 10px; padding: 12px 12px; }
+  .fp-avatar { width: 40px; height: 40px; font-size: 21px; }
+  .fp-body { order: 3; flex: 1 1 100%; }
+  .fp-acts { order: 2; margin-left: auto; }
+  .fp-cmp { margin-top: 7px; }
+  .fp-cmp-val { min-width: 30px; font-size: 12px; }
+  .fp-acts .badge-soft { padding: 4px 9px; font-size: 10.5px; }
+
+  /* 搜索：按钮全宽 */
+  .fp-search .form-input { padding-left: 36px; padding-right: 32px; }
+  .fp-search .s-ic { left: 12px; font-size: 15px; }
+  .fp-slist { gap: 8px; }
+  .fp-srow { flex-wrap: wrap; gap: 9px; padding: 10px 11px; }
+  .fp-avatar.sm { width: 34px; height: 34px; font-size: 18px; }
+  .fp-sinfo { flex: 1 1 60%; }
+  .fp-sinfo b { font-size: 13px; }
+  .fp-srow .btn.sm { flex: 1; width: 100%; }
+  .fp-srow .badge-soft { flex: 1; justify-content: center; }
+
+  .fp-req-sub { margin: 12px 0 8px; font-size: 12px; }
+  .fp-act-ic { width: 32px; height: 32px; font-size: 16px; }
+  .fp-act-text { font-size: 13px; }
+  .fp-empty { padding: 28px 16px; }
+}
+
+@media (max-width: 400px) {
+  .fp-actions .btn { font-size: 11.5px; padding: 7px 8px; }
+  .fp-acts .badge-soft { display: none; }
+}

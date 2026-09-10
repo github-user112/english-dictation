@@ -547,46 +547,125 @@ function cycleSpeed() {
   <div v-else-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="retryLoad">重试</button></div>
   <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
   <div v-else-if="!items.length" class="empty">没有可练的词了，换个素材或明天再来</div>
-  <div v-else @pointerdown="focusCatch">
-    <div class="practice-top">
-      <span class="progress-line">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（{{ customLabel }}）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span><span class="mini-bar"><i :style="{ width: pbarWidth }"></i></span></span>
-      <span class="badge mode-badge">{{ practiceMode === 'pure' ? '纯听写' : practiceMode === 'follow' ? '跟打' : '辅助听写' }}</span>
-      <div class="scope-group" v-if="mode === 'word' && !custom">
-        <button class="btn ghost sm" :class="{ active: scope === 'all' }" :aria-pressed="scope === 'all'" @click="scope !== 'all' && toggleScope()">全部</button>
-        <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" :aria-pressed="scope === 'memorized'" @click="scope !== 'memorized' && toggleScope()">已背</button>
+  <div v-else class="practice" @pointerdown="focusCatch">
+
+    <!-- 会话驾驶舱：模式切换 / 进度 / 作用域 + 速度 -->
+    <div class="cockpit">
+      <div class="mode-tabs">
+        <a class="mode-tab" :class="{ active: mode === 'word' }"
+           :href="'#/word?list=' + encodeURIComponent(list) + '&amp;scope=' + encodeURIComponent(scope) + '&amp;mode=' + encodeURIComponent(practiceMode) + (lesson ? '&amp;lesson=' + lesson : '')">
+          <span class="ic">🔤</span> 单词听打
+        </a>
+        <a class="mode-tab blue" :class="{ active: mode === 'sentence' }"
+           :href="'#/sentence?list=' + encodeURIComponent(list) + '&amp;scope=' + encodeURIComponent(scope) + '&amp;mode=' + encodeURIComponent(practiceMode) + (lesson ? '&amp;lesson=' + lesson : '')">
+          <span class="ic">💬</span> 句子听写
+        </a>
       </div>
-      <button class="btn ghost" aria-label="调节播放速度" @click="cycleSpeed">{{ speedLabel }}</button>
+      <div class="progress-zone">
+        <div class="pz-head">
+          <span class="num">{{ prog }}<span v-if="custom" style="color:var(--yellow);">（{{ customLabel }}）</span><span v-else-if="mode==='word' && scope==='memorized'" style="color:var(--green);">（只看已背）</span></span>
+          <span class="mini-bar" aria-hidden="true"><i :style="{ width: pbarWidth }"></i></span>
+        </div>
+        <div class="seg-bar" v-if="items.length <= 60" aria-hidden="true">
+          <div v-for="(it, i) in items" :key="i" class="pseg"
+               :class="{ ok: i < completedAtLoad && items[i].first_right !== false,
+                         bad: i < completedAtLoad && items[i].first_right === false,
+                         cur: i === completedAtLoad + cur }"></div>
+        </div>
+      </div>
+      <div class="ctrl-cluster">
+        <div class="seg-toggle" v-if="mode === 'word' && !custom">
+          <button class="btn ghost sm" :class="{ active: scope === 'all' }" :aria-pressed="scope === 'all'" @click="scope !== 'all' && toggleScope()">全部</button>
+          <button class="btn ghost sm" :class="{ active: scope === 'memorized' }" :aria-pressed="scope === 'memorized'" @click="scope !== 'memorized' && toggleScope()">已背</button>
+        </div>
+        <button class="speed-btn" aria-label="调节播放速度" @click="cycleSpeed"><span class="ic">🎚️</span> {{ speedLabel }}</button>
+      </div>
     </div>
-    <div class="practice-card" :class="{ 'err-state': retrying && !submitted }">
-      <div class="info-line">
-        <span id="phonetic">{{ practiceMode !== 'pure' && settings.showPhonetic && item.phonetic ? item.phonetic : '' }}</span>
-        <span id="meaning">{{ practiceMode !== 'pure' && settings.showMeaning && item.meaning ? item.meaning : '' }}</span>
+
+    <!-- 听打主舞台 -->
+    <div class="arena" :class="{ 'err-state': retrying && !submitted }">
+      <div id="arena-topbar"></div>
+      <div class="arena-inner">
+
+        <div class="arena-head">
+          <div class="left">
+            <span class="qnum"><span class="ic">🎯</span> 第 {{ completedAtLoad + cur + 1 }} 题</span>
+            <span class="badge-soft blue mode-badge">
+              <span class="ic">{{ practiceMode === 'pure' ? '🎧' : practiceMode === 'follow' ? '🎵' : '📝' }}</span>
+              {{ practiceMode === 'pure' ? '纯听写' : practiceMode === 'follow' ? '跟打' : '辅助听写' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="audio-row">
+          <button class="btn" :class="{ playing: audioPlaying }" id="play-btn" aria-label="播放音频"
+                  @mousedown.prevent @click="play">
+            <span class="pulse-ring" aria-hidden="true"></span>
+            <span v-if="audioPlaying" class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <template v-else>🔊</template>
+          </button>
+          <div class="audio-meta">
+            <div class="status" :class="audioPlaying ? 'live' : 'idle'">
+              <span class="dot"></span>
+              {{ audioPlaying ? '正在听第 ' + (replayCount + 1) + ' 遍' : '点击按钮播放音频' }}
+            </div>
+            <div class="sub">
+              <span><span class="ic">🔁</span> 自动重播 {{ Math.max(0, (settings.replayTimes ?? 2) - replayCount) }} 次</span>
+              <span><span class="ic">⏲️</span> 间隔 {{ settings.replayInterval || 5 }}s</span>
+              <span><span class="ic">🎚️</span> 速度 {{ speedLabel }}</span>
+            </div>
+            <div class="replay-dots">
+              <span v-for="(d, k) in (settings.replayTimes ?? 2)" :key="k" class="replay-dot"
+                    :class="{ on: k < replayCount }"></span>
+              <span class="rdot-lbl">已重播 {{ replayCount }} 次</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-line">
+          <span id="phonetic">{{ practiceMode !== 'pure' && settings.showPhonetic && item.phonetic ? item.phonetic : '' }}</span>
+          <span id="meaning">{{ practiceMode !== 'pure' && settings.showMeaning && item.meaning ? item.meaning : '' }}</span>
+        </div>
+
+        <div class="cells-section">
+          <div class="cells-label">
+            <span class="lbl">{{ mode === 'word' ? '🔤 逐字母输入' : '💬 逐词填格' }}</span>
+            <span class="hint">{{ practiceMode === 'pure' ? '纯听写 · 无提示' : practiceMode === 'follow' ? '跟打 · 看答案打字' : '辅助听写 · 即时判分' }}</span>
+          </div>
+          <component :is="mode === 'word' ? WordCells : SentenceCells"
+            ref="cells" :tokens="item" :submitted="submitted" :feedback="retrying || submitted"
+            :practice-mode="practiceMode"></component>
+        </div>
+
+        <div class="peek-line" v-if="peeking && !submitted && !retrying && practiceMode !== 'follow'" aria-live="polite">
+          <span class="peek-label">答案：</span><span class="peek-word">{{ item.text }}</span>
+          <span class="peek-note">查看答案已记为答错</span>
+        </div>
+        <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
+
+        <div id="answer-line" class="feedback" :class="{ ok: submitted && lastRight, bad: retrying }" aria-live="polite">
+          <span v-if="retrying" class="txt" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
+          <span v-if="submitted && lastRight" class="txt">✔ 正确 · 即将进入下一题</span>
+          <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
+        </div>
+
+        <SpeechDrill v-if="mode === 'word' && (submitted || retrying)" :text="item.text"></SpeechDrill>
+
+        <div class="controls">
+          <button class="btn ghost" aria-label="重播音频" @mousedown.prevent @click="play"><span class="ic">↻</span> 重播</button>
+          <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @mousedown.prevent @click="skip"><span class="ic">⏭</span> 跳过</button>
+          <button v-if="saveError && submitted" class="btn primary" :disabled="saving" @click="retrySave">重试保存</button>
+          <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
+        </div>
+
+        <div class="hint">
+          <span class="ic">💡</span>
+          <span>打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 忘了拼写可按住 Alt 看答案（记为答错）· 自动重播间隔可在设置调整</span>
+        </div>
+
       </div>
-      <div class="cells-wrap">
-        <component :is="mode === 'word' ? WordCells : SentenceCells"
-          ref="cells" :tokens="item" :submitted="submitted" :feedback="retrying || submitted"
-          :practice-mode="practiceMode"></component>
-      </div>
-      <div class="peek-line" v-if="peeking && !submitted && !retrying && practiceMode !== 'follow'" aria-live="polite">
-        <span class="peek-label">答案：</span><span class="peek-word">{{ item.text }}</span>
-        <span class="peek-note">查看答案已记为答错</span>
-      </div>
-      <div class="follow-line" v-if="practiceMode === 'follow' && !submitted">{{ item.text }}</div>
-      <div id="answer-line" aria-live="polite">
-        <span v-if="retrying" style="color:var(--red);">✗ 答错了，答案：<span class="show-word">{{ item.text }}</span> · 按 Enter 重输</span>
-        <span v-if="submitted && lastRight">✔ 正确 · 即将进入下一题</span>
-        <span v-if="saveError" class="save-error" role="alert">保存失败：{{ saveError }}</span>
-      </div>
-      <SpeechDrill v-if="mode === 'word' && (submitted || retrying)" :text="item.text"></SpeechDrill>
-      <div class="controls">
-        <button class="btn ghost" aria-label="重播音频" @mousedown.prevent @click="play">↻ 重播</button>
-        <button class="btn ghost" :disabled="saving" aria-label="跳过当前题目" @mousedown.prevent @click="skip">跳过</button>
-        <button v-if="saveError && submitted" class="btn primary" :disabled="saving" @click="retrySave">重试保存</button>
-        <button v-if="practiceMode === 'pure' && !retrying && !submitted" class="btn primary" :disabled="saving" aria-label="提交答案" @click="submit">提交答案</button>
-        <button class="btn primary big" :class="{ playing: audioPlaying }" id="play-btn" aria-label="播放音频" @mousedown.prevent @click="play"><span v-if="audioPlaying" class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><template v-else>🔊</template></button>
-      </div>
-      <div class="hint">打字输入 · 答对自动下一题 · 答错红色保持，按 Enter 重输直到正确 · Esc 重听 · 忘了拼写可按住 Alt 看答案（记为答错）· 自动重播间隔可在设置调整</div>
     </div>
+
     <input id="catch" ref="catchEl" autofocus autocomplete="off" autocorrect="off"
            autocapitalize="off" spellcheck="false" enterkeyhint="done"
            style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"

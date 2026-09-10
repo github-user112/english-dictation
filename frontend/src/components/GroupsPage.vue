@@ -146,64 +146,166 @@ function roleLabel(role) {
 
 <template>
   <div v-if="!Account.loading && !Account.authenticated" class="empty login-gate" role="alert">
-    <p class="gate-title">小组需要登录</p>
-    <p class="gate-sub">登录后可以创建或加入学习小组，和好友一起挑战。</p>
+    <span class="emoji">🔒</span>
+    <h3>小组需要登录</h3>
+    <p>登录后可以创建或加入学习小组，和好友一起挑战。</p>
     <a class="btn primary" href="#/account">去登录 / 注册</a>
   </div>
 
   <div v-else-if="error" class="empty" role="alert">
+    <span class="emoji">⚠️</span>
+    <h3>加载失败</h3>
     <p>{{ error }}</p>
     <button class="btn primary" @click="loadMyGroups">重试</button>
   </div>
   <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="groups-page">
-    <div class="page-heading compact">
-      <span class="eyebrow">STUDY GROUPS</span>
-      <h1>学习小组</h1>
-      <p>和伙伴一起坚持，互相督促。</p>
-    </div>
-
-    <div v-if="autoMsg" class="account-message error" style="margin-bottom:14px;">{{ autoMsg }}</div>
-
-    <div class="section-title">
-      <span>我的小组</span>
-      <button class="btn ghost sm" @click="showCreate = !showCreate">{{ showCreate ? "收起" : "创建小组" }}</button>
-    </div>
-
-    <div v-if="showCreate" class="create-box">
-      <div class="create-row">
-        <input v-model="newName" type="text" maxlength="24" placeholder="小组名（1–24 字）" class="create-input">
-        <button class="btn primary sm" :disabled="createLoading" @click="createGroup">{{ createLoading ? "创建中…" : "创建" }}</button>
-        <button class="btn ghost sm" @click="showCreate = false">取消</button>
+    <!-- Hero -->
+    <section class="gh-hero">
+      <div class="gh-hero-left">
+        <div class="gh-hero-emoji">👥</div>
+        <div class="gh-hero-body">
+          <div class="gh-hero-eyebrow"><span class="gh-pulse"></span> STUDY GROUPS</div>
+          <h1>和小伙伴一起，进步更快！</h1>
+          <p>组队听打 · 组队 PK · 排行榜，让学习不再孤单</p>
+        </div>
       </div>
-      <p v-if="createError" class="field-error">{{ createError }}</p>
-    </div>
+      <div class="gh-hero-stats">
+        <div class="gh-hero-stat">
+          <div class="val">{{ groups.length }}</div>
+          <div class="lbl">我的小组</div>
+        </div>
+        <div class="gh-hero-stat">
+          <div class="val">{{ groups.reduce((s, g) => s + (g.member_count || 0), 0) }}</div>
+          <div class="lbl">团队成员</div>
+        </div>
+      </div>
+    </section>
 
-    <div v-if="!groups.length" class="empty" style="padding:36px;">
-      <p>还没有加入任何小组</p>
-      <p style="color:var(--dim2);font-size:12px;margin:6px 0 10px;">创建一个小组，或在下方搜索加入。</p>
-      <button v-if="!showCreate" class="btn primary sm" @click="showCreate = true">创建小组</button>
-    </div>
+    <div v-if="autoMsg" class="gh-msg error" role="alert">{{ autoMsg }}</div>
 
-    <div v-else class="card-grid group-grid">
-      <a v-for="g in groups" :key="g.id" class="card group-card" :href="`#/group?id=${g.id}`">
-        <div class="name">{{ g.name }}</div>
-        <div class="meta">成员 {{ g.member_count }} / {{ g.max_members }} · <span class="role-tag">{{ roleLabel(g.role) }}</span> · 创建者 {{ g.creator_name }}</div>
-        <div class="meta" style="margin-top:4px;">加入于 {{ String(g.joined_at).slice(0,10) }}</div>
+    <!-- Action cards -->
+    <div class="gh-actions">
+      <button class="gh-action gh-action-create" type="button" @click="showCreate = !showCreate">
+        <span class="gh-action-emoji">🛠️</span>
+        <span class="gh-action-body">
+          <h3>创建新小组</h3>
+          <p>召集好友组建专属学习小组</p>
+        </span>
+        <span class="gh-action-cta">{{ showCreate ? "收起 ←" : "开始创建 →" }}</span>
+      </button>
+      <a class="gh-action gh-action-find" href="#gh-search-anchor">
+        <span class="gh-action-emoji">🔍</span>
+        <span class="gh-action-body">
+          <h3>加入小组</h3>
+          <p>搜索公开小组，或输入邀请码</p>
+        </span>
+        <span class="gh-action-cta">浏览加入 →</span>
       </a>
     </div>
 
-    <div class="section-title"><span>找小组</span></div>
-    <div class="search-row">
-      <input v-model="searchQ" type="text" placeholder="搜索小组名" class="friends-search" maxlength="32" @input="onSearchInput" @keydown.enter="triggerSearch">
+    <!-- Create form -->
+    <div v-if="showCreate" class="gh-create">
+      <div class="gh-create-head">
+        <span class="gh-create-emoji">🛠️</span>
+        <b>创建新小组</b>
+      </div>
+      <div class="gh-create-row">
+        <input v-model="newName" type="text" maxlength="24" placeholder="小组名（1–24 字）" class="gh-create-input">
+        <button class="btn primary sm" :disabled="createLoading" @click="createGroup">{{ createLoading ? "创建中…" : "创建" }}</button>
+        <button class="btn ghost sm" @click="showCreate = false">取消</button>
+      </div>
+      <p v-if="createError" class="gh-field-error">{{ createError }}</p>
+    </div>
+
+    <!-- My Groups -->
+    <div class="gh-section-head">
+      <span class="gh-section-emoji">⭐</span>
+      <h2>我的小组</h2>
+      <span class="gh-section-count">{{ groups.length }} 个</span>
+    </div>
+
+    <div v-if="!groups.length" class="empty">
+      <span class="emoji">👥</span>
+      <h3>还没有加入任何小组</h3>
+      <p>创建一个小组，或在下方搜索加入。</p>
+      <button v-if="!showCreate" class="btn primary sm" @click="showCreate = true">创建小组</button>
+    </div>
+
+    <div v-else class="card-grid group-grid stagger-in">
+      <a v-for="(g, idx) in groups" :key="g.id" class="card group-card" :class="`gc-c${idx % 4}`" :href="`#/group?id=${g.id}`">
+        <div class="gc-top">
+          <div class="gc-avatar" :class="`gc-av-${idx % 4}`">
+            <span>{{ ['📖','🎯','⚔️','🌍'][idx % 4] }}</span>
+          </div>
+          <div class="gc-info">
+            <div class="gc-row1">
+              <h3>{{ g.name }}</h3>
+              <span class="badge-soft gc-role" :class="g.role === 'owner' ? 'purple' : 'blue'">{{ roleLabel(g.role) }}</span>
+            </div>
+            <small>创建者 {{ g.creator_name }} · 加入于 {{ String(g.joined_at).slice(0,10) }}</small>
+          </div>
+        </div>
+        <div class="gc-stats">
+          <div class="gc-stat">
+            <div class="val green">{{ g.member_count }}</div>
+            <div class="lbl">成员</div>
+          </div>
+          <div class="gc-stat-divider"></div>
+          <div class="gc-stat">
+            <div class="val blue">{{ g.max_members }}</div>
+            <div class="lbl">上限</div>
+          </div>
+          <div class="gc-stat-divider"></div>
+          <div class="gc-stat">
+            <div class="val purple">{{ Math.round((g.member_count / Math.max(g.max_members, 1)) * 100) }}%</div>
+            <div class="lbl">容量</div>
+          </div>
+        </div>
+        <div class="gc-members">
+          <div class="gc-member-stack">
+            <div class="gc-member" :class="`gc-av-${i % 4}`" v-for="i in Math.min(5, g.member_count)" :key="i">
+              <span>{{ ['🧑','👩','🧔','👧','👦'][i % 5] }}</span>
+            </div>
+            <div v-if="g.member_count > 5" class="gc-member more">+{{ g.member_count - 5 }}</div>
+          </div>
+          <span class="gc-cnt"><b>{{ g.member_count }}</b> / {{ g.max_members }} 人</span>
+        </div>
+        <div class="gc-activity">
+          <div class="act-head">
+            <span>小组容量</span>
+            <span class="pct" :class="['blue','green','orange','purple'][idx % 4]">{{ Math.round((g.member_count / Math.max(g.max_members, 1)) * 100) }}%</span>
+          </div>
+          <div class="act-bar">
+            <div class="act-fill" :class="`act-fill-${idx % 4}`" :style="`width:${Math.round((g.member_count / Math.max(g.max_members, 1)) * 100)}%`"></div>
+          </div>
+        </div>
+        <div class="gc-foot">
+          <span class="gc-btn" :class="`gc-btn-${idx % 4}`">进入小组 →</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Find Groups -->
+    <div id="gh-search-anchor" class="gh-section-head">
+      <span class="gh-section-emoji">🔍</span>
+      <h2>找小组</h2>
+    </div>
+    <div class="gh-search">
+      <input v-model="searchQ" type="text" placeholder="搜索小组名" class="gh-search-input" maxlength="32" @input="onSearchInput" @keydown.enter="triggerSearch">
       <button class="btn primary sm" :disabled="searching" @click="triggerSearch">{{ searching ? "搜索中…" : "搜索" }}</button>
     </div>
-    <p v-if="searchError" class="field-error">{{ searchError }}</p>
-    <div v-if="searchResults.length" class="search-results">
-      <div v-for="r in searchResults" :key="r.id" class="search-item">
-        <span class="sr-name">{{ r.name }}</span>
-        <span class="sr-meta">{{ r.members }} / {{ r.max_members }}</span>
+    <p v-if="searchError" class="gh-field-error">{{ searchError }}</p>
+    <div v-if="searchResults.length" class="gh-search-results stagger-in">
+      <div v-for="(r, idx) in searchResults" :key="r.id" class="gh-search-item">
+        <div class="gc-avatar sm" :class="`gc-av-${idx % 4}`">
+          <span>{{ ['📖','🎯','⚔️','🌍'][idx % 4] }}</span>
+        </div>
+        <div class="gh-sr-info">
+          <span class="gh-sr-name">{{ r.name }}</span>
+          <span class="gh-sr-meta">{{ r.members }} / {{ r.max_members }}</span>
+        </div>
         <template v-if="r.joined">
           <a class="btn ghost sm" :href="`#/group?id=${r.id}`">进入</a>
         </template>
@@ -215,30 +317,10 @@ function roleLabel(role) {
         </template>
       </div>
     </div>
-    <div v-else-if="searchQ.trim() && !searching && !searchError" class="empty" style="padding:18px;margin-top:10px;">没有找到相关小组，换个关键词试试</div>
+    <div v-else-if="searchQ.trim() && !searching && !searchError" class="empty gh-search-empty">
+      <span class="emoji">🔍</span>
+      <h3>没有找到相关小组</h3>
+      <p>换个关键词试试</p>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.login-gate { text-align: center; gap: 10px; }
-.gate-title { font-size: 17px; font-weight: 750; margin: 0; }
-.gate-sub { color: var(--dim); margin: 0 0 6px; max-width: 420px; }
-.group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.group-card { min-height: 132px; text-decoration: none; color: inherit; }
-.group-card .role-tag { color: var(--accent-strong); font-weight: 700; }
-.create-box { margin-bottom: 14px; padding: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
-.create-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.create-input { flex: 1; min-width: 160px; padding: 9px 12px; color: var(--text); background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; outline: none; }
-.create-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 86%); }
-.field-error { margin-top: 8px; color: var(--red); font-size: 12px; }
-.search-row { display: flex; gap: 10px; align-items: center; }
-.friends-search { flex: 1; padding: 10px 14px; color: var(--text); background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; outline: none; }
-.friends-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 86%); }
-.search-results { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
-.search-item { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-.search-item:last-child { border-bottom: 0; }
-.sr-name { flex: 1; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-meta { color: var(--dim2); font-size: 12px; white-space: nowrap; }
-.account-message.error { padding: 9px 11px; border-radius: 10px; font-size: 12px; color: var(--red); background: color-mix(in srgb, var(--red), transparent 91%); }
-@media (max-width: 620px) { .group-grid { grid-template-columns: 1fr; } }
-</style>

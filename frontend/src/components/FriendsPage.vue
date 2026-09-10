@@ -198,233 +198,227 @@ const activityIcons = {
 
 <template>
   <div v-if="!Account.loading && !Account.authenticated" class="empty login-gate" role="alert">
+    <span class="emoji">🔒</span>
     <p class="gate-title">好友与动态需要登录</p>
     <p class="gate-sub">登录后可以搜索好友、查看彼此的学习动态。</p>
     <a class="btn primary" href="#/account">去登录 / 注册</a>
   </div>
 
-  <div v-else-if="error" class="empty" role="alert">
+  <div v-else-if="error" class="empty fp-err" role="alert">
+    <span class="emoji">😵</span>
     <p>{{ error }}</p>
     <button class="btn primary" @click="load">重试</button>
   </div>
+
   <div v-else-if="loading || !data" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
   <div v-else class="friends-page">
-    <div class="page-heading compact">
-      <span class="eyebrow">SOCIAL HUB</span>
-      <h1>好友与动态</h1>
-      <p>一起学，一起进步。</p>
-    </div>
-
-    <!-- 搜索栏 -->
-    <div class="friends-search-row">
-      <div class="search-input-wrap">
-        <input v-model="searchQuery" type="text" placeholder="搜索用户名"
-          class="friends-search" @input="onSearchInput">
-        <span v-if="searching" class="search-spin">…</span>
+    <!-- ============ 页头 ============ -->
+    <div class="fp-head">
+      <div class="page-heading compact">
+        <span class="eyebrow">SOCIAL HUB</span>
+        <h1><span class="fp-emoji">👥</span>好友与动态</h1>
+        <p>一起学，一起进步。</p>
       </div>
-      <button class="btn ghost sm" @click="copyInviteLink">
-        {{ copiedInvite ? '已复制 ✓' : '我的邀请链接' }}
-      </button>
-    </div>
-
-    <!-- 搜索结果 -->
-    <div v-if="searchResults.length" class="search-results">
-      <div v-for="u in searchResults" :key="u.user_id" class="search-row">
-        <span class="sr-avatar">{{ avatarLetter(u.username) }}</span>
-        <span class="sr-name">{{ u.username }}</span>
-        <template v-if="u.relation === 'none'">
-          <button class="btn primary sm" @click="addFriend(u)">加好友</button>
-        </template>
-        <template v-else-if="u.relation === 'outgoing'">
-          <button class="btn ghost sm" @click="rejectOrRemove(u)">已申请 · 撤销</button>
-        </template>
-        <template v-else-if="u.relation === 'incoming'">
-          <button class="btn primary sm" @click="acceptRequest(u)">回通过</button>
-        </template>
-        <template v-else>
-          <span class="sr-tag">{{ relationLabel(u.relation) }}</span>
-        </template>
+      <div class="fp-actions">
+        <button class="btn ghost sm" @click="copyInviteLink">{{ copiedInvite ? '已复制 ✓' : '🔗 我的邀请链接' }}</button>
+        <a class="btn ghost sm" href="#/groups">👨‍👩‍👧 小组</a>
+        <a class="btn ghost sm" href="#/leaderboard">📊 排行</a>
       </div>
     </div>
 
-    <!-- 申请区 -->
-    <template v-if="incoming.length || outgoing.length">
-      <div class="section-title" v-if="incoming.length"><span>收到的申请</span></div>
-      <div v-for="u in incoming" :key="u.user_id" class="request-row">
-        <span class="sr-avatar">{{ avatarLetter(u.username) }}</span>
-        <span class="sr-name">{{ u.username }}</span>
-        <button class="btn primary sm" @click="acceptRequest(u)">通过</button>
-        <button class="btn ghost sm" @click="rejectOrRemove(u)">拒绝</button>
-      </div>
-
-      <div class="section-title" v-if="outgoing.length"><span>已发出的申请</span></div>
-      <div v-for="u in outgoing" :key="u.user_id" class="request-row">
-        <span class="sr-avatar">{{ avatarLetter(u.username) }}</span>
-        <span class="sr-name">{{ u.username }}</span>
-        <button class="btn ghost sm" @click="rejectOrRemove(u)">撤销</button>
-      </div>
-    </template>
-
-    <!-- 好友列表 -->
-    <div class="section-title">
-      <span>好友 <small>{{ friends.length }} / {{ maxFriends }}</small></span>
-      <span class="friends-links">
-        <a href="#/groups" class="btn ghost sm">小组</a>
-        <a href="#/leaderboard" class="btn ghost sm">排行</a>
-      </span>
-    </div>
-
-    <div v-if="!friends.length" class="empty" style="padding:36px;">
-      还没有好友，搜索用户名添加一个吧
-    </div>
-
-    <div v-else class="friend-grid">
-      <div v-for="f in friends" :key="f.user_id" class="friend-card">
-        <button class="fc-remove" title="删除好友" @click="removeFriendFromCard(f)">✕</button>
-        <div class="fc-avatar">{{ avatarLetter(f.username) }}</div>
-        <div class="fc-name">{{ f.username }}</div>
-        <div class="fc-meta">
-          <span class="chip lv-chip"><b>Lv.{{ f.level }}</b><span>{{ f.level_title }}</span></span>
+    <!-- ============ 社交圈总览 ============ -->
+    <div class="fp-hero">
+      <div class="fp-hero-id">
+        <div class="fp-hero-emoji">🦉</div>
+        <div class="fp-hero-text">
+          <div class="fp-hero-name">你的社交圈</div>
+          <div class="fp-hero-sub">一起练习，一起进步，让学习不再孤单 💪</div>
         </div>
-        <div class="fc-stats">
-          <span>🔥 {{ f.streak }} 天</span>
-          <span v-if="f.today_done">✓ 今日已练</span>
-          <span v-else class="dim">今日未练</span>
+      </div>
+      <div class="fp-hero-stats">
+        <div class="fp-hs">
+          <span class="ic">👥</span>
+          <span class="v">{{ friends.length }}<small>/ {{ maxFriends }}</small></span>
+          <span class="k">好友数</span>
         </div>
-        <div class="fc-active">{{ timeAgo(f.last_active_at) }}</div>
+        <div class="fp-hs">
+          <span class="ic">🔥</span>
+          <span class="v">{{ friends.reduce((m, x) => Math.max(m, x.streak || 0), 0) }}</span>
+          <span class="k">最长连胜</span>
+        </div>
+        <div class="fp-hs">
+          <span class="ic">⚡</span>
+          <span class="v">{{ friends.reduce((s, x) => s + (x.xp || 0), 0).toLocaleString() }}</span>
+          <span class="k">好友总经验</span>
+        </div>
+        <div class="fp-hs">
+          <span class="ic">📢</span>
+          <span class="v">{{ activity.length }}</span>
+          <span class="k">最新动态</span>
+        </div>
       </div>
     </div>
 
-    <!-- 动态时间线 -->
-    <div class="section-title"><span>动态</span></div>
-    <div v-if="!activity.length" class="empty" style="padding:36px;">
-      还没有动态，练起来才有戏
-    </div>
-    <div v-else class="activity-timeline">
-      <div v-for="(e, i) in activity" :key="i" class="act-row">
-        <span class="act-icon">{{ (activityIcons[e.kind] || { icon: "📝" }).icon }}</span>
-        <span class="act-text">{{ (activityIcons[e.kind] || { icon: "📝", text: () => e.kind }).text(e) }}</span>
-        <span class="act-time">{{ timeAgo(e.created_at) }}</span>
+    <!-- ============ 主网格 ============ -->
+    <div class="fp-main">
+      <!-- ===== 左列：好友列表 + 好友申请 ===== -->
+      <div class="fp-col">
+        <div class="fp-card fp-list">
+          <div class="fp-head-row">
+            <div class="t"><span class="ic">📋</span>好友列表</div>
+            <div class="c">共 <b>{{ friends.length }}</b> 位 · 上限 {{ maxFriends }}</div>
+          </div>
+
+          <div v-if="!friends.length" class="empty fp-empty">
+            <span class="emoji">🤝</span>
+            <h3>还没有好友</h3>
+            <p>在右边搜索用户名，添加第一个练习伙伴吧。</p>
+          </div>
+
+          <div v-else class="fp-rows">
+            <div v-for="(f, i) in friends" :key="f.user_id" class="step-item fp-row">
+              <div class="fp-rank" :class="{ top1: i === 0, top2: i === 1, top3: i === 2 }">{{ i + 1 }}</div>
+              <div class="fp-avatar" :class="['green', 'gold', 'orange', 'blue', 'purple', 'red'][(f.username || '?').charCodeAt(0) % 6]">{{ ['🦊', '🦉', '🐯', '🐰', '🐼', '🐻', '🐶', '🦁', '🐨', '🐱', '🐷', '🦄'][(f.username || '?').charCodeAt(0) % 12] }}</div>
+              <div class="fp-body">
+                <div class="fp-name">
+                  <span class="uname">{{ f.username }}</span>
+                  <span class="badge badge-purple">🏆 Lv.{{ f.level }}</span>
+                  <span class="lv-title">{{ f.level_title }}</span>
+                </div>
+                <div class="fp-meta">
+                  <span><span class="ic">🔥</span>{{ f.streak }} 天连胜</span>
+                  <span><span class="ic">⚡</span>{{ (f.xp || 0).toLocaleString() }} XP</span>
+                  <span class="fp-dim"><span class="ic">🕒</span>{{ timeAgo(f.last_active_at) }}</span>
+                </div>
+                <div class="fp-cmp" :title="'好友群最长连胜 ' + friends.reduce((m, x) => Math.max(m, x.streak || 0), 0) + ' 天，虚线为平均连胜'">
+                  <span class="fp-cmp-ic">🔥</span>
+                  <div class="mini-bar fp-bar">
+                    <span class="mini-bar-fill green" :style="{ width: (Math.min(100, (f.streak || 0) / Math.max(1, friends.reduce((m, x) => Math.max(m, x.streak || 0), 0)) * 100)) + '%' }"></span>
+                    <span class="fp-cmp-mark" :style="{ left: (Math.min(100, (friends.length ? friends.reduce((s, x) => s + (x.streak || 0), 0) / friends.length : 0) / Math.max(1, friends.reduce((m, x) => Math.max(m, x.streak || 0), 0)) * 100)) + '%' }"></span>
+                  </div>
+                  <b class="fp-cmp-val">{{ f.streak }}<small>天</small></b>
+                </div>
+              </div>
+              <div class="fp-acts">
+                <span v-if="f.today_done" class="badge-soft green">✓ 今日已练</span>
+                <span v-else class="badge-soft gray">今日未练</span>
+                <button class="fp-del" title="删除好友" @click="removeFriendFromCard(f)">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 好友申请（互相关注） -->
+        <template v-if="incoming.length || outgoing.length">
+          <div class="fp-card fp-req">
+            <div class="fp-head-row">
+              <div class="t"><span class="ic">🤝</span>好友申请</div>
+              <div class="c">收到 <b>{{ incoming.length }}</b> · 发出 <b>{{ outgoing.length }}</b></div>
+            </div>
+
+            <template v-if="incoming.length">
+              <div class="fp-req-sub">收到的申请</div>
+              <div v-for="u in incoming" :key="u.user_id" class="fp-srow">
+                <div class="fp-avatar sm" :class="['green', 'gold', 'orange', 'blue', 'purple', 'red'][(u.username || '?').charCodeAt(0) % 6]">{{ ['🦊', '🦉', '🐯', '🐰', '🐼', '🐻', '🐶', '🦁', '🐨', '🐱', '🐷', '🦄'][(u.username || '?').charCodeAt(0) % 12] }}</div>
+                <div class="fp-sinfo">
+                  <b>{{ u.username }}</b>
+                  <small>发来好友申请</small>
+                </div>
+                <button class="btn green sm" @click="acceptRequest(u)">✓ 通过</button>
+                <button class="btn ghost sm" @click="rejectOrRemove(u)">拒绝</button>
+              </div>
+            </template>
+
+            <template v-if="outgoing.length">
+              <div class="fp-req-sub">已发出的申请</div>
+              <div v-for="u in outgoing" :key="u.user_id" class="fp-srow">
+                <div class="fp-avatar sm" :class="['green', 'gold', 'orange', 'blue', 'purple', 'red'][(u.username || '?').charCodeAt(0) % 6]">{{ ['🦊', '🦉', '🐯', '🐰', '🐼', '🐻', '🐶', '🦁', '🐨', '🐱', '🐷', '🦄'][(u.username || '?').charCodeAt(0) % 12] }}</div>
+                <div class="fp-sinfo">
+                  <b>{{ u.username }}</b>
+                  <small>等待对方回复</small>
+                </div>
+                <button class="btn ghost sm" @click="rejectOrRemove(u)">撤销</button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- ===== 右列：添加好友 + 动态 ===== -->
+      <div class="fp-col fp-side">
+        <div class="fp-card fp-add">
+          <div class="fp-head-row">
+            <div class="t"><span class="ic">➕</span>添加好友</div>
+            <div class="c">输入用户名即可搜索</div>
+          </div>
+
+          <div class="fp-search">
+            <span class="s-ic">🔍</span>
+            <input v-model="searchQuery" type="text" placeholder="搜索用户名" class="form-input" @input="onSearchInput">
+            <span v-if="searching" class="search-spin">…</span>
+          </div>
+
+          <div v-if="searchResults.length" class="fp-slist">
+            <div v-for="u in searchResults" :key="u.user_id" class="fp-srow">
+              <div class="fp-avatar sm" :class="['green', 'gold', 'orange', 'blue', 'purple', 'red'][(u.username || '?').charCodeAt(0) % 6]">{{ ['🦊', '🦉', '🐯', '🐰', '🐼', '🐻', '🐶', '🦁', '🐨', '🐱', '🐷', '🦄'][(u.username || '?').charCodeAt(0) % 12] }}</div>
+              <div class="fp-sinfo">
+                <b>{{ u.username }}</b>
+                <small>{{ relationLabel(u.relation) || '还不是好友' }}</small>
+              </div>
+              <template v-if="u.relation === 'none'">
+                <button class="btn green sm" @click="addFriend(u)">➕ 加好友</button>
+              </template>
+              <template v-else-if="u.relation === 'outgoing'">
+                <button class="btn ghost sm" @click="rejectOrRemove(u)">已申请 · 撤销</button>
+              </template>
+              <template v-else-if="u.relation === 'incoming'">
+                <button class="btn green sm" @click="acceptRequest(u)">✓ 回通过</button>
+              </template>
+              <template v-else>
+                <span class="badge-soft gray">{{ relationLabel(u.relation) }}</span>
+              </template>
+            </div>
+          </div>
+          <p v-else-if="searchQuery.trim()" class="fp-hint">没有找到匹配的用户，换个用户名试试。</p>
+        </div>
+
+        <div class="fp-card fp-feed">
+          <div class="fp-head-row">
+            <div class="t"><span class="ic">📢</span>好友动态</div>
+            <div class="c">最近 <b>{{ activity.length }}</b> 条</div>
+          </div>
+
+          <div v-if="!activity.length" class="empty fp-empty">
+            <span class="emoji">📭</span>
+            <h3>还没有动态</h3>
+            <p>好友练起来才有戏。</p>
+          </div>
+
+          <div v-else class="fp-actlist">
+            <div v-for="(e, i) in activity" :key="i" class="fp-act">
+              <div class="fp-act-ic">{{ (activityIcons[e.kind] || { icon: "📝" }).icon }}</div>
+              <div class="fp-act-body">
+                <p class="fp-act-text">{{ (activityIcons[e.kind] || { icon: "📝", text: () => e.kind }).text(e) }}</p>
+                <span class="fp-act-time">{{ timeAgo(e.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.login-gate { text-align: center; gap: 10px; }
-.gate-title { font-size: 17px; font-weight: 750; margin: 0; }
-.gate-sub { color: var(--dim); margin: 0 0 6px; max-width: 420px; }
+/* 本页布局 / hero / 卡片 / 行样式全部落在 styles/pages/19-friends.css（级联第 3 层）。
+   此处只放组件私有、且渲染在 .friends-page 之外的门控态与错误态。 */
+.login-gate { padding: 52px 24px; }
+.login-gate .gate-title { font-size: 17px; font-weight: 900; color: var(--text); margin: 0 0 5px; }
+.login-gate .gate-sub { color: var(--text-dim); font-size: 13.5px; font-weight: 600; margin: 0 0 16px; max-width: 420px; }
+.login-gate .btn { animation: rise-in .5s var(--ease-out) both; animation-delay: .25s; }
 
-.friends-search-row {
-  display: flex; gap: 10px; align-items: center;
-  margin-bottom: 16px;
-}
-.search-input-wrap {
-  position: relative; flex: 1;
-}
-.friends-search {
-  width: 100%; padding: 10px 14px;
-  color: var(--text); background: var(--panel2);
-  border: 1px solid var(--border); border-radius: 12px;
-  font-size: 14px; outline: none;
-  transition: border-color var(--dur-1), box-shadow var(--dur-1);
-}
-.friends-search:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 86%);
-}
-.search-spin {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  color: var(--dim2); font-size: 13px;
-}
-
-.search-results {
-  display: flex; flex-direction: column; gap: 6px;
-  margin-bottom: 20px; padding: 14px;
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 14px;
-}
-.search-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 6px; border-bottom: 1px solid var(--border);
-}
-.search-row:last-child { border-bottom: 0; }
-.sr-avatar {
-  display: grid; place-items: center; flex: none;
-  width: 32px; height: 32px; border-radius: 10px;
-  background: var(--accent-grad); color: var(--accent-text);
-  font-family: var(--serif); font-size: 15px; font-weight: 800;
-}
-.sr-name { flex: 1; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-tag { color: var(--dim2); font-size: 12px; white-space: nowrap; }
-
-.request-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; margin-bottom: 6px;
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
-  border: 1px solid var(--border); border-radius: 14px;
-}
-
-.section-title { display: flex; align-items: center; justify-content: space-between; }
-.friends-links { display: flex; gap: 6px; }
-
-.friend-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px; margin-bottom: 10px;
-}
-.friend-card {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 22px 14px 18px;
-  background: linear-gradient(160deg, var(--panel), color-mix(in srgb, var(--panel), var(--bg) 14%));
-  border: 1px solid var(--border); border-radius: 18px;
-  box-shadow: var(--shadow-soft);
-  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-2);
-}
-.friend-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--accent), var(--border) 55%);
-}
-.fc-remove {
-  position: absolute; top: 10px; right: 10px;
-  width: 26px; height: 26px; display: grid; place-items: center;
-  border: none; border-radius: 8px; background: transparent;
-  color: var(--dim2); font-size: 14px; cursor: pointer;
-  transition: background var(--dur-1), color var(--dur-1);
-}
-.fc-remove:hover { background: color-mix(in srgb, var(--red), transparent 85%); color: var(--red); }
-.fc-avatar {
-  width: 48px; height: 48px; border-radius: 14px;
-  background: var(--accent-grad); color: var(--accent-text);
-  display: grid; place-items: center;
-  font-family: var(--serif); font-size: 22px; font-weight: 800;
-}
-.fc-name { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.fc-meta { display: flex; align-items: center; gap: 6px; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
-  font-size: 11px; border-radius: 7px; background: var(--type-bg); color: var(--type-text); }
-.chip b { font-size: 12px; }
-.chip span { font-size: 11px; }
-.fc-stats { display: flex; gap: 10px; color: var(--dim); font-size: 12px; }
-.fc-stats .dim { opacity: .55; }
-.fc-active { color: var(--dim2); font-size: 11px; }
-
-.activity-timeline {
-  display: flex; flex-direction: column; gap: 6px;
-}
-.act-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
-  border: 1px solid var(--border); border-radius: 12px;
-}
-.act-icon { font-size: 18px; flex: none; }
-.act-text { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.act-time { color: var(--dim2); font-size: 11px; white-space: nowrap; }
-
-@media (max-width: 620px) {
-  .friend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .friends-search-row { flex-wrap: wrap; }
-}
+.fp-err { padding: 34px 24px; }
+.fp-err p { color: var(--red-dark); font-weight: 800; font-size: 14px; margin-bottom: 14px; }
+:root[data-theme="dark"] .fp-err p { color: var(--red); }
 </style>

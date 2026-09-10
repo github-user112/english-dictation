@@ -1,8 +1,694 @@
-/* ===== 11-match · 配对消消乐 · MatchPage =====
-   对照 design/配对消消乐-desktop.html + 配对消消乐-mobile.html
-   规则：只写本页专属选择器；通用原语用 base.css 的类
-   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
-     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
-     .btn .duo-btn .grid-* .table-wrap .form-input）
+/* ===== 11-match · 英中配对消消乐 · MatchPage =====
+   对照 design/match-desktop.html + design/match-mobile.html
+   规则：只写本页专属选择器（一律以 .match-page 打头）；通用原语用 base.css 的类
+   （.hero-card .card .card-title .card-icon .card-desc .stat-box .badge-soft
+     .progress-bar .progress-fill .timer-pill .pill .sec-head .empty .modal
+     .btn .duo-btn .grid-* .form-group .form-label .form-select .stagger-in）
    禁止改 styles/base.css、styles.css、styles/legacy.css。
-*/
+
+   要点：
+   - 牌面沿用脚本的 .pair-tile / .en / .zh / .picked / .gone / .shaking 状态机类，
+     这里只做视觉升级（Duolingo 白卡 14px 圆角 + 3px 下压阴影）：
+       选中 = 蓝边抬起 · 配对成功 = 绿卡弹一下后消失 · 配错 = 红边抖动
+   - 英文卡走蓝系、中文卡走绿系，右下角小标签区分语种。
+   - 发牌时逐张 rotateY 翻面入场（fill-mode: backwards，结束后不占用 transform，
+     所以 .picked 的位移、.shaking 的抖动都不受影响）。
+   - 计时用 base.css 的 .timer-pill；结算用 .hero-card。
+   - 手机端（≤620px，与脚本里 window.matchMedia 断点一致）网格强制 2 列、按钮全宽。
+   - 动效只用 transform / opacity / background-color / border-color / box-shadow。
+   ============================================================ */
+
+.match-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   1. 开始页 · 紫色关卡 Hero + 开局设置 + 玩法技巧
+   ============================================================ */
+.match-page .match-start {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+.match-page .match-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 30px 28px;
+  border-radius: var(--r-hero);
+  color: #fff;
+  background: linear-gradient(135deg, var(--purple) 0%, #a568cc 100%);
+  box-shadow: 0 6px 0 var(--purple-dark), 0 10px 26px rgba(206, 130, 255, 0.3);
+}
+.match-page .match-hero::after {
+  content: "";
+  position: absolute;
+  top: -46px; right: -30px;
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.13);
+  pointer-events: none;
+}
+.match-page .match-hero::before {
+  content: "🀄";
+  position: absolute;
+  bottom: -26px; right: 26px;
+  font-size: 92px;
+  font-family: var(--emoji);
+  opacity: 0.2;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+.match-page .mh-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+.match-page .mh-eyebrow,
+.match-page .mh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+}
+.match-page .mh-eyebrow { background: rgba(255, 255, 255, 0.22); }
+.match-page .mh-badge {
+  background: rgba(0, 0, 0, 0.2);
+  font-variant-numeric: tabular-nums;
+}
+.match-page .mh-eyebrow .ic,
+.match-page .mh-badge .ic { font-size: 14px; font-family: var(--emoji); }
+.match-page .match-hero h1 {
+  position: relative;
+  z-index: 1;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.match-page .mh-lead {
+  position: relative;
+  z-index: 1;
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.94;
+  margin-bottom: 5px;
+}
+.match-page .mh-rule {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.8;
+  line-height: 1.55;
+}
+
+/* 开局设置卡 */
+.match-page .match-setup-card { padding: 20px 22px; }
+.match-page .setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.match-page .setup-grid .form-group { margin-bottom: 0; }
+.match-page .setup-grid .form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 900;
+}
+.match-page .setup-grid .form-select {
+  border-radius: var(--r-btn);
+  padding: 12px 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.match-page .setup-grid .form-select:focus { border-color: var(--purple); }
+.match-page .setup-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: -4px;
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--red-light);
+  color: var(--red-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+.match-page .match-cta { display: flex; gap: 10px; margin-top: 0; }
+
+/* 玩法技巧卡 */
+.match-page .match-tips { padding: 20px 22px; }
+.match-page .tip-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--panel2);
+  margin-bottom: 10px;
+}
+.match-page .tip-row:last-child { margin-bottom: 0; }
+.match-page .tip-ic {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-family: var(--emoji);
+}
+.match-page .tip-ic.g { background: var(--green-bg); }
+.match-page .tip-ic.b { background: var(--blue-bg); }
+.match-page .tip-ic.o { background: var(--gold-light); }
+.match-page .tip-body { flex: 1; min-width: 0; }
+.match-page .tip-body b {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 2px;
+}
+.match-page .tip-body p {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+/* ============================================================
+   2. 对局中 · 驾驶舱 HUD
+   ============================================================ */
+.match-page .cockpit {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 14px 18px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+.match-page .hud-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--purple);
+  white-space: nowrap;
+}
+.match-page .hud-brand .ic {
+  font-size: 19px;
+  font-family: var(--emoji);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+.match-page .cockpit-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
+.match-page .hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.match-page .hud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.match-page .hud-item.pairs {
+  background: color-mix(in srgb, var(--green) 16%, var(--panel));
+  color: var(--green-dark);
+}
+.match-page .hud-item.moves {
+  color: var(--text-dim);
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+}
+.match-page .hud-item.combo {
+  background: var(--gold-light);
+  color: var(--gold-dark);
+  animation: combo-shake 0.4s ease;
+}
+.match-page .hud-item.timer-pill {
+  padding: 9px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+@keyframes combo-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* ============================================================
+   3. 对局中 · 竞技场（翻牌棋盘）
+   ============================================================ */
+.match-page .arena {
+  background: var(--panel);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.06), 0 8px 22px rgba(0, 0, 0, 0.05);
+}
+.match-page .arena-top {
+  height: 5px;
+  background: linear-gradient(90deg, var(--purple), var(--blue) 55%, var(--green));
+}
+.match-page .arena-inner { padding: 20px 22px 18px; }
+
+.match-page .arena-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.match-page .ah-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.match-page .ah-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 11px;
+  background: var(--purple-bg);
+  color: var(--purple-dark);
+  font-size: 12.5px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.match-page .ah-badge .ic { font-size: 14px; font-family: var(--emoji); }
+.match-page .ah-title {
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+}
+.match-page .ah-title small {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 1px;
+  letter-spacing: 0;
+}
+.match-page .ah-prog { display: flex; align-items: center; gap: 10px; }
+.match-page .ah-prog .progress-bar { width: 132px; height: 10px; border-radius: 10px; }
+.match-page .ah-prog .progress-fill {
+  background: linear-gradient(90deg, var(--green), #6fdd1a);
+  box-shadow: 0 0 8px rgba(88, 204, 2, 0.4);
+}
+.match-page .ah-num {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.match-page .ah-num small { color: var(--text-dim); font-weight: 700; font-size: 12px; }
+
+/* ---- 牌阵 ---- */
+.match-page .pair-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  max-width: 860px;
+  margin: 0 auto;
+  perspective: 1000px;
+}
+
+/* ---- 牌：Duolingo 白卡 14px 圆角 + 3px 下压阴影 ---- */
+.match-page .pair-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 82px;
+  padding: 12px 10px;
+  border: 2.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s var(--ease-out), border-color 0.18s var(--ease-out),
+              box-shadow 0.18s var(--ease-out), background-color 0.18s var(--ease-out);
+  animation: tile-flip-in 0.46s cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+}
+/* 发牌错峰翻面（fill-mode: backwards → 动画结束后不占用 transform） */
+.match-page .pair-grid .pair-tile:nth-child(1) { animation-delay: 0ms; }
+.match-page .pair-grid .pair-tile:nth-child(2) { animation-delay: 40ms; }
+.match-page .pair-grid .pair-tile:nth-child(3) { animation-delay: 80ms; }
+.match-page .pair-grid .pair-tile:nth-child(4) { animation-delay: 120ms; }
+.match-page .pair-grid .pair-tile:nth-child(5) { animation-delay: 160ms; }
+.match-page .pair-grid .pair-tile:nth-child(6) { animation-delay: 200ms; }
+.match-page .pair-grid .pair-tile:nth-child(7) { animation-delay: 240ms; }
+.match-page .pair-grid .pair-tile:nth-child(8) { animation-delay: 280ms; }
+.match-page .pair-grid .pair-tile:nth-child(9) { animation-delay: 320ms; }
+.match-page .pair-grid .pair-tile:nth-child(10) { animation-delay: 360ms; }
+.match-page .pair-grid .pair-tile:nth-child(11) { animation-delay: 400ms; }
+.match-page .pair-grid .pair-tile:nth-child(12) { animation-delay: 440ms; }
+.match-page .pair-grid .pair-tile:nth-child(n + 13) { animation-delay: 480ms; }
+
+@keyframes tile-flip-in {
+  from { transform: rotateY(86deg) scale(0.92); opacity: 0; }
+  to   { transform: rotateY(0deg) scale(1); opacity: 1; }
+}
+
+.match-page .pair-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.12);
+}
+.match-page .pair-tile:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* 牌面文字 */
+.match-page .pair-tile b {
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  max-width: 100%;
+  word-break: break-word;
+}
+.match-page .pair-tile b.nowrap { white-space: nowrap; word-break: normal; }
+.match-page .pair-tile b.scroll {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-x: auto;
+  display: block;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.match-page .pair-tile b.scroll::-webkit-scrollbar { display: none; }
+.match-page .pair-tile small {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  max-width: 100%;
+  line-height: 1.2;
+}
+
+/* 英文卡 = 蓝系 */
+.match-page .pair-tile.en {
+  background: color-mix(in srgb, var(--blue) 11%, var(--panel));
+  border-color: color-mix(in srgb, var(--blue) 42%, var(--border));
+}
+.match-page .pair-tile.en::after {
+  content: "EN";
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--blue) 22%, transparent);
+  color: var(--blue-dark);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+/* 中文卡 = 绿系 */
+.match-page .pair-tile.zh {
+  background: color-mix(in srgb, var(--green) 11%, var(--panel));
+  border-color: color-mix(in srgb, var(--green) 42%, var(--border));
+}
+.match-page .pair-tile.zh::after {
+  content: "中文";
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  color: var(--green-dark);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+/* 选中态：蓝边 + 抬起 + 光晕 */
+.match-page .pair-tile.picked {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 18%, var(--panel));
+  transform: translateY(-4px);
+  box-shadow: 0 8px 0 var(--blue-dark), 0 0 0 4px color-mix(in srgb, var(--blue) 22%, transparent);
+  animation: none;
+}
+
+/* 配错：红边 + 抖动 */
+.match-page .pair-tile.shaking {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--panel));
+  box-shadow: 0 5px 0 var(--red-dark), 0 0 0 4px color-mix(in srgb, var(--red) 18%, transparent);
+  animation: shake-x 0.6s ease-out;
+}
+.match-page .pair-tile.shaking::after { color: var(--red-dark); }
+
+/* 配对成功：绿卡弹一下 → 消失（占位不塌，布局不跳动） */
+.match-page .pair-tile.gone {
+  pointer-events: none;
+  animation: tile-clear 0.66s var(--ease-out) forwards;
+}
+@keyframes tile-clear {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    background-color: color-mix(in srgb, var(--green) 20%, var(--panel));
+    border-color: var(--green);
+    box-shadow: 0 5px 0 var(--green-dark);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.13);
+    box-shadow: 0 8px 0 var(--green-dark), 0 0 18px color-mix(in srgb, var(--green) 55%, transparent);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+    background-color: color-mix(in srgb, var(--green) 20%, var(--panel));
+    border-color: var(--green);
+  }
+}
+.match-page .pair-tile.gone b,
+.match-page .pair-tile.gone small { color: var(--green-dark); }
+
+/* 竞技场页脚：提示 + 图例 */
+.match-page .arena-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.match-page .arena-foot .hint {
+  margin: 0;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.match-page .legend { display: flex; align-items: center; gap: 8px; }
+.match-page .lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.match-page .lg-en { background: var(--blue-bg); color: var(--blue-dark); }
+.match-page .lg-zh { background: var(--green-bg); color: var(--green-dark); }
+
+/* ============================================================
+   4. 结算 · hero-card 战报
+   ============================================================ */
+.match-page .match-done { max-width: 720px; margin: 0 auto; width: 100%; }
+.match-page .match-result { padding: 30px 32px; }
+.match-page .match-result > * { position: relative; z-index: 1; }
+.match-page .mr-stars {
+  font-size: 40px;
+  font-family: var(--emoji);
+  line-height: 1;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  animation: pop-in-spring 0.5s var(--ease-spring) both;
+}
+.match-page .match-result h2 {
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-bottom: 7px;
+}
+.match-page .mr-lead {
+  font-size: 14px;
+  font-weight: 800;
+  opacity: 0.92;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 18px;
+}
+.match-page .mr-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+  margin-bottom: 18px;
+}
+.match-page .mr-chip {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(4px);
+  border-radius: 14px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.match-page .mr-chip .v {
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.match-page .mr-chip .l {
+  font-size: 10.5px;
+  font-weight: 800;
+  opacity: 0.9;
+  margin-top: 3px;
+}
+.match-page .mr-perfect,
+.match-page .mr-partial {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.match-page .mr-partial {
+  color: #3a2c00;
+  background: var(--gold);
+  box-shadow: 0 3px 0 var(--gold-dark);
+}
+.match-page .match-result .match-cta { margin-top: 4px; }
+.match-page .mr-ghost {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
+}
+.match-page .mr-ghost:hover { background: rgba(255, 255, 255, 0.28); filter: none; }
+.match-page .mr-ghost:active { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22); }
+
+/* ============================================================
+   5. 手机端（与脚本 isMobile 的 620px 断点一致）
+   ============================================================ */
+@media (max-width: 620px) {
+  .match-page { gap: 13px; }
+
+  .match-page .match-hero { padding: 20px 18px 22px; border-radius: 18px; }
+  .match-page .match-hero h1 { font-size: 22px; }
+  .match-page .match-hero::before { font-size: 72px; bottom: -20px; right: 16px; }
+  .match-page .mh-lead { font-size: 13.5px; }
+  .match-page .mh-rule { font-size: 12px; }
+
+  .match-page .match-setup-card,
+  .match-page .match-tips { padding: 16px; border-radius: 18px; }
+  .match-page .setup-grid { grid-template-columns: 1fr; gap: 11px; margin-bottom: 13px; }
+  .match-page .match-cta { flex-direction: column; gap: 9px; }
+  .match-page .match-cta .btn { width: 100%; }
+  .match-page .tip-row { padding: 10px; }
+  .match-page .tip-body p { font-size: 12px; }
+
+  /* HUD：纵向堆叠，横向可滚的胶囊条 */
+  .match-page .cockpit {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 13px;
+  }
+  .match-page .cockpit-divider { width: auto; height: 1px; }
+  .match-page .hud {
+    margin-left: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 1px;
+    scrollbar-width: none;
+  }
+  .match-page .hud::-webkit-scrollbar { display: none; }
+  .match-page .hud-item { padding: 8px 11px; font-size: 13px; }
+  .match-page .hud-item.timer-pill { font-size: 14px; }
+
+  /* 竞技场 */
+  .match-page .arena { border-radius: 18px; }
+  .match-page .arena-inner { padding: 15px 13px 14px; }
+  .match-page .arena-head { margin-bottom: 12px; gap: 9px; }
+  .match-page .ah-title { font-size: 16px; }
+  .match-page .ah-prog { width: 100%; }
+  .match-page .ah-prog .progress-bar { flex: 1; width: auto; }
+
+  /* 网格降为 2 列（覆盖脚本算出的 --cols，不动脚本） */
+  .match-page .pair-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    max-width: none;
+  }
+  .match-page .pair-tile { min-height: 74px; padding: 11px 9px; }
+  .match-page .pair-tile b { font-size: 14.5px; }
+  .match-page .arena-foot { margin-top: 14px; flex-direction: column; align-items: center; gap: 8px; }
+  .match-page .arena-foot .hint { text-align: center; }
+
+  /* 结算 */
+  .match-page .match-result { padding: 22px 18px; border-radius: 18px; }
+  .match-page .match-result h2 { font-size: 22px; }
+  .match-page .mr-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .match-page .mr-chip .v { font-size: 20px; }
+  .match-page .match-result .match-cta { flex-direction: column; gap: 9px; }
+  .match-page .match-result .match-cta .btn { width: 100%; }
+}

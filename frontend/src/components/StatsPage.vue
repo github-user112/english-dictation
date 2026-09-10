@@ -168,8 +168,16 @@ function checkNewBadges() {
 </script>
 
 <template>
-  <div v-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="load">重试</button></div>
-  <div v-else-if="!stats" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
+  <div v-if="error" class="empty" role="alert">
+    <span class="emoji" aria-hidden="true">⚠️</span>
+    <h3>统计加载失败</h3>
+    <p>{{ error }}</p>
+    <button class="btn primary" @click="load">🔁 重试</button>
+  </div>
+  <div v-else-if="!stats" class="empty loading">
+    <span class="spin" aria-hidden="true"></span>
+    <span class="load-text">加载中…</span>
+  </div>
   <div v-else class="stats-page">
     <!-- 新徽章解锁庆祝 -->
     <Teleport to="body">
@@ -184,30 +192,110 @@ function checkNewBadges() {
       </div>
     </Teleport>
 
-    <div class="page-heading compact"><span class="eyebrow">LEARNING PULSE</span><h1>你的学习节奏</h1><p>每一次听懂，都在累积。</p></div>
-    <div class="stat-cards">
-      <div class="stat-card"><div class="num">{{ stats.streak }}</div><div class="lab">连续打卡(天)</div></div>
-      <div class="stat-card"><div class="num" :style="stats.due_soon ? 'color:var(--red)' : ''">{{ stats.due_soon || 0 }}</div><div class="lab">⏳ 两天内到期复习</div></div>
-      <div class="stat-card"><div class="num">{{ stats.total_memorize_right }}</div><div class="lab">累计背诵对</div></div>
-      <div class="stat-card"><div class="num">{{ stats.total_right }}</div><div class="lab">累计听打对</div></div>
-      <div class="stat-card"><div class="num">{{ stats.total_wrong }}</div><div class="lab">累计答错</div></div>
-      <div class="stat-card"><div class="num">{{ stats.wrong_words }}</div><div class="lab">错词本</div></div>
+    <!-- 页头 -->
+    <div class="page-heading stats-head">
+      <span class="eyebrow">LEARNING PULSE</span>
+      <h1><span class="ph-emoji" aria-hidden="true">📊</span>你的学习节奏</h1>
+      <p>每一次听懂，都在累积。</p>
     </div>
-    <!-- 词力等级：全程可见的成长线；小树入口 -->
+
     <template v-if="Profile.ready">
-      <div class="section-title">词力等级<small>听打 · 背诵 · 选词 · 冲刺 · 每日挑战都算经验</small></div>
-      <div class="stat-card level-card">
-        <div class="donut-chart" role="img" :aria-label="`词力等级 ${Profile.level} 级 ${Profile.title}`">
-          <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
-            <circle cx="66" cy="66" r="52" fill="none" stroke="var(--panel3)" stroke-width="12"></circle>
-            <circle class="dn-fg" cx="66" cy="66" r="52" fill="none" stroke-width="12"
-                    :stroke-dasharray="DONUT_LEN"
-                    :stroke-dashoffset="donutGrown ? DONUT_LEN * (1 - Profile.levelProgress) : DONUT_LEN"></circle>
-          </svg>
-          <b>Lv.{{ Profile.level }}</b>
-          <small>{{ Profile.title }}</small>
+      <!-- 词力档案 Hero -->
+      <div class="profile-hero">
+        <div class="hero-row">
+          <div class="avatar-wrap">
+            <div class="avatar-ring"><div class="avatar-inner" aria-hidden="true">🎓</div></div>
+            <div class="lvl-badge">Lv.{{ Profile.level }} · {{ Profile.title }}</div>
+          </div>
+
+          <div class="hero-title-block">
+            <div class="hero-name">
+              <span>{{ Account.username || "游客" }}</span>
+              <span class="crown" aria-hidden="true">👑</span>
+            </div>
+            <div class="hero-rank">
+              <span class="hr-tag">🌟 {{ Profile.title }}</span>
+              <span class="hr-tag">📅 累计活跃 {{ Profile.totalActiveDays }} 天</span>
+            </div>
+            <div class="xp-bar-wrap">
+              <div class="xp-bar-head">
+                <span class="cur">⚡ {{ Profile.xp }} XP</span>
+                <span class="tgt"><template v-if="Profile.nextLevelXp != null">距下一级还差 <b>{{ Profile.nextLevelXp - Profile.xp }}</b> XP</template><template v-else>已达最高称号 🎉</template></span>
+              </div>
+              <div class="xp-bar"><div class="xp-fill" :style="{ width: (Profile.levelProgress * 100) + '%' }"></div></div>
+            </div>
+          </div>
+
+          <div class="lvl-ring">
+            <div class="donut-chart" role="img" :aria-label="`词力等级 ${Profile.level} 级 ${Profile.title}`">
+              <svg width="124" height="124" viewBox="0 0 132 132" aria-hidden="true">
+                <circle cx="66" cy="66" r="52" fill="none" stroke="var(--panel3)" stroke-width="12"></circle>
+                <circle class="dn-fg" cx="66" cy="66" r="52" fill="none" stroke-width="12"
+                        :stroke-dasharray="DONUT_LEN"
+                        :stroke-dashoffset="donutGrown ? DONUT_LEN * (1 - Profile.levelProgress) : DONUT_LEN"></circle>
+              </svg>
+              <b>Lv.{{ Profile.level }}</b>
+              <small>{{ Profile.title }}</small>
+            </div>
+          </div>
         </div>
-        <div class="level-side">
+
+        <div class="quick-stats">
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">🔥</span>
+            <div class="qs-body">
+              <div class="qs-v">{{ stats.streak }}</div>
+              <div class="qs-k">连续打卡(天)</div>
+            </div>
+          </div>
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">⏳</span>
+            <div class="qs-body">
+              <div class="qs-v" :style="stats.due_soon ? 'color:var(--red)' : ''">{{ stats.due_soon || 0 }}</div>
+              <div class="qs-k">两天内到期复习</div>
+            </div>
+          </div>
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">📝</span>
+            <div class="qs-body">
+              <div class="qs-v">{{ stats.total_memorize_right }}</div>
+              <div class="qs-k">累计背诵对</div>
+            </div>
+          </div>
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">🎧</span>
+            <div class="qs-body">
+              <div class="qs-v">{{ stats.total_right }}</div>
+              <div class="qs-k">累计听打对</div>
+            </div>
+          </div>
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">❌</span>
+            <div class="qs-body">
+              <div class="qs-v">{{ stats.total_wrong }}</div>
+              <div class="qs-k">累计答错</div>
+            </div>
+          </div>
+          <div class="q-stat">
+            <span class="qs-ic" aria-hidden="true">📚</span>
+            <div class="qs-body">
+              <div class="qs-v">{{ stats.wrong_words }}</div>
+              <div class="qs-k">错词本</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 词力成长线 + 听打累计正确率 -->
+      <div class="grid-2 stat-rows">
+        <div class="card level-card">
+          <div class="sec-head">
+            <span class="sh-emoji" aria-hidden="true">🌳</span>
+            <div>
+              <div class="sh-title">词力等级</div>
+              <div class="sh-sub">听打 · 背诵 · 选词 · 冲刺 · 每日挑战都算经验</div>
+            </div>
+          </div>
           <p class="level-xp">
             经验 {{ Profile.xp }}<template v-if="Profile.nextLevelXp != null"> · 距下一级还差 <b>{{ Profile.nextLevelXp - Profile.xp }}</b></template><template v-else> · 已达最高称号 🎉</template>
           </p>
@@ -220,50 +308,101 @@ function checkNewBadges() {
             </span>
             <em aria-hidden="true">→</em>
           </a>
-          <div class="controls" style="margin-top:14px;">
+          <div class="controls">
             <button class="btn ghost sm" @click="badgeShareOpen = true">🎖 分享我的勋章</button>
             <button class="btn ghost sm" :disabled="weeklyLoading" @click="openWeekly">📅 分享本周周报</button>
+          </div>
+        </div>
+
+        <div class="card acc-card">
+          <div class="sec-head">
+            <span class="sh-emoji" aria-hidden="true">🎯</span>
+            <div>
+              <div class="sh-title">听打累计正确率</div>
+              <div class="sh-sub">全部历史数据 · 实时推导</div>
+            </div>
+          </div>
+          <div class="acc-layout">
+            <div class="donut-chart" role="img" :aria-label="`听打累计正确率 ${Math.round(dictationAcc * 100)}%`">
+              <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+                <circle cx="66" cy="66" r="52" fill="none" stroke="var(--panel3)" stroke-width="12"></circle>
+                <circle class="dn-fg" cx="66" cy="66" r="52" fill="none" stroke-width="12"
+                        :stroke-dasharray="DONUT_LEN"
+                        :stroke-dashoffset="donutGrown ? DONUT_LEN * (1 - dictationAcc) : DONUT_LEN"></circle>
+              </svg>
+              <b>{{ Math.round(dictationAcc * 100) }}%</b>
+              <small>ALL TIME</small>
+            </div>
+            <div class="acc-side">
+              <div class="acc-line">累计听打 <b>{{ stats.total_right }}</b> 对 / <b>{{ stats.total_wrong }}</b> 错</div>
+            </div>
           </div>
         </div>
       </div>
     </template>
 
-    <div class="section-title">首答真实统计</div>
-    <div class="stat-cards">
-      <div v-for="(m, key) in stats.practice_modes" :key="key" class="stat-card">
-        <div class="num">{{ Math.round(m.first_accuracy * 100) }}%</div>
-        <div class="lab">{{ modeNames[key] || key }} · 首答 {{ m.first_right }} 对 / {{ m.first_wrong }} 错</div>
+    <!-- 首答真实统计 + 最近 14 天 -->
+    <div class="grid-2 stat-rows">
+      <div class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">🎮</span>
+          <div>
+            <div class="sh-title">首答真实统计</div>
+            <div class="sh-sub">各模式第一次作答的对错 · 不含修改后重答</div>
+          </div>
+        </div>
+        <div class="mode-list">
+          <div v-for="(m, key) in stats.practice_modes" :key="key" class="mode-row">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <span class="mode-name">{{ modeNames[key] || key }}</span>
+            <span class="mini-bar mode-bar"><span class="mini-bar-fill" :style="{ width: Math.round(m.first_accuracy * 100) + '%' }"></span></span>
+            <span class="mode-val">{{ Math.round(m.first_accuracy * 100) }}%</span>
+            <span class="mode-sub">首答 {{ m.first_right }} 对 / {{ m.first_wrong }} 错</span>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="section-title">听打累计正确率</div>
-    <div class="stat-card" style="padding:22px 16px 18px;">
-      <div class="donut-chart" role="img" :aria-label="`听打累计正确率 ${Math.round(dictationAcc * 100)}%`">
-        <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
-          <circle cx="66" cy="66" r="52" fill="none" stroke="var(--panel3)" stroke-width="12"></circle>
-          <circle class="dn-fg" cx="66" cy="66" r="52" fill="none" stroke-width="12"
-                  :stroke-dasharray="DONUT_LEN"
-                  :stroke-dashoffset="donutGrown ? DONUT_LEN * (1 - dictationAcc) : DONUT_LEN"></circle>
-        </svg>
-        <b>{{ Math.round(dictationAcc * 100) }}%</b>
-        <small>ALL TIME</small>
-      </div>
-      <div class="lab" style="margin-top:12px;">累计听打 {{ stats.total_right }} 对 / {{ stats.total_wrong }} 错</div>
-    </div>
-    <div class="section-title">最近 14 天</div>
-    <div class="stat-card" style="padding:14px 10px 26px;">
-      <div class="bars">
-        <div v-for="(d, bi) in last14" :key="d.day" class="bar">
-          <div class="fill" :style="{ height: (d.total / maxDay * 100) + '%', '--bi': bi }"></div>
-          <div class="day">{{ d.day }}</div>
+
+      <div class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">📈</span>
+          <div>
+            <div class="sh-title">最近 14 天</div>
+            <div class="sh-sub">每天答对 + 答错总题数</div>
+          </div>
+        </div>
+        <div class="bars">
+          <div v-for="(d, bi) in last14" :key="d.day" class="bar">
+            <div class="fill" :style="{ height: (d.total / maxDay * 100) + '%', '--bi': bi }"></div>
+            <div class="day">{{ d.day }}</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="section-title">打卡热力图<small>近半年 · 颜色越亮练得越多</small></div>
-    <div class="stat-card" style="padding:18px 16px;">
-      <div class="heat-grid" role="img" aria-label="近半年打卡热力图" :style="{ '--weeks': Math.ceil(heatmap.length / 7) }">
-        <span v-for="c in heatmap" :key="c.day" class="heat-cell"
-              :class="'lvl' + c.lvl" :title="`${c.day} · ${c.n} 题`"></span>
+    <!-- 打卡热力图 -->
+    <div class="card heatmap-card">
+      <div class="sec-head hm-head">
+        <span class="sh-emoji" aria-hidden="true">📅</span>
+        <div>
+          <div class="sh-title">打卡热力图</div>
+          <div class="sh-sub">近半年 · 颜色越亮练得越多</div>
+        </div>
+        <div class="hm-stats">
+          <div class="hm-stat"><div class="v green">{{ heatmap.filter((c) => c.n > 0).length }}</div><div class="k">天有记录</div></div>
+          <div class="hm-stat"><div class="v orange">{{ stats.streak }}</div><div class="k">当前连续</div></div>
+          <div class="hm-stat"><div class="v purple">{{ stats.total_right }}</div><div class="k">累计答对</div></div>
+        </div>
+      </div>
+      <div class="hm-body">
+        <div class="hm-days" aria-hidden="true">
+          <div>一</div><div>三</div><div>五</div><div>日</div>
+        </div>
+        <div class="hm-grid-wrap">
+          <div class="heat-grid" role="img" aria-label="近半年打卡热力图" :style="{ '--weeks': Math.ceil(heatmap.length / 7) }">
+            <span v-for="c in heatmap" :key="c.day" class="heat-cell"
+                  :class="'lvl' + c.lvl" :title="`${c.day} · ${c.n} 题`"></span>
+          </div>
+        </div>
       </div>
       <div class="heat-legend"><span>少</span>
         <span class="heat-cell lvl0"></span><span class="heat-cell lvl1"></span><span class="heat-cell lvl2"></span><span class="heat-cell lvl3"></span><span class="heat-cell lvl4"></span>
@@ -272,36 +411,69 @@ function checkNewBadges() {
     </div>
 
     <template v-if="speedView">
-      <div class="section-title">打字速度<small>正确完成每词平均耗时 · 秒</small></div>
-      <div class="stat-card" style="padding:18px 16px 12px;">
+      <div class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">⚡</span>
+          <div>
+            <div class="sh-title">打字速度</div>
+            <div class="sh-sub">正确完成每词平均耗时 · 秒</div>
+          </div>
+        </div>
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="spark" aria-hidden="true">
+          <defs>
+            <linearGradient id="sparkAreaSpeed" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"></stop>
+              <stop offset="100%" stop-color="var(--green)" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <polygon :points="speedView.points + ' 100,40 0,40'" fill="url(#sparkAreaSpeed)"></polygon>
           <polyline :points="speedView.points" fill="none" stroke="var(--accent)" stroke-width="1.6"
                     stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
         </svg>
         <div class="spark-cap">
           <span>平均 {{ speedView.avg }}s / 词</span>
-          <span style="color:var(--accent-strong)">最近 {{ speedView.latest }}s</span>
+          <span class="cap-hi">最近 {{ speedView.latest }}s</span>
           <span>{{ speedView.n }} 天样本</span>
         </div>
       </div>
     </template>
 
     <template v-if="typing && (wpmView || typing.heatmap.length)">
-      <div class="section-title">打字数据<small>近 30 天 WPM · 近 90 天错键</small></div>
-      <div class="stat-card" style="padding:18px 16px 12px;">
+      <div class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">⌨️</span>
+          <div>
+            <div class="sh-title">打字数据</div>
+            <div class="sh-sub">近 30 天 WPM · 近 90 天错键</div>
+          </div>
+        </div>
         <div class="tier-line">
           <span class="tier-badge">{{ TIER_ICON[typing.tier] || "🥉" }} {{ typing.tier }}</span>
           <span class="tier-sub">近 7 天均速 <b>{{ typing.wpm7 }}</b> WPM · 最快 {{ wpmView ? wpmView.best : 0 }} WPM</span>
         </div>
         <svg v-if="wpmView" viewBox="0 0 100 40" preserveAspectRatio="none" class="spark" aria-hidden="true">
-          <polyline :points="wpmView.points" fill="none" stroke="var(--accent)" stroke-width="1.6"
+          <defs>
+            <linearGradient id="sparkAreaWpm" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.35"></stop>
+              <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"></stop>
+            </linearGradient>
+          </defs>
+          <polygon :points="wpmView.points + ' 100,40 0,40'" fill="url(#sparkAreaWpm)"></polygon>
+          <polyline :points="wpmView.points" fill="none" stroke="var(--blue)" stroke-width="1.6"
                     stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
         </svg>
         <div v-if="wpmView" class="spark-cap">
-          <span>WPM 曲线</span><span>{{ wpmView.n }} 天样本</span>
+          <span>WPM 曲线</span><span class="cap-hi">{{ wpmView.n }} 天样本</span>
         </div>
       </div>
-      <div v-if="typing.heatmap.length" class="stat-card" style="padding:14px 16px;">
+      <div v-if="typing.heatmap.length" class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">🧩</span>
+          <div>
+            <div class="sh-title">高频错键</div>
+            <div class="sh-sub">按期望键分组 · 括号内为出现次数</div>
+          </div>
+        </div>
         <div v-for="h in typing.heatmap" :key="h.expect" class="typo-row">
           <code class="typo-expect">{{ h.expect }}</code>
           <span class="typo-arrow">常打成</span>
@@ -311,14 +483,25 @@ function checkNewBadges() {
     </template>
 
     <template v-if="badges">
-    <div class="section-title">成就徽章<small>{{ badges.filter(b => b.unlocked).length }} / {{ badges.length }} 已解锁</small></div>
-    <div class="badge-wall">
-      <div v-for="b in badges" :key="b.id" class="badge-chip" :class="{ on: b.unlocked }"
-           :title="`${b.desc}（${b.progress}/${b.target}）`">
-        <span class="bc-icon">{{ b.icon }}</span>
-        <span class="bc-body"><b>{{ b.title }}</b><small>{{ b.unlocked ? b.desc : `${b.progress} / ${b.target}` }}</small></span>
+      <div class="card">
+        <div class="sec-head">
+          <span class="sh-emoji" aria-hidden="true">🏆</span>
+          <div>
+            <div class="sh-title">成就徽章</div>
+            <div class="sh-sub">解锁一枚，就多一份坚持的证据</div>
+          </div>
+          <span class="sh-count">已解锁 {{ badges.filter(b => b.unlocked).length }} / {{ badges.length }}</span>
+        </div>
+        <div class="badge-wall">
+          <div v-for="b in badges" :key="b.id" class="badge-chip" :class="{ on: b.unlocked }"
+               :title="`${b.desc}（${b.progress}/${b.target}）`">
+            <span class="bc-icon">{{ b.icon }}</span>
+            <span class="bc-body"><b>{{ b.title }}</b><small>{{ b.unlocked ? b.desc : `${b.progress} / ${b.target}` }}</small>
+              <span class="bc-bar"><span class="bc-bar-fill" :style="{ width: Math.min(100, (b.progress / (b.target || 1)) * 100) + '%' }"></span></span>
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
     </template>
 
     <ShareCard :open="badgeShareOpen" kind="badge" :payload="badgeSharePayload()" @close="badgeShareOpen = false" />

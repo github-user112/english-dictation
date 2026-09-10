@@ -53,7 +53,12 @@ onUnmounted(() => { try { rec && rec.abort(); } catch { /* 已结束 */ } });
 </script>
 
 <template>
-  <div v-if="visible" class="speech-drill" aria-live="polite">
+  <div v-if="visible" class="speech-drill" aria-live="polite" :class="{
+    'rec-on': state === 'listening',
+    good: verdict && verdict.cls === 'good',
+    close: verdict && verdict.cls === 'close',
+    bad: state === 'error' || (verdict && verdict.cls === 'bad'),
+  }">
     <template v-if="state === 'listening'">
       <button class="btn ghost sm listening" aria-label="正在聆听，点击取消" @click="cancel">
         <span class="mic-dot"></span> 正在听…点击取消
@@ -66,6 +71,7 @@ onUnmounted(() => { try { rec && rec.abort(); } catch { /* 已结束 */ } });
         <small v-if="result.hit && result.score < 85">（听到的是「{{ result.hit }}」）</small>
       </span>
       <span v-if="state === 'error'" class="speech-verdict bad">{{ errorMsg }}</span>
+      <span v-if="state === 'idle'" class="sd-idle">跟读一下，练练发音 👄</span>
     </template>
   </div>
 </template>

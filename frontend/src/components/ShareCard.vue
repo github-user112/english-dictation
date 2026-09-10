@@ -110,15 +110,25 @@ async function copyText() {
 
 <template>
   <div v-if="open" class="modal share-modal" role="dialog" aria-modal="true"
-       aria-label="分享卡片" @click.self="emit('close')">
+        aria-label="分享卡片" @click.self="emit('close')">
     <div ref="box" class="modal-box share-box" tabindex="-1">
-      <h3 class="share-title">{{ FILENAME[kind] }}</h3>
+      <div class="share-topbar" aria-hidden="true"></div>
+      <header class="share-head">
+        <span class="share-head-emoji" aria-hidden="true">
+          {{ kind === "badge" ? "🏅" : kind === "weekly" ? "📅" : kind === "wordtest" ? "📖" : "🥊" }}
+        </span>
+        <div class="share-head-body">
+          <h3 class="share-title">{{ FILENAME[kind] }}</h3>
+          <div class="share-head-sub">英语听打 · 分享给好友一起练</div>
+        </div>
+        <span class="share-badge">⚡ 一键保存</span>
+      </header>
       <canvas ref="poster" class="share-canvas" aria-label="分享卡片预览"></canvas>
       <pre class="share-text" aria-label="分享文本">{{ shareText }}</pre>
       <div class="share-ops">
-        <button type="button" class="btn primary" @click="savePng">保存 PNG</button>
-        <button type="button" class="btn" @click="copyText">
-          {{ copied ? "已复制 ✓" : "复制文案" }}
+        <button type="button" class="btn primary big" @click="savePng">🖼️ 保存 PNG</button>
+        <button type="button" class="btn" :class="{ copied: copied }" @click="copyText">
+          {{ copied ? "已复制 ✓" : "📋 复制文案" }}
         </button>
         <button type="button" class="btn ghost" @click="emit('close')">关闭</button>
       </div>
@@ -127,13 +137,8 @@ async function copyText() {
 </template>
 
 <style scoped>
-.share-box { width: min(94%, 430px); max-height: 92vh; overflow-y: auto; }
-.share-title { margin: 0 0 12px; font-size: 18px; }
-.share-canvas { width: 100%; border-radius: 14px; display: block; }
-.share-text {
-  margin-top: 12px; padding: 12px; white-space: pre-wrap; word-break: break-all;
-  text-align: left; font-size: 13px; line-height: 1.6;
-  background: color-mix(in srgb, var(--bg) 75%, transparent); border-radius: 10px;
-}
-.share-ops { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+/* 页面级样式集中在 styles/pages/24-share.css（.share-modal 前缀）；
+   此处只保留必须随组件作用域生效的尺寸兜底。 */
+.share-box { width: min(94vw, 462px); max-height: 92vh; overflow-y: auto; }
+.share-canvas { width: 100%; display: block; }
 </style>
