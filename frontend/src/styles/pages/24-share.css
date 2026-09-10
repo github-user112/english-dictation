@@ -1,0 +1,8 @@
+/* ===== 24-share · 分享卡与语音训练 · ShareCard+SpeechDrill =====
+   对照 design/分享卡与语音训练-desktop.html + 分享卡与语音训练-mobile.html
+   规则：只写本页专属选择器；通用原语用 base.css 的类
+   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
+     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
+     .btn .duo-btn .grid-* .table-wrap .form-input）
+   禁止改 styles/base.css、styles.css、styles/legacy.css。
+*/

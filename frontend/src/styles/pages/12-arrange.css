@@ -1,0 +1,8 @@
+/* ===== 12-arrange · 听音排句 · ArrangePage =====
+   对照 design/听音排句-desktop.html + 听音排句-mobile.html
+   规则：只写本页专属选择器；通用原语用 base.css 的类
+   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
+     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
+     .btn .duo-btn .grid-* .table-wrap .form-input）
+   禁止改 styles/base.css、styles.css、styles/legacy.css。
+*/

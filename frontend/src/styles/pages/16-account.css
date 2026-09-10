@@ -1,0 +1,8 @@
+/* ===== 16-account · 账户/登录 · AccountPage =====
+   对照 design/账户-desktop.html + 账户-mobile.html
+   规则：只写本页专属选择器；通用原语用 base.css 的类
+   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
+     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
+     .btn .duo-btn .grid-* .table-wrap .form-input）
+   禁止改 styles/base.css、styles.css、styles/legacy.css。
+*/

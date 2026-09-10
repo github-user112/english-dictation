@@ -12,23 +12,23 @@ describe("favicon", () => {
     document.documentElement.removeAttribute("data-theme");
   });
 
-  it("injects an amber icon for the light theme and a navy one for dark", () => {
+  it("injects a green icon for the light theme and a dark one for dark", () => {
     document.documentElement.setAttribute("data-theme", "light");
     const light = applyFavicon();
     expect(light).toContain("data:image/svg+xml");
-    expect(decodeURIComponent(light)).toContain("#ffd37a");   // 琥珀渐变起点
-    expect(decodeURIComponent(light)).toContain("#241703");   // 深棕 E
+    expect(decodeURIComponent(light)).toContain("#58cc02");   // 多邻国绿渐变中段
+    expect(decodeURIComponent(light)).toContain("#ffffff");   // 白字 E
 
     const dark = applyFavicon("dark");
-    expect(decodeURIComponent(dark)).toContain("#161d33");    // 墨蓝底
-    expect(decodeURIComponent(dark)).toContain("#ffd37a");    // 琥珀 E
+    expect(decodeURIComponent(dark)).toContain("#1e1e1e");    // 深灰底
+    expect(decodeURIComponent(dark)).toContain("#58cc02");    // 绿字 E
     expect(svgLink()).not.toBeNull();
   });
 
   it("falls back to dark palette when data-theme is absent", () => {
     expect(currentTheme()).toBe("dark");
     const href = applyFavicon();
-    expect(decodeURIComponent(href)).toContain("#161d33");
+    expect(decodeURIComponent(href)).toContain("#1e1e1e");
   });
 
   it("reuses the same link element across switches", () => {

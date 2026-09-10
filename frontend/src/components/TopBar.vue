@@ -68,7 +68,7 @@ onUnmounted(() => {
   <header id="topbar">
     <div class="top-left">
       <a href="#/catalog" class="brand" aria-label="返回今日动线">
-        <span class="brand-mark">D</span>
+        <span class="brand-mark" aria-hidden="true">🦉</span>
         <span class="brand-copy"><b>Dictation</b><small>听见，然后写下</small></span>
       </a>
       <span id="title">/ {{ title }}</span>
@@ -84,9 +84,19 @@ onUnmounted(() => {
       </template>
     </div>
     <nav id="nav">
+      <!-- 顶栏成长线：🔥连击 / ⚡经验（多邻国式常驻成长指标） -->
+      <div v-if="Profile.ready" class="topbar-stats">
+        <div class="stat-item streak" :title="`${Profile.streak} 天连续学习 · 今天${Profile.todayDone ? '已打卡' : '还没打卡'}`">
+          <span class="icon" aria-hidden="true">🔥</span><span>{{ Profile.streak }}</span>
+        </div>
+        <div class="stat-item xp" :title="`经验 ${Profile.xp}`">
+          <span class="icon" aria-hidden="true">⚡</span><span>{{ Profile.xp }}</span>
+        </div>
+      </div>
       <!-- 词力等级徽章：常驻成长线，点击看统计 -->
       <a v-if="Profile.ready" class="nav-link lv-chip" href="#/stats"
          :title="`经验 ${Profile.xp}${Profile.nextLevelXp != null ? ` · 距下一级还差 ${Profile.nextLevelXp - Profile.xp}` : ' · 已达最高称号'}`">
+        <span class="lv-icon" aria-hidden="true">🏆</span>
         <b>Lv.{{ Profile.level }}</b><span>{{ Profile.title }}</span>
         <i class="lv-bar" aria-hidden="true"><i :style="{ width: lvWidth }"></i></i>
       </a>
@@ -112,7 +122,7 @@ onUnmounted(() => {
       <a v-for="m in MORE" :key="`i-${m.p}`" class="nav-link nav-more-inline"
          :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.s }}</a>
       <a v-if="!Account.loading && !Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">登录 / 注册</a>
-      <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn ghost sm" @click="signOut">退出</button></div>
+      <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn sm ghost" @click="signOut">退出</button></div>
     </nav>
   </header>
 </template>

@@ -1,0 +1,100 @@
+/* ===== 25-topbar · 顶栏 · TopBar =====
+   对照 design/*-desktop.html / *-mobile.html 的 <div class="topbar"> 区块：
+   左：品牌（绿底圆角 + 🦉 + 名字）· 中间：/ 当前页 · 右：🔥连击 ⚡经验 🏆等级 + 导航
+   通用原语用 base.css 的类；这里只写顶栏专属与响应式。
+*/
+
+/* 导航内部排布：成长指标靠左、主入口靠右 */
+#nav { flex: none; gap: 4px; }
+#nav .topbar-stats { margin-right: 6px; padding-right: 10px; border-right: 1.5px solid var(--border); }
+:root[data-theme="dark"] #nav .topbar-stats { border-right-color: #333; }
+
+/* 等级徽章里的奖杯图标 */
+.lv-chip .lv-icon { font-size: 13px; font-family: var(--emoji); line-height: 1; }
+.lv-chip b { font-size: 12px; letter-spacing: -.2px; }
+.lv-chip > span { font-size: 11.5px; }
+.lv-chip .lv-bar { width: 44px; }
+
+/* 导航按钮内联 emoji（次要入口） */
+.nav-link .n-emoji { font-size: 13px; margin-right: 4px; font-family: var(--emoji); }
+
+/* 「更多」按钮的激活态强调 */
+.nav-more-btn.active { color: var(--green-dark); }
+:root[data-theme="dark"] .nav-more-btn.active { color: var(--green); }
+
+/* 账户区 */
+.account-nav { display: inline-flex; align-items: center; gap: 7px; }
+.account-link { font-weight: 800; }
+
+/* ---------- 平板：压缩间距 ---------- */
+@media (max-width: 960px) {
+  #topbar { padding: 10px 16px; }
+  .top-left { gap: 12px; }
+  #nav { gap: 3px; }
+  .nav-link { padding: 8px 12px; }
+  .topbar-stats { gap: 13px; }
+  .stat-item { font-size: 14px; }
+  .lv-chip .lv-bar { width: 34px; }
+  .brand-mark { width: 37px; height: 37px; font-size: 22px; }
+  .brand-copy b { font-size: 17px; }
+}
+
+@media (max-width: 760px) {
+  #nav { gap: 3px; }
+  .nav-link { padding: 7px 11px; font-size: 13px; }
+  .topbar-stats { margin-right: 4px; padding-right: 8px; }
+  .stat-item { gap: 4px; font-size: 13px; }
+  .stat-item .icon { font-size: 16px; }
+  .lv-chip { padding: 5px 10px; font-size: 11.5px; }
+  .lv-chip .lv-bar { width: 28px; }
+}
+
+/* ---------- 手机：两行网格 —— 第一行品牌+账户，第二行横滑导航 ---------- */
+@media (max-width: 620px) {
+  #topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand account" "nav nav";
+    align-items: center;
+    gap: 7px 10px;
+    min-height: 0;
+    padding: 8px 13px 6px;
+  }
+  .top-left { grid-area: brand; min-width: 0; gap: 10px; }
+  .brand-mark { width: 33px; height: 33px; font-size: 19px; border-radius: 12px; box-shadow: 0 2px 0 var(--green-dark); }
+  .brand-copy small, #title { display: none; }
+  .brand-copy b { font-size: 16px; }
+  .mobile-session {
+    grid-area: account;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 0;
+  }
+  .mobile-login, .mobile-user, .mobile-logout { min-height: 31px; border-radius: 9px; font-size: 11px; font-weight: 800; }
+  .mobile-login { display: inline-flex; align-items: center; padding: 6px 11px; border-radius: 10px; box-shadow: 0 2px 0 var(--green-dark); }
+  .mobile-logout { min-height: 30px; padding: 5px 9px; font-size: 11px; border-radius: 9px; }
+
+  /* 一行横滑，不许挤压换行（flex:1 会把中文标签逐字折行） */
+  #nav {
+    grid-area: nav;
+    width: 100%;
+    gap: 3px;
+    padding: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  #nav::-webkit-scrollbar { display: none; }
+  #nav .account-link, #nav .account-nav { display: none; }
+  #nav .nav-more { display: none; }
+  #nav .nav-more-inline { display: block; }
+  .nav-link { flex: none; white-space: nowrap; padding: 7px 12px; font-size: 12px; border-radius: 10px; }
+  .lv-chip { flex: none; white-space: nowrap; padding: 5px 9px !important; font-size: 11px !important; }
+  .lv-chip .lv-bar { display: none; }
+  .topbar-stats { flex: none; gap: 9px; padding-right: 7px; border-right: 1.5px solid var(--border); }
+  :root[data-theme="dark"] .topbar-stats { border-right-color: #333; }
+  .stat-item { gap: 3px; font-size: 12.5px; }
+  .stat-item .icon { font-size: 14px; }
+}

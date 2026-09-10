@@ -30,3 +30,7 @@ design/mockups/fonts/
 design/shots/report.txt
 # 会话暂存：规范稿/评审结论/nginx 暂存配置
 .agents-tmp/
+
+# 前端本地字体（Noto Sans SC 可变字体 + Noto Color Emoji，共 43MB，不入库）
+# 从 design/fonts/ 复制：bash scripts/copy_fonts.sh
+frontend/public/fonts/*.ttf

@@ -1,0 +1,8 @@
+/* ===== 02-practice · 听打练习(word/sentence) · PracticePage+WordCells+SentenceCells =====
+   对照 design/听打练习(word-desktop.html + 听打练习(word-mobile.html
+   规则：只写本页专属选择器；通用原语用 base.css 的类
+   （.card .hero-card .banner .step-item .stat-box .badge-soft .tab .seg
+     .progress-bar .mini-bar .ring-wrap .pill .sec-head .empty .modal
+     .btn .duo-btn .grid-* .table-wrap .form-input）
+   禁止改 styles/base.css、styles.css、styles/legacy.css。
+*/
