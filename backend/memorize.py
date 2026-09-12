@@ -9,6 +9,7 @@ from .auth import get_user, resp
 from .config import CONFIG, MATERIALS
 from .db import db
 from .materials import audio_url, find_item, iter_material
+from .misc import local_today
 
 bp = Blueprint("memorize", __name__)
 
@@ -37,21 +38,24 @@ def api_memorize_session():
         return jsonify({"error": "未知素材"}), 404
     if MATERIALS[list_key]["type"] != "words":
         return jsonify({"error": "句子素材不支持背诵"}), 400
-    cutoff = (date.today() - timedelta(days=CONFIG["memorize_review_days"])).isoformat()
+    cutoff = (local_today() - timedelta(days=CONFIG["memorize_review_days"])).isoformat()
 
     pool_source = list(iter_material(list_key, lesson)) if lesson else None
     if lesson and not pool_source:
         return jsonify({"error": "课程不存在"}), 404
     lesson_ids = {m["id"] for m in pool_source} if lesson else None
 
+    # review=1（仅按课时生效）：今日动线"已学课重学"入口，整课重出，不按已背过滤
+    review_all = request.args.get("review") == "1" and lesson_ids is not None
+
     with db() as conn:
-        reviews = conn.execute(
+        reviews = [] if review_all else conn.execute(
             "SELECT item_id FROM word_state WHERE user=? AND list=? AND kind='word' AND memorized=1 "
             "AND last_memorize < ? ORDER BY last_memorize LIMIT ?",
             (u, list_key, cutoff, batch)).fetchall()
         if lesson_ids is not None:
             reviews = [r for r in reviews if r["item_id"] in lesson_ids]
-        memorized_ids = {r["item_id"] for r in conn.execute(
+        memorized_ids = set() if review_all else {r["item_id"] for r in conn.execute(
             "SELECT item_id FROM word_state WHERE user=? AND list=? AND memorized=1",
             (u, list_key)).fetchall()}
     pool = [m for m in (pool_source if lesson else iter_material(list_key))
@@ -65,7 +69,7 @@ def api_memorize_session():
         if m:
             items.append({**m, "phase": "review"})
     for m in fresh:
-        items.append({**m, "phase": "new"})
+        items.append({**m, "phase": "review" if review_all else "new"})
     random.shuffle(items)
     for it in items:
         it["audio"] = audio_url(list_key, it["id"], it["text"])
@@ -81,7 +85,7 @@ def api_memorize():
     raw_id = data.get("id")
     right = data.get("right")
     attempt_id = data.get("attempt_id")
-    today = date.today().isoformat()
+    today = local_today().isoformat()
 
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404

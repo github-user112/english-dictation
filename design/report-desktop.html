@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学习报告 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Page head ---- */
+  .page-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin:18px 4px 18px; gap:16px; flex-wrap:wrap;
+  }
+  .page-head h1 {
+    font-size:32px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;
+    display:flex; align-items:center; gap:10px;
+  }
+  .page-head h1 .emoji { font-size:34px; }
+  .page-head p { font-size:14px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+  .date-tabs { display:flex; gap:6px; background:#ececec; padding:4px; border-radius:12px; }
+  .date-tab {
+    padding:8px 14px; border-radius:9px; font-weight:800; font-size:13px;
+    background:transparent; color:var(--text-dim); cursor:pointer;
+    font-family:inherit; border:none; white-space:nowrap;
+  }
+  .date-tab.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  /* ============ Today's Report Hero ============ */
+  .report-hero {
+    background:linear-gradient(135deg, #2ecc71 0%, #58cc02 40%, #6fdd1a 100%);
+    border-radius:22px; padding:28px 32px; color:#fff;
+    box-shadow:0 6px 0 #46a302, 0 12px 32px rgba(88,204,2,0.28);
+    position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .report-hero::after {
+    content:''; position:absolute; top:-60px; right:-40px;
+    width:220px; height:220px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .report-hero::before {
+    content:''; position:absolute; bottom:-70px; left:-30px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .hero-row { display:flex; align-items:center; gap:30px; position:relative; z-index:1; }
+
+  /* Completion ring */
+  .completion-ring-wrap { flex-shrink:0; position:relative; width:150px; height:150px; }
+  .completion-ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+  }
+  .completion-ring-center .n { font-size:40px; font-weight:900; line-height:1; color:#fff; }
+  .completion-ring-center .pct { font-size:12px; font-weight:800; opacity:0.9; margin-top:2px; }
+  .completion-ring-center .lbl { font-size:11px; font-weight:900; color:#fff; opacity:0.85; margin-top:3px; letter-spacing:0.5px; }
+
+  .hero-main { flex:1; min-width:0; }
+  .hero-headline {
+    font-size:24px; font-weight:900; letter-spacing:-0.3px; margin-bottom:6px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .hero-headline .emoji { font-size:30px; }
+  .hero-subline {
+    font-size:14px; font-weight:700; opacity:0.92; line-height:1.5;
+    margin-bottom:14px;
+  }
+  .hero-subline b { opacity:1; }
+
+  .hero-stats-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .hero-stat {
+    display:flex; align-items:center; gap:10px;
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    padding:10px 16px; border-radius:14px;
+  }
+  .hero-stat .ic { font-size:22px; }
+  .hero-stat .v { font-size:20px; font-weight:900; line-height:1; }
+  .hero-stat .k { font-size:11px; font-weight:700; opacity:0.85; margin-top:2px; }
+
+  .hero-streak-badge {
+    flex-shrink:0;
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    border-radius:18px; padding:14px 20px; text-align:center;
+    box-shadow:0 4px 0 var(--orange-dark), 0 6px 18px rgba(255,150,0,0.25);
+    position:relative;
+  }
+  .hero-streak-badge .flame { font-size:36px; line-height:1; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.2)); }
+  .hero-streak-badge .day { font-size:32px; font-weight:900; line-height:1; margin:2px 0; }
+  .hero-streak-badge .day-label { font-size:11px; font-weight:800; opacity:0.9; }
+
+  /* ============ Best Study Time Analysis ============ */
+  .besttime-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px; position:relative;
+  }
+  .bt-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:10px; }
+  .bt-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .bt-head .title .ic { font-size:26px; }
+  .bt-sub { font-size:13px; color:var(--text-dim); font-weight:700; margin-bottom:16px; }
+
+  /* Day x Hour heatmap */
+  .time-grid-wrap { display:flex; gap:0; }
+  .time-days-col {
+    display:flex; flex-direction:column; justify-content:space-around;
+    padding:2px 0; width:52px; flex-shrink:0;
+  }
+  .time-days-col div {
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    height:22px; line-height:22px; text-align:center;
+  }
+  .time-days-col div.today { color:var(--green-dark); font-weight:900; }
+  .time-grid-scroll { flex:1; overflow:hidden; }
+  .time-hours-header {
+    display:grid; grid-template-columns:repeat(24, 1fr); gap:2px;
+    margin-bottom:3px;
+  }
+  .time-hours-header span {
+    font-size:9px; font-weight:800; color:var(--text-faint);
+    text-align:center;
+  }
+  .time-grid-body {
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .time-row {
+    display:grid; grid-template-columns:repeat(24, 1fr); gap:2px;
+    height:22px;
+  }
+  .time-cell {
+    border-radius:3px; background:#eaeaea; transition:transform 0.12s;
+    position:relative; cursor:default;
+  }
+  .time-cell:hover { transform:scale(1.5); box-shadow:0 2px 6px rgba(0,0,0,0.15); z-index:2; }
+  .time-cell.l1 { background:#d4ed9e; }
+  .time-cell.l2 { background:#a5db3a; }
+  .time-cell.l3 { background:#7cc31c; }
+  .time-cell.l4 { background:var(--green); }
+  .time-cell.peak { background:var(--green); box-shadow:0 0 0 2px var(--gold); }
+  .time-cell.today { box-shadow:0 0 0 1.5px var(--blue); }
+
+  .time-legend {
+    display:flex; align-items:center; justify-content:flex-end; gap:6px;
+    margin-top:10px; font-size:11px; font-weight:800; color:var(--text-dim);
+  }
+  .time-legend .cell { width:12px; height:12px; border-radius:3px; }
+
+  /* Peak time callouts */
+  .peak-callouts {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;
+    margin-top:16px;
+  }
+  .peak-item {
+    background:#f7f7f7; border-radius:14px; padding:14px;
+    text-align:center; position:relative;
+  }
+  .peak-item.best { background:var(--green-bg); border:2px solid var(--green); }
+  .peak-item .em { font-size:24px; margin-bottom:4px; }
+  .peak-item .time { font-size:20px; font-weight:900; color:var(--green-dark); }
+  .peak-item .day { font-size:13px; font-weight:800; color:var(--text-dim); }
+  .peak-item .acc { font-size:12px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+  .peak-item.best .time { color:var(--green-dark); }
+  .peak-tag {
+    position:absolute; top:8px; right:10px;
+    background:var(--green); color:#fff;
+    font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+
+  /* ============ Weekly Report Row ============ */
+  .row-3-eq { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:18px; }
+
+  /* Weekly Overview */
+  .weekly-card {
+    background:var(--panel); border-radius:18px; padding:20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .weekly-card .card-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .weekly-card .card-title .ic { font-size:22px; }
+  .weekly-card .sub { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+  .weekly-card .sub b { color:var(--green-dark); }
+
+  /* Day mini bars */
+  .day-bars { display:flex; align-items:flex-end; justify-content:space-between; height:100px; gap:6px; padding:0 4px; margin-top:8px; }
+  .day-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+  .day-bar { width:100%; max-width:28px; border-radius:5px 5px 0 0; background:linear-gradient(180deg, var(--green), #6fdd1a); box-shadow:0 -1px 0 rgba(88,204,2,0.15) inset; min-height:3px; }
+  .day-bar.today { background:linear-gradient(180deg, var(--orange), #ffb347); }
+  .day-bar-label { font-size:10px; font-weight:800; color:var(--text-dim); }
+  .day-bar-label.today { color:var(--orange); }
+  .day-bar-val { font-size:10px; font-weight:900; color:var(--green-dark); }
+  .day-bar-val.today { color:var(--orange); }
+
+  /* Mode bars */
+  .mode-breakdown { display:flex; flex-direction:column; gap:12px; margin-top:4px; }
+  .mode-bar-item { display:flex; flex-direction:column; gap:5px; }
+  .mode-bar-item .head { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:800; }
+  .mode-bar-item .head .name { display:flex; align-items:center; gap:6px; }
+  .mode-bar-item .head .name .em { font-size:16px; }
+  .mode-bar-item .head .val { font-weight:900; color:var(--text); font-variant-numeric:tabular-nums; }
+  .mode-bar-track { height:8px; background:#e5e5e5; border-radius:6px; overflow:hidden; }
+  .mode-bar-fill { height:100%; border-radius:6px; }
+
+  /* Improvement metrics */
+  .metric-list { display:flex; flex-direction:column; gap:10px; }
+  .metric-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px; border-radius:14px; background:#f7f7f7;
+  }
+  .metric-icon-wrap {
+    width:44px; height:44px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .metric-icon-wrap.green { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .metric-icon-wrap.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .metric-icon-wrap.gold { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; }
+  .metric-icon-wrap.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .metric-body { flex:1; min-width:0; }
+  .metric-body b { display:block; font-size:14px; font-weight:900; }
+  .metric-body small { font-size:12px; color:var(--text-dim); font-weight:700; }
+  .metric-trend {
+    font-size:16px; font-weight:900; flex-shrink:0;
+    display:flex; align-items:center; gap:3px;
+  }
+  .metric-trend.up { color:var(--green); }
+  .metric-trend.down { color:var(--red); }
+  .metric-trend.flat { color:var(--text-dim); }
+
+  /* ============ Encouragement Section ============ */
+  .encourage-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .encourage-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .encourage-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .encourage-head .title .ic { font-size:26px; }
+  .encourage-head .today { font-size:12px; font-weight:800; color:var(--text-dim); }
+
+  .insight-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .insight-card {
+    border-radius:16px; padding:18px; position:relative; overflow:hidden;
+    color:#fff; transition:transform 0.1s;
+  }
+  .insight-card:active { transform:translateY(2px); }
+  .insight-card.green { background:linear-gradient(135deg, var(--green), #6fdd1a); box-shadow:0 4px 0 var(--green-dark); }
+  .insight-card.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); box-shadow:0 4px 0 var(--blue-dark); }
+  .insight-card.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); box-shadow:0 4px 0 var(--purple-dark); }
+  .insight-card.orange { background:linear-gradient(135deg, var(--orange), #ffb347); box-shadow:0 4px 0 var(--orange-dark); }
+  .insight-card::after { content:''; position:absolute; top:-20px; right:-15px; width:70px; height:70px; border-radius:50%; background:rgba(255,255,255,0.12); }
+  .insight-card .ic { font-size:28px; margin-bottom:8px; position:relative; z-index:1; }
+  .insight-card b { display:block; font-size:15px; font-weight:900; margin-bottom:4px; position:relative; z-index:1; }
+  .insight-card small { font-size:12px; font-weight:700; opacity:0.92; line-height:1.5; position:relative; z-index:1; }
+
+  /* ============ Daily Goals Progress ============ */
+  .goals-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .goals-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .goals-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .goals-head .title .ic { font-size:26px; }
+  .goals-head .completed { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .goals-head .completed b { color:var(--green-dark); font-size:15px; }
+
+  .goal-items { display:flex; flex-direction:column; gap:10px; }
+  .goal-item {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px; border-radius:14px; background:#f7f7f7;
+    transition:all 0.2s;
+  }
+  .goal-item.done { background:var(--green-bg); border:2px solid rgba(88,204,2,0.25); }
+  .goal-item.current { background:#fff; border:2px solid var(--green); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .goal-icon { font-size:28px; flex-shrink:0; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .goal-body { flex:1; min-width:0; }
+  .goal-body b { display:block; font-size:15px; font-weight:800; margin-bottom:2px; }
+  .goal-body small { font-size:12px; color:var(--text-dim); font-weight:600; }
+  .goal-progress { flex-shrink:0; width:80px; }
+  .goal-progress .mini-bar { height:8px; }
+  .goal-progress .lbl { display:flex; justify-content:space-between; font-size:10px; font-weight:800; color:var(--text-dim); margin-top:3px; }
+  .goal-check { flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:900; }
+  .goal-check.done { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .goal-check.current { background:#fff; color:var(--green); border:2.5px solid var(--green); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .goal-check.pending { background:#e5e5e5; color:var(--text-faint); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:16px;
+    font-size:12px; color:var(--text-faint); font-weight:700;
+  }
+
+  /* ============ Animations ============ */
+  @keyframes celebrate-pop {
+    0% { transform:scale(0) rotate(-15deg); opacity:0; }
+    50% { transform:scale(1.2) rotate(5deg); opacity:1; }
+    100% { transform:scale(1) rotate(0deg); opacity:1; }
+  }
+  .celebrate-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:6px 14px; border-radius:10px; font-weight:900; font-size:13px;
+    animation:celebrate-pop 0.6s ease;
+  }
+
+  @keyframes shimmer {
+    0% { transform:translateX(-100%); }
+    100% { transform:translateX(100%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div style="font-weight:900; font-size:16px; color:var(--text);">学习报告</div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+      <div class="stat-item level">
+        <span class="icon">🎯</span>
+        <span>Lv.11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">📋</span> 学习报告</h1>
+      <p>每日学习总结、最佳时段分析与成长鼓励</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div class="date-tabs">
+        <button class="date-tab">今天</button>
+        <button class="date-tab active">本周</button>
+        <button class="date-tab">本月</button>
+      </div>
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">📤 分享</a>
+    </div>
+  </div>
+
+  <!-- ============ TODAY'S REPORT HERO ============ -->
+  <div class="report-hero">
+    <div class="hero-row">
+      <div class="completion-ring-wrap">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <circle cx="75" cy="75" r="64" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="12"/>
+          <circle cx="75" cy="75" r="64" fill="none" stroke="#fff" stroke-width="12"
+                  stroke-linecap="round" stroke-dasharray="402" stroke-dashoffset="72"
+                  transform="rotate(-90 75 75)"
+                  filter="drop-shadow(0 0 6px rgba(255,255,255,0.4))"/>
+        </svg>
+        <div class="completion-ring-center">
+          <div class="n">82%</div>
+          <div class="lbl">今日完成</div>
+        </div>
+      </div>
+
+      <div class="hero-main">
+        <div class="hero-headline">
+          <span class="emoji">🎉</span> 太棒了！今天表现超乎预期！
+        </div>
+        <div class="hero-subline">
+          你今天完成 <b>6 项学习任务</b>，练习了 <b>487 个单词</b>，正确率 <b>94.3%</b> 是本月最高！连续打卡 <b>27 天</b>，保持这个节奏，你正在飞速进步！
+        </div>
+        <div style="margin-bottom:14px;">
+          <span class="celebrate-badge">🏆 正确率破纪录</span>
+          <span class="celebrate-badge" style="margin-left:6px;">⭐ 周活跃度 Top 5</span>
+        </div>
+        <div class="hero-stats-row">
+          <div class="hero-stat">
+            <span class="ic">⏱️</span>
+            <div>
+              <div class="v">52 分钟</div>
+              <div class="k">学习时长</div>
+            </div>
+          </div>
+          <div class="hero-stat">
+            <span class="ic">📝</span>
+            <div>
+              <div class="v">487</div>
+              <div class="k">练习单词</div>
+            </div>
+          </div>
+          <div class="hero-stat">
+            <span class="ic">🎯</span>
+            <div>
+              <div class="v">94.3%</div>
+              <div class="k">正确率</div>
+            </div>
+          </div>
+          <div class="hero-stat">
+            <span class="ic">⚡</span>
+            <div>
+              <div class="v">+320</div>
+              <div class="k">今日经验</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-streak-badge">
+        <div class="flame">🔥</div>
+        <div class="day">27</div>
+        <div class="day-label">连续天数</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DAILY GOALS PROGRESS ============ -->
+  <div class="goals-card">
+    <div class="goals-head">
+      <div class="title"><span class="ic">✅</span> 今日任务进度</div>
+      <div class="completed">已完成 <b>5</b> / 6 项 · 剩余 <b style="color:var(--orange);">1</b> 项</div>
+    </div>
+    <div class="goal-items">
+      <div class="goal-item done">
+        <span class="goal-icon">📚</span>
+        <div class="goal-body">
+          <b>背单词 · 新词 10 个</b>
+          <small>已完成 · 用时 12 分钟 · 正确率 90%</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill green" style="width:100%"></div></div>
+          <div class="lbl"><span>10 / 10</span><span>✅</span></div>
+        </div>
+        <div class="goal-check done">✓</div>
+      </div>
+      <div class="goal-item done">
+        <span class="goal-icon">🎧</span>
+        <div class="goal-body">
+          <b>单词听打 · 巩固 30 题</b>
+          <small>已完成 · 用时 18 分钟 · 正确率 96%</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill green" style="width:100%"></div></div>
+          <div class="lbl"><span>30 / 30</span><span>✅</span></div>
+        </div>
+        <div class="goal-check done">✓</div>
+      </div>
+      <div class="goal-item done">
+        <span class="goal-icon">📝</span>
+        <div class="goal-body">
+          <b>句子听写 · 新概念第 23 课</b>
+          <small>已完成 · 用时 15 分钟 · 正确率 89%</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill green" style="width:100%"></div></div>
+          <div class="lbl"><span>1 课 / 1 课</span><span>✅</span></div>
+        </div>
+        <div class="goal-check done">✓</div>
+      </div>
+      <div class="goal-item done">
+        <span class="goal-icon">🎤</span>
+        <div class="goal-body">
+          <b>听读跟读 · 5 句跟读</b>
+          <small>已完成 · 用时 8 分钟 · 评分 87 分</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill green" style="width:100%"></div></div>
+          <div class="lbl"><span>5 / 5</span><span>✅</span></div>
+        </div>
+        <div class="goal-check done">✓</div>
+      </div>
+      <div class="goal-item done">
+        <span class="goal-icon">✂️</span>
+        <div class="goal-body">
+          <b>听音排句 · 10 题练习</b>
+          <small>已完成 · 用时 5 分钟 · 正确率 100%</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill green" style="width:100%"></div></div>
+          <div class="lbl"><span>10 / 10</span><span>✅</span></div>
+        </div>
+        <div class="goal-check done">✓</div>
+      </div>
+      <div class="goal-item current">
+        <span class="goal-icon">🏆</span>
+        <div class="goal-body">
+          <b>每日挑战 · 全站同题</b>
+          <small>待完成 · 完成后可获得双倍 XP 奖励 + 分享卡</small>
+        </div>
+        <div class="goal-progress">
+          <div class="mini-bar"><div class="mini-bar-fill blue" style="width:40%"></div></div>
+          <div class="lbl"><span>4 / 10</span><span>⏳</span></div>
+        </div>
+        <div class="goal-check current">→</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BEST STUDY TIME ANALYSIS ============ -->
+  <div class="besttime-card">
+    <div class="bt-head">
+      <div class="title"><span class="ic">⏰</span> 最佳学习时段分析</div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div style="font-size:12px; font-weight:800; color:var(--text-dim);">分析周期</div>
+        <div class="date-tabs" style="padding:3px;">
+          <button class="date-tab" style="padding:5px 10px; font-size:11px;">7天</button>
+          <button class="date-tab active" style="padding:5px 10px; font-size:11px;">30天</button>
+          <button class="date-tab" style="padding:5px 10px; font-size:11px;">全部</button>
+        </div>
+      </div>
+    </div>
+    <div class="bt-sub">基于过去 30 天的学习数据，系统分析了你的学习效率和正确率，找出最适合你的学习时段 💡</div>
+
+    <div class="time-grid-wrap">
+      <div class="time-days-col">
+        <div>一</div>
+        <div>二</div>
+        <div>三</div>
+        <div>四</div>
+        <div>五</div>
+        <div class="today">日</div>
+        <div style="opacity:0;">六</div>
+      </div>
+      <div class="time-grid-scroll">
+        <div class="time-hours-header">
+          <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+          <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span>
+          <span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span>
+          <span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span>
+        </div>
+        <div class="time-grid-body" id="timeGridBody"></div>
+      </div>
+    </div>
+
+    <div class="time-legend">
+      <span>低</span>
+      <div class="cell" style="background:#eaeaea;"></div>
+      <div class="cell" style="background:#d4ed9e;"></div>
+      <div class="cell" style="background:#a5db3a;"></div>
+      <div class="cell" style="background:#7cc31c;"></div>
+      <div class="cell" style="background:var(--green);"></div>
+      <span>高</span>
+      <span style="margin-left:12px;">⭐ = 最佳时段</span>
+      <span style="margin-left:6px; display:inline-flex; align-items:center; gap:4px;">🟦 = 今日</span>
+    </div>
+
+    <div class="peak-callouts">
+      <div class="peak-item best">
+        <div class="peak-tag">最佳</div>
+        <div class="em">⭐</div>
+        <div class="time">19:00 - 21:00</div>
+        <div class="day">每周晚 9 点</div>
+        <div class="acc">正确率 96.2% · 最高效率</div>
+      </div>
+      <div class="peak-item">
+        <div class="em">🌙</div>
+        <div class="time">7:00 - 8:00</div>
+        <div class="day">每周早 7 点</div>
+        <div class="acc">正确率 92.8% · 晨间记忆佳</div>
+      </div>
+      <div class="peak-item">
+        <div class="em">⚠️</div>
+        <div class="time">13:00 - 14:00</div>
+        <div class="day">午间低谷</div>
+        <div class="acc">正确率 84.1% · 建议休息</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WEEKLY REPORT ROW ============ -->
+  <div class="row-3-eq">
+    <!-- Weekly XP Distribution -->
+    <div class="weekly-card">
+      <div class="card-title"><span class="ic">📈</span> 本周学习量</div>
+      <div class="sub">本周共 <b>1,820 XP</b> · 日均 <b>260 XP</b> · 较上周 <b style="color:var(--green);">+12%</b></div>
+      <div class="day-bars">
+        <div class="day-bar-col">
+          <div class="day-bar-val">280</div>
+          <div class="day-bar" style="height:56%"></div>
+          <div class="day-bar-label">一</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val">320</div>
+          <div class="day-bar" style="height:64%"></div>
+          <div class="day-bar-label">二</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val">240</div>
+          <div class="day-bar" style="height:48%"></div>
+          <div class="day-bar-label">三</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val">350</div>
+          <div class="day-bar" style="height:70%"></div>
+          <div class="day-bar-label">四</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val">180</div>
+          <div class="day-bar" style="height:36%"></div>
+          <div class="day-bar-label">五</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val">260</div>
+          <div class="day-bar" style="height:52%"></div>
+          <div class="day-bar-label">六</div>
+        </div>
+        <div class="day-bar-col">
+          <div class="day-bar-val today">190</div>
+          <div class="day-bar today" style="height:38%"></div>
+          <div class="day-bar-label today">日</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode Breakdown -->
+    <div class="weekly-card">
+      <div class="card-title"><span class="ic">🎯</span> 模式分布</div>
+      <div class="sub">听打是你的最爱 · <b>38%</b> 的时间</div>
+      <div class="mode-breakdown">
+        <div class="mode-bar-item">
+          <div class="head">
+            <div class="name"><span class="em">🎧</span> 单词听打</div>
+            <div class="val">38%</div>
+          </div>
+          <div class="mode-bar-track">
+            <div class="mode-bar-fill" style="width:38%; background:linear-gradient(90deg, var(--green), #6fdd1a);"></div>
+          </div>
+        </div>
+        <div class="mode-bar-item">
+          <div class="head">
+            <div class="name"><span class="em">📝</span> 句子听写</div>
+            <div class="val">22%</div>
+          </div>
+          <div class="mode-bar-track">
+            <div class="mode-bar-fill" style="width:22%; background:linear-gradient(90deg, var(--blue), #4dd0ff);"></div>
+          </div>
+        </div>
+        <div class="mode-bar-item">
+          <div class="head">
+            <div class="name"><span class="em">🎤</span> 跟读</div>
+            <div class="val">18%</div>
+          </div>
+          <div class="mode-bar-track">
+            <div class="mode-bar-fill" style="width:18%; background:linear-gradient(90deg, var(--purple), #e0aaff);"></div>
+          </div>
+        </div>
+        <div class="mode-bar-item">
+          <div class="head">
+            <div class="name"><span class="em">✂️</span> 排句</div>
+            <div class="val">12%</div>
+          </div>
+          <div class="mode-bar-track">
+            <div class="mode-bar-fill" style="width:12%; background:linear-gradient(90deg, var(--orange), #ffb347);"></div>
+          </div>
+        </div>
+        <div class="mode-bar-item">
+          <div class="head">
+            <div class="name"><span class="em">🎮</span> 其他</div>
+            <div class="val">10%</div>
+          </div>
+          <div class="mode-bar-track">
+            <div class="mode-bar-fill" style="width:10%; background:linear-gradient(90deg, var(--gold), #ffdf6b);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Improvement Metrics -->
+    <div class="weekly-card">
+      <div class="card-title"><span class="ic">📊</span> 本周成长指标</div>
+      <div class="sub">对比上周数据 · <b>4 项进步</b></div>
+      <div class="metric-list">
+        <div class="metric-item">
+          <div class="metric-icon-wrap green">🎯</div>
+          <div class="metric-body">
+            <b>正确率</b>
+            <small>91.2% → 94.3%</small>
+          </div>
+          <div class="metric-trend up">↑ +3.1%</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-icon-wrap blue">⏱️</div>
+          <div class="metric-body">
+            <b>平均响应速度</b>
+            <small>4.2s → 3.6s</small>
+          </div>
+          <div class="metric-trend up">↑ 14%</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-icon-wrap gold">📚</div>
+          <div class="metric-body">
+            <b>新学单词</b>
+            <small>42 个 / 周</small>
+          </div>
+          <div class="metric-trend up">↑ +8%</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-icon-wrap purple">⚠️</div>
+          <div class="metric-body">
+            <b>错词数量</b>
+            <small>23 个 → 15 个</small>
+          </div>
+          <div class="metric-trend up">↓ -35%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ENCOURAGEMENT INSIGHTS ============ -->
+  <div class="encourage-card">
+    <div class="encourage-head">
+      <div class="title"><span class="ic">💡</span> 学习洞察与建议</div>
+      <div class="today">基于 30 天数据分析 · 为你生成</div>
+    </div>
+    <div class="insight-grid">
+      <div class="insight-card green">
+        <div class="ic">⭐</div>
+        <b>你的黄金学习时段：晚 9-11 点</b>
+        <small>数据显示你在 19:00-21:00 的正确率比平均值高出 5.2 个百分点。今晚是继续巩固错词本的最佳时机！</small>
+      </div>
+      <div class="insight-card blue">
+        <div class="ic">🎯</div>
+        <b>听打能力突飞猛进</b>
+        <small>你的单词听打正确率从 3 周前的 86% 提升到 96.5%，进步显著。继续保持每天 30 题的听打习惯！</small>
+      </div>
+      <div class="insight-card purple">
+        <div class="ic">🔥</div>
+        <b>27 天连胜！距离 30 天里程碑仅差 3 天</b>
+        <small>坚持完成这 3 天，你将解锁「月之铁人」徽章！完成每日挑战可获得双倍 XP 加速冲刺！</small>
+      </div>
+      <div class="insight-card orange">
+        <div class="ic">📈</div>
+        <b>建议增加排句练习</b>
+        <small>相比其他模式，你的排句练习时间占比仅 12%，而语法正确率在下降。建议每天花 5 分钟练排句，巩固语序感！</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MOTIVATION QUOTE ============ -->
+  <div style="background:linear-gradient(135deg, #7b3ff2 0%, #9b5cff 45%, #ce82ff 100%); border-radius:18px; padding:24px 28px; color:#fff; box-shadow:0 5px 0 #6d32d6, 0 10px 26px rgba(155,92,255,0.28); position:relative; overflow:hidden; margin-bottom:18px;">
+    <div style="position:absolute; top:-30px; right:-20px; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.10);"></div>
+    <div style="position:relative; z-index:1; display:flex; align-items:center; gap:20px;">
+      <div style="font-size:48px; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.2));">🏅</div>
+      <div style="flex:1;">
+        <div style="font-size:11px; font-weight:800; opacity:0.8; margin-bottom:4px; letter-spacing:1px;">今日名言</div>
+        <div style="font-size:20px; font-weight:900; letter-spacing:-0.3px; line-height:1.4;">"Every day of learning is a step toward mastery."</div>
+        <div style="font-size:14px; font-weight:700; opacity:0.85; margin-top:6px;">每天的学习都是通往精通的一步 — 你已走了 27 步，继续前行！</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:center; flex-shrink:0;">
+        <div style="font-size:24px;">🔥</div>
+        <div style="font-size:28px; font-weight:900;">27</div>
+        <div style="font-size:10px; font-weight:800; opacity:0.8;">天连胜</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">📋 学习报告每日自动生成 · 数据实时分析 · 鼓励文案 AI 生成</div>
+</div>
+
+<script>
+  // ============ Generate Study Time Heatmap ============
+  (function() {
+    const body = document.getElementById('timeGridBody');
+    // Generate 7 days x 24 hours grid
+    const days = ['一', '二', '三', '四', '五', '六', '日'];
+    let seed = 54321;
+    function rand() {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    }
+
+    for (let d = 0; d < 7; d++) {
+      const row = document.createElement('div');
+      row.className = 'time-row';
+      for (let h = 0; h < 24; h++) {
+        const cell = document.createElement('div');
+        cell.className = 'time-cell';
+
+        // Determine activity level based on hour pattern
+        // Peak hours: 7-8 (morning), 19-21 (evening)
+        let intensity = 0;
+        if (h >= 7 && h <= 8) intensity = 0.6 + rand() * 0.3;
+        else if (h >= 19 && h <= 21) intensity = 0.7 + rand() * 0.3;
+        else if (h >= 9 && h <= 11) intensity = 0.3 + rand() * 0.3;
+        else if (h >= 14 && h <= 17) intensity = 0.35 + rand() * 0.3;
+        else if (h >= 22 && h <= 23) intensity = 0.2 + rand() * 0.25;
+        else if (h >= 12 && h <= 13) intensity = 0.15 + rand() * 0.15; // lunch lull
+        else intensity = 0.02 + rand() * 0.08;
+
+        // Weekend variation
+        if (d === 5 || d === 6) {
+          intensity *= (0.7 + rand() * 0.5);
+        }
+
+        let level = 0;
+        if (intensity > 0.85) level = 4;
+        else if (intensity > 0.6) level = 3;
+        else if (intensity > 0.35) level = 2;
+        else if (intensity > 0.1) level = 1;
+
+        if (level > 0) cell.className += ' l' + level;
+
+        // Mark peak times (Sunday 19-21)
+        if (d === 6 && h >= 19 && h <= 21 && intensity > 0.7) {
+          cell.className += ' peak';
+        }
+
+        // Mark today's cells
+        if (d === 6) {
+          cell.className += ' today';
+        }
+
+        row.appendChild(cell);
+      }
+      body.appendChild(row);
+    }
+  })();
+</script>
+
+</body>
+</html>

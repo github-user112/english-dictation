@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import { api } from "../lib/core";
 import { activity, goldenHour } from "../lib/stats";
-import { PALETTES, currentTheme, roundRect } from "../lib/poster";
+import { PALETTES, currentTheme, roundRect, duoCard, FONT, readyFonts } from "../lib/poster";
 
 const stats = ref(null);
 const error = ref("");
@@ -59,38 +59,46 @@ watch(view, async (v) => {
 
 /* 双主题调色板与圆角路径已抽到 lib/poster.js，与 DailyPage 共用 */
 
-/* 预览画布按显示尺寸渲染即可；全分辨率（dpr=2，约 18MB 位图）只在保存时离屏出一次 */
+/* 预览画布按显示尺寸渲染即可；全分辨率（dpr=2，约 18MB 位图）只在保存时离屏出一次。
+ * 视觉为 Duolingo 风格：绿色渐变头带 + Nunito 粗黑大数字 + 3px 下压实体阴影卡片。 */
 function paintPoster(cv, v, dpr, P) {
   const W = 900, H = 1260;
   cv.width = W * dpr; cv.height = H * dpr;
   const g = cv.getContext("2d");
   g.scale(dpr, dpr);
-  // 背景：主题渐变 + 主色辉光
-  const bg = g.createLinearGradient(0, 0, W * .4, H);
-  bg.addColorStop(0, P.bgTop); bg.addColorStop(.55, P.bgMid); bg.addColorStop(1, P.bgBottom);
-  g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  const glow = g.createRadialGradient(120, -40, 20, 120, -40, 520);
-  glow.addColorStop(0, P.glow); glow.addColorStop(1, "transparent");
-  g.fillStyle = glow; g.fillRect(0, 0, W, 620);
-  // 细网格
-  g.strokeStyle = P.grid; g.lineWidth = 1;
-  for (let x = 44; x < W; x += 44) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
-  for (let y = 44; y < H; y += 44) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-  // 品牌行
-  g.fillStyle = "#f5a83c"; roundRect(g, 64, 64, 56, 56, 14); g.fill();
-  g.fillStyle = "#241703"; g.font = "800 34px Georgia, 'Noto Serif SC', serif";
-  g.textBaseline = "middle"; g.textAlign = "center"; g.fillText("E", 92, 94);
+  g.textBaseline = "middle";
   g.textAlign = "left";
-  g.fillStyle = P.title; g.font = "700 30px 'PingFang SC','Microsoft YaHei',sans-serif";
-  g.fillText("英语听打 · 学习报告", 138, 86);
-  g.fillStyle = P.dim; g.font = "600 15px Inter,'PingFang SC',sans-serif";
-  g.fillText("DICTATION STUDIO", 139, 112);
-  // 大数字
-  g.fillStyle = P.big; g.font = "700 150px Georgia,'Noto Serif SC',serif";
-  g.fillText(String(v.totalWords), 60, 300);
-  g.fillStyle = P.sub; g.font = "500 26px 'PingFang SC',sans-serif";
-  g.fillText(`个词被你听写下来 · 首答正确率 ${v.acc}%`, 64, 392);
-  // 指标卡
+
+  // 背景主体
+  g.fillStyle = P.bgMid; g.fillRect(0, 0, W, H);
+
+  // 顶部绿色渐变头带
+  const band = g.createLinearGradient(0, 0, W, 400);
+  band.addColorStop(0, P.band); band.addColorStop(1, P.bandDark);
+  g.fillStyle = band; g.fillRect(0, 0, W, 400);
+  // 头带装饰圆（Duolingo 常见的柔和高光斑）
+  g.fillStyle = "rgba(255,255,255,.10)";
+  g.beginPath(); g.arc(W - 100, 30, 160, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "rgba(255,255,255,.06)";
+  g.beginPath(); g.arc(60, 360, 120, 0, Math.PI * 2); g.fill();
+
+  // 品牌行：白色圆角方块 + 🦉 + 标题
+  g.fillStyle = "rgba(255,255,255,.94)"; roundRect(g, 64, 58, 58, 58, 16); g.fill();
+  g.font = FONT.emoji; g.textAlign = "center";
+  g.fillText("🦉", 93, 90);
+  g.textAlign = "left";
+  g.fillStyle = "#ffffff"; g.font = FONT.title;
+  g.fillText("英语听打 · 学习报告", 140, 78);
+  g.fillStyle = "rgba(255,255,255,.72)"; g.font = FONT.sub;
+  g.fillText("STUDY REPORT · DICTATION", 140, 105);
+
+  // Hero 大数字（白色，压在头带上）
+  g.fillStyle = "#ffffff"; g.font = FONT.hero;
+  g.fillText(String(v.totalWords), 64, 224);
+  g.fillStyle = "rgba(255,255,255,.92)"; g.font = FONT.heroSub;
+  g.fillText(`个词被你听写下来 · 首答正确率 ${v.acc}%`, 66, 336);
+
+  // 指标卡：2 列 × 最多 3 行，3px 下压实体阴影
   const cards = [
     ["🔥", `${v.streak} 天`, "连续打卡"],
     ["🧠", `${v.memorized}`, "已背下的词"],
@@ -98,33 +106,44 @@ function paintPoster(cv, v, dpr, P) {
     ...(v.golden ? [["⏰", v.golden, "你的黄金时段"]] : []),
     ...(v.bestDay ? [["💪", `${v.bestDay.n} 题`, `单日之最（${v.bestDay.day}）`]] : []),
   ];
+  const cw = 372, ch = 176, gapX = 40, gapY = 28;
+  const startX = (W - (cw * 2 + gapX)) / 2;
+  const startY = 452;
   cards.forEach(([icon, num, lab], i) => {
-    const x = 64 + (i % 2) * 400, y = 470 + Math.floor(i / 2) * 190;
-    g.strokeStyle = P.cardStroke; g.lineWidth = 1.5;
-    roundRect(g, x, y, 372, 160, 20); g.stroke();
-    g.fillStyle = P.cardFill; roundRect(g, x, y, 372, 160, 20); g.fill();
-    g.font = "44px serif"; g.fillStyle = "#f5a83c"; g.textAlign = "left";
-    g.fillText(icon, x + 28, y + 62);
-    g.fillStyle = P.num; g.font = "700 52px Georgia,'Noto Serif SC',serif";
-    g.fillText(num, x + 92, y + 66);
-    g.fillStyle = P.label; g.font = "400 24px 'PingFang SC',sans-serif";
-    g.fillText(lab, x + 30, y + 122);
+    const x = startX + (i % 2) * (cw + gapX);
+    const y = startY + Math.floor(i / 2) * (ch + gapY);
+    duoCard(g, x, y, cw, ch, 22, P);
+    // 图标底：主色淡底 + emoji
+    g.fillStyle = P.accentBg; roundRect(g, x + 22, y + 28, 62, 62, 17); g.fill();
+    g.font = FONT.emoji; g.textAlign = "center";
+    g.fillText(icon, x + 53, y + 62);
+    g.textAlign = "left";
+    g.fillStyle = P.num; g.font = FONT.num;
+    g.fillText(num, x + 100, y + 64);
+    g.fillStyle = P.label; g.font = FONT.label;
+    g.fillText(lab, x + 24, y + 124);
   });
-  // 页脚
-  g.fillStyle = P.dim; g.font = "500 22px 'PingFang SC',sans-serif"; g.textAlign = "center";
+
+  // 底部主色细条 + 页脚
+  g.fillStyle = P.band; g.fillRect(0, H - 14, W, 14);
+  g.fillStyle = P.dim; g.font = FONT.foot; g.textAlign = "center";
   g.fillText("mi2.cc.cd · 听清每一个词，写下每一句", W / 2, H - 70);
 }
+/* 字体就绪后绘制；Nunito(Google Fonts) 与 NotoSansSC/NotoColorEmoji(@font-face)
+   * 都需显式触发加载，否则 canvas 中文/emoji 渲染成豆腐块 */
 function drawPoster() {
   const cv = poster.value;
   const v = view.value;
   if (!cv || !v) return;
-  paintPoster(cv, v, 1, PALETTES[currentTheme()]);   // CSS 显示约 400px 宽，900px 内部宽度已足够清晰
+  const P = PALETTES[currentTheme()];
+  readyFonts().then(() => paintPoster(cv, v, 1, P));
 }
 
 /* ---- 打卡海报下载：离屏重绘 dpr=2 全分辨率再导出 ---- */
-function savePoster() {
+async function savePoster() {
   const v = view.value;
   if (!v) return;
+  await readyFonts();
   const off = document.createElement("canvas");
   paintPoster(off, v, 2, PALETTES[currentTheme()]);
   const a = document.createElement("a");
@@ -241,7 +260,7 @@ function savePoster() {
             <div class="day-bar" :class="{ today: i === 6 }"
                  :style="{ height: Math.max(3, ((d.right + d.wrong + d.memorize_right + d.memorize_wrong) / Math.max(1, ...stats.days.slice(-7).map(x => x.right + x.wrong + x.memorize_right + x.memorize_wrong))) * 100) + '%' }"></div>
             <div class="day-bar-label" :class="{ today: i === 6 }">
-              {{ ['日','一','二','三','四','五','六'][new Date(d.day).getDay()] }}
+              {{ ['日','一','二','三','四','五','六'][new Date(d.day + 'T00:00:00').getDay()] }}
             </div>
           </div>
         </div>

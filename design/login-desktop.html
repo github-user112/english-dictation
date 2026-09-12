@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0fdf4 0%, #f7f7f7 40%, #ddf4ff 100%);
+    padding: 20px;
+  }
+  .login-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 1100px;
+    width: 100%;
+    gap: 0;
+    background: #fff;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 12px 0 rgba(0,0,0,0.06), 0 20px 48px rgba(0,0,0,0.08);
+  }
+
+  /* ===== Left Panel ===== */
+  .login-left {
+    background: linear-gradient(160deg, #58cc02 0%, #46a302 60%, #3a8c02 100%);
+    padding: 48px 40px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .login-left::after {
+    content: '';
+    position: absolute;
+    top: -80px;
+    right: -60px;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .login-left::before {
+    content: '';
+    position: absolute;
+    bottom: -100px;
+    left: -40px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .ll-content {
+    position: relative;
+    z-index: 1;
+  }
+  .ll-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 900;
+    margin-bottom: 36px;
+  }
+  .ll-brand .owl {
+    font-size: 36px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
+    animation: owl-bob 3s ease-in-out infinite;
+  }
+  .ll-headline {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    margin-bottom: 14px;
+  }
+  .ll-sub {
+    font-size: 15px;
+    font-weight: 700;
+    opacity: 0.9;
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  .ll-features {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ll-feature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ll-feature .feat-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ===== Right Panel ===== */
+  .login-right {
+    padding: 48px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .lr-header {
+    margin-bottom: 28px;
+  }
+  .lr-header h2 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .lr-header p {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .lr-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .lr-tab {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--text-dim);
+  }
+  .lr-tab.active {
+    background: var(--green);
+    color: #fff;
+    border-color: var(--green);
+    box-shadow: 0 3px 0 var(--green-dark);
+  }
+  .lr-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .lr-field {
+    position: relative;
+  }
+  .lr-field .field-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    opacity: 0.5;
+  }
+  .lr-field input {
+    width: 100%;
+    padding: 16px 16px 16px 48px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .lr-field input:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(88,204,2,0.1);
+  }
+  .lr-field input::placeholder {
+    color: var(--text-faint);
+  }
+  .lr-submit {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 5px 0 var(--green-dark);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: transform 0.1s;
+    margin-top: 4px;
+  }
+  .lr-submit:active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 var(--green-dark);
+  }
+  .lr-divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 20px 0;
+    color: var(--text-faint);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .lr-divider::before,
+  .lr-divider::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+  }
+  .lr-alternatives {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .lr-alt-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 14px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .lr-alt-btn:hover {
+    border-color: var(--green);
+    background: var(--green-bg);
+  }
+  .lr-alt-btn .alt-icon {
+    font-size: 20px;
+  }
+  .lr-footnote {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .lr-footnote a {
+    color: var(--green);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .lr-footnote a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-container">
+
+    <!-- Left Panel -->
+    <div class="login-left">
+      <div class="ll-content">
+        <div class="ll-brand">
+          <span class="owl">🦉</span>
+          英语听打
+        </div>
+        <h1 class="ll-headline">免费学英文<br>每天进步一点</h1>
+        <p class="ll-sub">加入数万名学习者，用游戏化的方式<br>提升你的英语听力和拼写能力</p>
+        <div class="ll-features">
+          <div class="ll-feature">
+            <span class="feat-icon">🎯</span>
+            <span>今日五环任务，科学规划学习路径</span>
+          </div>
+          <div class="ll-feature">
+            <span class="feat-icon">🔥</span>
+            <span>连续打卡系统，培养每日学习习惯</span>
+          </div>
+          <div class="ll-feature">
+            <span class="feat-icon">🏆</span>
+            <span>排行榜与 PK 对战，和好友一起进步</span>
+          </div>
+          <div class="ll-feature">
+            <span class="feat-icon">📊</span>
+            <span>词汇量测试与详细学习报告</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="login-right">
+      <div class="lr-header">
+        <h2>欢迎回来 👋</h2>
+        <p>登录你的账号，继续学习之旅</p>
+      </div>
+
+      <div class="lr-tabs">
+        <div class="lr-tab active">登录</div>
+        <div class="lr-tab">注册</div>
+      </div>
+
+      <div class="lr-form">
+        <div class="lr-field">
+          <span class="field-icon">📧</span>
+          <input type="email" placeholder="邮箱地址">
+        </div>
+        <div class="lr-field">
+          <span class="field-icon">🔒</span>
+          <input type="password" placeholder="密码">
+        </div>
+      </div>
+
+      <a class="lr-submit" href="#">登 录</a>
+
+      <div class="lr-divider">
+        或
+      </div>
+
+      <div class="lr-alternatives">
+        <a class="lr-alt-btn" href="#">
+          <span class="alt-icon">📱</span>
+          手机验证码
+        </a>
+        <a class="lr-alt-btn" href="#">
+          <span class="alt-icon">🌐</span>
+          游客模式
+        </a>
+      </div>
+
+      <p class="lr-footnote">
+        还没有账号？<a href="#">立即注册</a> · 忘记密码？<a href="#">找回密码</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

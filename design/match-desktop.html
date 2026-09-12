@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配对消消乐 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Game cockpit: mode tabs + live HUD ---- */
+  .cockpit {
+    background:var(--panel); border-radius:18px; padding:14px 18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    display:flex; align-items:center; gap:18px; margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .mode-tabs { display:flex; gap:6px; flex-shrink:0; }
+  .mode-tab {
+    display:flex; align-items:center; gap:6px;
+    padding:10px 16px; border-radius:12px; font-weight:800; font-size:14px;
+    cursor:pointer; white-space:nowrap; text-decoration:none;
+    background:#f0f0f0; color:var(--text-dim); transition:all 0.2s;
+  }
+  .mode-tab .ic { font-size:17px; }
+  .mode-tab.active { background:var(--purple); color:#fff; box-shadow:0 3px 0 var(--purple-dark); }
+  .mode-tab.blue.active { background:var(--blue); box-shadow:0 3px 0 var(--blue-dark); }
+
+  .cockpit-divider { width:1px; align-self:stretch; background:var(--border); margin:2px 2px; }
+
+  .hud { display:flex; align-items:center; gap:10px; margin-left:auto; flex-wrap:wrap; }
+  .hud-item {
+    display:flex; align-items:center; gap:7px;
+    padding:9px 14px; border-radius:12px; background:#f7f7f7;
+    font-weight:900; font-size:15px; font-variant-numeric:tabular-nums;
+  }
+  .hud-item .ic { font-size:17px; }
+  .hud-item.timer { background:#fff8e6; color:var(--orange); border:1.5px solid rgba(255,150,0,0.3); }
+  .hud-item.combo { background:var(--gold-light); color:var(--orange-dark); }
+  .hud-item.combo.hot { animation:combo-shake 0.4s ease; }
+  @keyframes combo-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+  .hud-item.pairs { background:var(--green-bg); color:var(--green-dark); }
+  .hud-item.hint { background:var(--blue-light); color:var(--blue-dark); }
+
+  /* ---- Main grid ---- */
+  .main-grid { display:grid; grid-template-columns:1.65fr 1fr; gap:18px; margin-bottom:18px; align-items:start; }
+
+  /* ---- Arena (flip-card board) ---- */
+  .arena {
+    background:var(--panel); border-radius:18px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 22px rgba(0,0,0,0.05);
+    overflow:hidden; position:relative;
+  }
+  .arena-top { height:5px; background:linear-gradient(90deg, var(--purple), var(--blue) 55%, var(--green)); }
+  .arena-inner { padding:20px 22px 18px; }
+
+  .arena-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+  .arena-head .left { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .level-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 13px; border-radius:11px;
+    background:var(--purple-light); color:var(--purple-dark);
+    font-size:13px; font-weight:900;
+  }
+  .level-badge .ic { font-size:15px; }
+  .board-title { font-size:19px; font-weight:900; letter-spacing:-0.3px; }
+  .board-title small { font-size:13px; color:var(--text-dim); font-weight:700; margin-left:6px; }
+
+  .match-progress { display:flex; align-items:center; gap:10px; }
+  .mp-bar { width:130px; height:10px; background:#e9e9e9; border-radius:10px; overflow:hidden; }
+  .mp-fill { height:100%; width:50%; border-radius:10px;
+    background:linear-gradient(90deg, var(--green), #6fdd1a);
+    box-shadow:0 0 8px rgba(88,204,2,0.4);
+  }
+  .mp-num { font-size:14px; font-weight:900; color:var(--green-dark); font-variant-numeric:tabular-nums; }
+  .mp-num small { color:var(--text-dim); font-weight:700; }
+
+  /* Flip card grid */
+  .flip-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .flip-card { perspective:1000px; cursor:pointer; }
+  .flip-inner {
+    position:relative; width:100%; aspect-ratio:1.55/1;
+    transform-style:preserve-3d;
+    transition:transform 0.45s cubic-bezier(0.34,1.4,0.64,1);
+    border-radius:14px;
+  }
+  .flip-card.up .flip-inner { transform:rotateY(180deg); }
+  .face {
+    position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    border-radius:14px; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:2px; user-select:none;
+  }
+  .face-front {
+    background:linear-gradient(135deg, #1cb0f6 0%, #4dd0ff 100%);
+    box-shadow:0 5px 0 var(--blue-dark), 0 6px 14px rgba(28,176,246,0.25);
+    overflow:hidden;
+  }
+  .face-front::before {
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0 8px, transparent 8px 16px);
+  }
+  .face-front .qmark {
+    position:relative; font-size:34px; font-weight:900; color:rgba(255,255,255,0.9);
+    text-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  .face-front .owl-mark { position:relative; font-size:15px; opacity:0.85; }
+  .face-back {
+    transform:rotateY(180deg);
+    background:#fff; border:2.5px solid var(--border);
+    box-shadow:0 5px 0 rgba(0,0,0,0.1);
+  }
+  .face-back .em { font-size:22px; line-height:1; }
+  .face-back .en { font-size:19px; font-weight:900; letter-spacing:-0.3px; }
+  .face-back .zh { font-size:17px; font-weight:900; }
+
+  /* Matched pair */
+  .flip-card.matched .face-back {
+    background:var(--green-bg); border-color:var(--green);
+    box-shadow:0 5px 0 var(--green-dark), 0 0 18px rgba(88,204,2,0.35);
+  }
+  .flip-card.matched .face-back .en,
+  .flip-card.matched .face-back .zh { color:var(--green-dark); }
+  .flip-card.matched .check {
+    position:absolute; top:-8px; right:-8px; width:26px; height:26px; border-radius:50%;
+    background:var(--green); color:#fff; font-size:14px; font-weight:900;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 var(--green-dark); z-index:3;
+    animation:check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes check-pop { 0%{transform:scale(0)} 60%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  .flip-card.matched .spark {
+    position:absolute; top:-10px; left:-8px; font-size:16px; z-index:3;
+    animation:spark 1.2s ease infinite;
+  }
+  @keyframes spark { 0%,100%{opacity:0.5;transform:translateY(0) scale(0.9)} 50%{opacity:1;transform:translateY(-3px) scale(1.15)} }
+
+  /* Up but mismatched */
+  .flip-card.mismatch .face-back {
+    border-color:var(--orange); background:#fffaf2;
+    box-shadow:0 5px 0 var(--orange-dark), 0 0 16px rgba(255,150,0,0.3);
+  }
+  .flip-card.mismatch .face-back .en,
+  .flip-card.mismatch .face-back .zh { color:var(--orange-dark); }
+  .flip-card.mismatch .mismatch-flag {
+    position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    background:var(--orange); color:#fff; font-size:10px; font-weight:900;
+    padding:2px 8px; border-radius:8px; box-shadow:0 2px 0 var(--orange-dark);
+    white-space:nowrap; letter-spacing:0.3px; z-index:3;
+  }
+
+  .flip-card.up:not(.matched):not(.mismatch) .face-back { border-color:var(--blue); box-shadow:0 5px 0 var(--blue-dark), 0 0 14px rgba(28,176,246,0.25); }
+
+  .arena-foot {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:16px; gap:12px; flex-wrap:wrap;
+  }
+  .foot-hint { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--text-dim); }
+  .foot-hint .ic { font-size:16px; }
+  .foot-btns { display:flex; gap:8px; }
+
+  /* ---- Right column ---- */
+  .side-card { background:#fff; border-radius:18px; padding:18px 20px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); margin-bottom:18px; }
+  .side-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .side-desc { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+
+  .level-item {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 13px; border-radius:14px; background:#f7f7f7; margin-bottom:9px;
+  }
+  .level-item:last-child { margin-bottom:0; }
+  .level-item.active { background:#fff; border:2px solid var(--green); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .level-item.locked { opacity:0.55; }
+  .lv-no {
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900; color:#fff;
+  }
+  .lv-no.done { background:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .lv-no.now  { background:var(--purple); box-shadow:0 3px 0 var(--purple-dark); }
+  .lv-no.lock { background:#c9c9c9; box-shadow:0 3px 0 #a9a9a9; }
+  .lv-body { flex:1; min-width:0; }
+  .lv-body b { display:block; font-size:14px; font-weight:800; }
+  .lv-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .lv-xp { flex-shrink:0; font-size:13px; font-weight:900; color:var(--gold); }
+  .lv-xp .ic { font-size:14px; }
+
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .mini-stat { background:#f7f7f7; border-radius:14px; padding:12px 10px; text-align:center; }
+  .mini-stat .v { font-size:24px; font-weight:900; line-height:1.1; }
+  .mini-stat .v.green { color:var(--green); }
+  .mini-stat .v.purple { color:var(--purple); }
+  .mini-stat .v.orange { color:var(--orange); }
+  .mini-stat .v.blue { color:var(--blue); }
+  .mini-stat .l { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* ---- Pair elimination ---- */
+  .pe-card { background:#fff; border-radius:18px; padding:20px 22px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); margin-bottom:18px; }
+  .pe-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:10px; }
+  .pe-sub { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+  .pe-cols {
+    display:grid; grid-template-columns:1fr 132px 1fr;
+    gap:10px 14px; align-items:center;
+    position:relative;
+  }
+  .pe-col-title {
+    font-size:12px; font-weight:900; letter-spacing:1px; color:var(--text-dim);
+    padding:0 14px; text-transform:uppercase;
+  }
+  .pe-col-title.zh { color:var(--green-dark); }
+  .pe-col-title.en { color:var(--blue-dark); }
+  .pe-col-title.mid { text-align:center; color:var(--text-faint); letter-spacing:2px; }
+
+  .pe-word {
+    display:flex; align-items:center; gap:9px;
+    padding:11px 14px; border-radius:12px; font-size:15px; font-weight:800;
+    background:#f7f7f7; border:2px solid transparent; transition:all 0.2s;
+  }
+  .pe-word .em { font-size:19px; }
+  .pe-word.en { justify-content:flex-start; }
+  .pe-word.zh { justify-content:flex-end; color:var(--text); }
+
+  .pe-word.matched { background:var(--green-bg); border-color:rgba(88,204,2,0.4); color:var(--green-dark); }
+  .pe-word.matched::after {
+    content:'✓'; font-size:12px; font-weight:900;
+    width:20px; height:20px; border-radius:50%; background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .pe-word.now { background:#fffaf2; border-color:var(--orange); color:var(--orange-dark); animation:now-pulse 1.4s ease infinite; }
+  .pe-word.now::after {
+    content:'?'; font-size:12px; font-weight:900;
+    width:20px; height:20px; border-radius:50%; background:var(--orange); color:#fff;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:0 2px 0 var(--orange-dark);
+  }
+  @keyframes now-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,150,0,0.28)} 50%{box-shadow:0 0 0 6px rgba(255,150,0,0)} }
+
+  /* connector between the two columns */
+  .conn {
+    display:flex; align-items:center; justify-content:center;
+    height:45px;
+  }
+  .conn .track {
+    width:82px; height:5px; border-radius:5px; background:#e5e5e5;
+    position:relative;
+  }
+  .conn .glyph {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    font-size:15px; line-height:1;
+  }
+  .conn.done .track {
+    background:linear-gradient(90deg, var(--green), #6fdd1a);
+    box-shadow:0 0 10px rgba(88,204,2,0.45);
+  }
+  .conn.done .glyph { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.35); }
+  .conn.now .track {
+    background:repeating-linear-gradient(90deg, var(--orange) 0 8px, rgba(255,150,0,0.25) 8px 16px);
+    animation:now-dash 1s linear infinite;
+  }
+  .conn.now .glyph { color:var(--orange-dark); }
+  .conn.open .glyph { color:var(--text-faint); }
+  @keyframes now-dash { 0%{background-position:0 0} 100%{background-position:16px 0} }
+
+  /* ---- Bottom three-up ---- */
+  .bottom-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; }
+  .pick-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7; margin-bottom:8px;
+  }
+  .pick-item:last-child { margin-bottom:0; }
+  .pick-item.active { background:var(--blue-bg); border:2px solid rgba(28,176,246,0.35); }
+  .pick-ic { font-size:20px; }
+  .pick-body { flex:1; min-width:0; }
+  .pick-body b { display:block; font-size:13px; font-weight:800; }
+  .pick-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .pick-pct { font-size:12px; font-weight:900; color:var(--blue-dark); }
+
+  .tip-row { display:flex; gap:11px; margin-bottom:13px; }
+  .tip-row:last-child { margin-bottom:0; }
+  .tip-ic {
+    width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .tip-ic.g { background:var(--green-bg); }
+  .tip-ic.b { background:var(--blue-bg); }
+  .tip-ic.o { background:#fff8e6; }
+  .tip-body b { display:block; font-size:13px; font-weight:800; margin-bottom:1px; }
+  .tip-body p { font-size:12px; color:var(--text-dim); font-weight:600; line-height:1.5; }
+
+  .rank-row {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 10px; border-radius:12px; margin-bottom:7px;
+  }
+  .rank-row:last-child { margin-bottom:0; }
+  .rank-row.me { background:var(--green-bg); border:2px solid rgba(88,204,2,0.3); }
+  .rank-no {
+    width:24px; height:24px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900; color:#fff; background:#c9c9c9;
+  }
+  .rank-no.p1 { background:var(--gold); box-shadow:0 2px 0 #d9a700; }
+  .rank-no.p2 { background:#c0c0c0; box-shadow:0 2px 0 #9e9e9e; }
+  .rank-no.p3 { background:#cd7f32; box-shadow:0 2px 0 #a5662a; }
+  .rank-avatar { font-size:22px; }
+  .rank-body { flex:1; min-width:0; }
+  .rank-body b { display:block; font-size:13px; font-weight:800; }
+  .rank-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .rank-score { font-size:14px; font-weight:900; color:var(--gold); }
+  .rank-score small { font-size:10px; color:var(--text-dim); font-weight:700; }
+
+  /* ---- Compact overrides (tighten to target page height) ---- */
+  .container { padding-bottom:36px; }
+  .topbar { padding:12px 24px; }
+  .cockpit { margin-bottom:16px; }
+  .main-grid { margin-bottom:16px; }
+  .arena-inner { padding:16px 20px 14px; }
+  .arena-head { margin-bottom:12px; }
+  .flip-grid { gap:10px; }
+  .flip-inner { aspect-ratio:1.8/1; }
+  .arena-foot { margin-top:12px; }
+  .side-card { padding:15px 18px; margin-bottom:14px; }
+  .level-item { padding:10px 12px; margin-bottom:8px; }
+  .pe-card { padding:17px 22px; margin-bottom:16px; }
+  .pe-sub { margin-bottom:11px; }
+  .conn { height:38px; }
+  .pe-word { padding:10px 14px; }
+  .bottom-grid .card-desc { margin-bottom:10px; }
+  .pick-item { padding:7px 12px; margin-bottom:7px; }
+  .tip-row { margin-bottom:11px; }
+  .rank-row { padding:8px 10px; margin-bottom:6px; }
+  .footer-link { margin:12px 0; }</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ============ Top Bar ============ -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span>
+        <span>英语听打</span>
+      </div>
+      <div style="font-weight:800; font-size:16px; color:var(--text-dim);">· 配对消消乐</div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,340</div>
+      <div class="stat-item level"><span class="icon">🏆</span> Lv.5</div>
+    </div>
+  </div>
+
+  <!-- ============ Game Cockpit ============ -->
+  <div class="cockpit">
+    <div class="mode-tabs">
+      <a class="mode-tab active" href="#"><span class="ic">🃏</span> 翻牌记忆</a>
+      <a class="mode-tab blue" href="#"><span class="ic">🔗</span> 配对消除</a>
+    </div>
+    <div class="cockpit-divider"></div>
+    <div class="hud">
+      <div class="hud-item timer"><span class="ic">⏱️</span> 01:42</div>
+      <div class="hud-item combo hot"><span class="ic">🔥</span> x4 连击</div>
+      <div class="hud-item pairs"><span class="ic">✅</span> 5 / 10 对</div>
+      <div class="hud-item hint"><span class="ic">💡</span> 2</div>
+    </div>
+  </div>
+
+  <!-- ============ Main grid ============ -->
+  <div class="main-grid">
+
+    <!-- ---- Arena: flip-card board ---- -->
+    <div class="arena">
+      <div class="arena-top"></div>
+      <div class="arena-inner">
+
+        <div class="arena-head">
+          <div class="left">
+            <span class="level-badge"><span class="ic">🎯</span> 关卡 2</span>
+            <span class="board-title">记忆翻牌 <small>CET-4 · 动物与食物</small></span>
+          </div>
+          <div class="match-progress">
+            <div class="mp-bar"><div class="mp-fill"></div></div>
+            <div class="mp-num">50<small>%</small></div>
+          </div>
+        </div>
+
+        <!-- 4 × 5 flip grid -->
+        <div class="flip-grid">
+
+          <!-- Row 1 -->
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🐱</span><span class="zh">猫</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🐱</span><span class="en">cat</span><span class="spark">✨</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up mismatch">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🍹</span><span class="en">juice</span><span class="mismatch-flag">不匹配</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🪁</span><span class="en">kite</span></div>
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🍋</span><span class="en">lemon</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🐕</span><span class="en">dog</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">📖</span><span class="en">book</span><span class="spark">✨</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">⛰️</span><span class="en">mountain</span></div>
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🏠</span><span class="en">house</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up mismatch">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🍊</span><span class="zh">桔子</span><span class="mismatch-flag">不匹配</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🍉</span><span class="en">fruit</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">👩‍⚕️</span><span class="en">nurse</span></div>
+            </div>
+          </div>
+
+          <!-- Row 4 -->
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🎹</span><span class="en">piano</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🐕</span><span class="zh">狗</span><span class="spark">✨</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">📖</span><span class="zh">书</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">👑</span><span class="en">queen</span></div>
+            </div>
+          </div>
+
+          <!-- Row 5 -->
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🏠</span><span class="zh">房子</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card up matched">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🍉</span><span class="zh">水果</span><span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">⭐</span><span class="en">star</span></div>
+            </div>
+          </div>
+          <div class="flip-card">
+            <div class="flip-inner">
+              <div class="face face-front"><span class="qmark">?</span><span class="owl-mark">🦉</span></div>
+              <div class="face face-back"><span class="em">🎵</span><span class="en">music</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="arena-foot">
+          <div class="foot-hint"><span class="ic">💡</span> 连对 2 次解锁连击加成 · 剩余 5 对</div>
+          <div class="foot-btns">
+            <button class="btn btn-ghost btn-sm"><span>🔀</span> 洗牌</button>
+            <button class="btn btn-blue btn-sm"><span>💡</span> 提示</button>
+            <button class="btn btn-primary btn-sm"><span>▶️</span> 继续挑战</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ---- Right column ---- -->
+    <div>
+
+      <div class="side-card">
+        <div class="side-title">🏆 闯关进度</div>
+        <div class="side-desc">每一关翻倍奖励，连击越高 XP 越多</div>
+
+        <div class="level-item">
+          <div class="lv-no done">✓</div>
+          <div class="lv-body"><b>关卡 1 · 动物入门</b><small>5 对 · 已通关 · 用时 58 秒</small></div>
+          <div class="lv-xp"><span class="ic">⚡</span> +40</div>
+        </div>
+        <div class="level-item active">
+          <div class="lv-no now">2</div>
+          <div class="lv-body"><b>关卡 2 · 动物与食物</b><small>10 对 · 进行中 · 5 / 10</small></div>
+          <div class="lv-xp"><span class="ic">⚡</span> +80</div>
+        </div>
+        <div class="level-item locked">
+          <div class="lv-no lock">🔒</div>
+          <div class="lv-body"><b>关卡 3 · 城市与交通</b><small>12 对 · 通关后解锁</small></div>
+          <div class="lv-xp"><span class="ic">⚡</span> +120</div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <div class="side-title">📊 本周战绩</div>
+        <div class="side-desc">2026-07-14 周一起</div>
+        <div class="stat-grid">
+          <div class="mini-stat"><div class="v green">47</div><div class="l">配对成功</div></div>
+          <div class="mini-stat"><div class="v purple">x9</div><div class="l">最高连击</div></div>
+          <div class="mini-stat"><div class="v orange">1:36</div><div class="l">平均用时</div></div>
+          <div class="mini-stat"><div class="v blue">94%</div><div class="l">记忆准确率</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Pair Elimination ============ -->
+  <div class="pe-card">
+    <div class="pe-head">
+      <div class="side-title" style="margin-bottom:0;">🔗 配对消除 · 英中连线</div>
+      <span class="badge badge-purple">进阶模式</span>
+    </div>
+    <div class="pe-sub">把英文单词和中文释义配对消除，点选左侧一个词、右侧一个词，配对成功整行消除。剩余 3 对 · 限时 02:10</div>
+
+    <div class="pe-cols">
+      <div class="pe-col-title en">🔤 英文单词</div>
+      <div class="pe-col-title mid">连线</div>
+      <div class="pe-col-title zh">🀄 中文释义</div>
+
+      <!-- Row 1 : matched -->
+      <div class="pe-word en matched"><span class="em">🍎</span> apple</div>
+      <div class="conn done"><div class="track"><span class="glyph">🔗</span></div></div>
+      <div class="pe-word zh matched">苹果</div>
+
+      <!-- Row 2 : matched -->
+      <div class="pe-word en matched"><span class="em">🐧</span> penguin</div>
+      <div class="conn done"><div class="track"><span class="glyph">🔗</span></div></div>
+      <div class="pe-word zh matched">企鹅</div>
+
+      <!-- Row 3 : current selection -->
+      <div class="pe-word en now"><span class="em">🌵</span> cactus</div>
+      <div class="conn now"><div class="track"><span class="glyph">⚡</span></div></div>
+      <div class="pe-word zh">仙人掌</div>
+
+      <!-- Row 4 -->
+      <div class="pe-word en"><span class="em">🎩</span> magician</div>
+      <div class="conn open"><div class="track"><span class="glyph">⋯</span></div></div>
+      <div class="pe-word zh">魔术师</div>
+
+      <!-- Row 5 -->
+      <div class="pe-word en"><span class="em">☂️</span> umbrella</div>
+      <div class="conn open"><div class="track"><span class="glyph">⋯</span></div></div>
+      <div class="pe-word zh">雨伞</div>
+
+    </div>
+  </div>
+
+  <!-- ============ Bottom three-up ============ -->
+  <div class="bottom-grid">
+
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📚</span> 词库选择</div>
+      <div class="card-desc">选择词库，卡片数量随词库自动调整</div>
+
+      <div class="pick-item active">
+        <span class="pick-ic">🌱</span>
+        <div class="pick-body"><b>CET-4 核心词</b><small>1,800 词 · 已学 62%</small></div>
+        <span class="pick-pct">62%</span>
+      </div>
+      <div class="pick-item">
+        <span class="pick-ic">🌿</span>
+        <div class="pick-body"><b>CET-6 词汇</b><small>2,600 词 · 已学 34%</small></div>
+        <span class="pick-pct">34%</span>
+      </div>
+      <div class="pick-item">
+        <span class="pick-ic">🍀</span>
+        <div class="pick-body"><b>考研大纲词</b><small>5,500 词 · 已学 18%</small></div>
+        <span class="pick-pct">18%</span>
+      </div>
+      <div class="pick-item">
+        <span class="pick-ic">🌲</span>
+        <div class="pick-body"><b>我的错词本</b><small>128 词 · 全部待复习</small></div>
+        <span class="pick-pct">0%</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🎯</span> 玩法技巧</div>
+      <div class="card-desc">三条心得，效率翻倍</div>
+
+      <div class="tip-row">
+        <div class="tip-ic g">🧠</div>
+        <div class="tip-body">
+          <b>按主题分组记忆</b>
+          <p>同一主题的词（动物、食物）先建立语义网，翻牌时命中率更高。</p>
+        </div>
+      </div>
+      <div class="tip-row">
+        <div class="tip-ic b">⏱️</div>
+        <div class="tip-body">
+          <b>连击别被打断</b>
+          <p>连对 2 张以上即进入连击状态，每次连击 XP 加成 +10%，最多叠到 x3。</p>
+        </div>
+      </div>
+      <div class="tip-row">
+        <div class="tip-ic o">💡</div>
+        <div class="tip-body">
+          <b>提示用在关键局</b>
+          <p>每关 2 次提示。留到最后 2 对时用，可避免破连击白丢加成。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="card-icon">🥇</span> 好友排行</div>
+      <div class="card-desc">本周配对消消乐 · Top 4</div>
+
+      <div class="rank-row">
+        <div class="rank-no p1">1</div>
+        <div class="rank-avatar">🦊</div>
+        <div class="rank-body"><b>阿May</b><small>1,240 分 · 8 对</small></div>
+        <div class="rank-score">1,240<small>分</small></div>
+      </div>
+      <div class="rank-row">
+        <div class="rank-no p2">2</div>
+        <div class="rank-avatar">🐯</div>
+        <div class="rank-body"><b>Leo</b><small>1,120 分 · 8 对</small></div>
+        <div class="rank-score">1,120<small>分</small></div>
+      </div>
+      <div class="rank-row me">
+        <div class="rank-no p3">3</div>
+        <div class="rank-avatar">🦉</div>
+        <div class="rank-body"><b>你</b><small>1,050 分 · 5 / 10 对</small></div>
+        <div class="rank-score">1,050<small>分</small></div>
+      </div>
+      <div class="rank-row">
+        <div class="rank-no">4</div>
+        <div class="rank-avatar">🐰</div>
+        <div class="rank-body"><b>桃子</b><small>980 分 · 7 对</small></div>
+        <div class="rank-score">980<small>分</small></div>
+      </div>
+    </div>
+
+  </div>
+
+  <a class="footer-link" href="#">🦉 英语听打 · 配对消消乐 · 设计稿 v1</a>
+
+</div>
+</body>
+</html>

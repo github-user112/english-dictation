@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日动线 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles (Today / 首页) ============ */
+
+  .container { padding-bottom:40px; }
+
+  /* ---- Top bar breadcrumb ---- */
+  .crumb { font-weight:900; font-size:18px; color:var(--text); display:flex; align-items:center; }
+  .crumb .sep { color:var(--text-faint); font-size:15px; margin-right:6px; }
+  .crumb .pg { color:var(--text-dim); font-weight:700; }
+
+  /* =========================================================
+     Hero — 今日进度环
+     ========================================================= */
+  .today-hero {
+    background:linear-gradient(135deg, #f2fdf0 0%, #e9ffdf 55%, #ddf4c4 100%);
+    border:2px solid rgba(88,204,2,0.28);
+    border-radius:22px;
+    padding:24px 30px;
+    box-shadow:0 6px 0 rgba(88,204,2,0.14), 0 12px 28px rgba(88,204,2,0.10);
+    display:flex; align-items:center; gap:28px;
+    margin-bottom:18px;
+    position:relative; overflow:hidden;
+  }
+  .today-hero::after {
+    content:''; position:absolute; top:-80px; right:-60px;
+    width:250px; height:250px; border-radius:50%;
+    background:rgba(88,204,2,0.10);
+  }
+  .today-hero::before {
+    content:''; position:absolute; bottom:-90px; right:200px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.55);
+  }
+  .hero-ring { position:relative; width:148px; height:148px; flex-shrink:0; z-index:1; }
+  .hero-ring-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .hero-ring-center .hr-pct { font-size:38px; font-weight:900; color:var(--green-dark); letter-spacing:-1.5px; line-height:1; }
+  .hero-ring-center .hr-sub { font-size:12px; font-weight:800; color:var(--text-dim); margin-top:5px; }
+  .hero-info { flex:1; min-width:0; z-index:1; }
+  .hero-banner {
+    display:inline-flex; align-items:center; gap:7px;
+    background:var(--green); color:#fff;
+    padding:6px 14px; border-radius:20px;
+    font-size:12px; font-weight:900;
+    box-shadow:0 3px 0 var(--green-dark);
+    margin-bottom:11px; letter-spacing:0.3px;
+  }
+  .hero-title { font-size:30px; font-weight:900; letter-spacing:-0.6px; margin-bottom:7px; color:#222; }
+  .hero-meta { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:700; color:var(--text-dim); margin-bottom:12px; }
+  .hero-meta .dot { color:#dcdcdc; }
+  .hero-meta b { color:var(--orange); }
+  .hero-badges { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .goal-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--orange-light); color:var(--orange-dark);
+    padding:6px 13px; border-radius:12px;
+    font-size:12px; font-weight:900;
+  }
+  .goal-chip .gc-mini { width:64px; height:6px; background:rgba(224,134,0,0.22); border-radius:6px; overflow:hidden; }
+  .goal-chip .gc-mini i { display:block; height:100%; background:var(--orange); border-radius:6px; }
+  .xp-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    background:#fff; color:var(--gold);
+    padding:6px 13px; border-radius:12px;
+    font-size:12px; font-weight:900;
+    box-shadow:0 3px 0 rgba(0,0,0,0.08);
+  }
+
+  /* =========================================================
+     Main grid
+     ========================================================= */
+  .today-grid {
+    display:grid; grid-template-columns:1.62fr 1fr; gap:18px;
+    margin-bottom:18px; align-items:start;
+  }
+  .col-stack { display:flex; flex-direction:column; gap:18px; }
+
+  /* ---- Section head ---- */
+  .sec-head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .sec-head .sh-emoji { font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .sec-head .sh-title { font-size:19px; font-weight:900; }
+  .sec-head .sh-sub { font-size:12px; font-weight:700; color:var(--text-dim); margin-top:1px; }
+  .sec-head .sh-count {
+    margin-left:auto;
+    background:var(--green); color:#fff;
+    padding:5px 12px; border-radius:10px;
+    font-size:12px; font-weight:900;
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+
+  /* =========================================================
+     Journey path (五环旅程)
+     ========================================================= */
+  .journey { position:relative; padding-left:8px; }
+  .journey-line {
+    position:absolute; left:33px; top:34px; bottom:34px;
+    width:4px; border-radius:4px;
+    background:repeating-linear-gradient(
+      to bottom, #e2e2e2 0px, #e2e2e2 6px, transparent 6px, transparent 12px
+    );
+  }
+  .journey-line::before {
+    content:''; position:absolute; left:0; top:0;
+    width:4px; border-radius:4px; height:26%;
+    background:linear-gradient(to bottom, var(--green), #8ce000);
+  }
+
+  .step { position:relative; display:flex; align-items:stretch; gap:16px; margin-bottom:12px; }
+  .step:last-child { margin-bottom:0; }
+
+  .step-node {
+    position:relative; z-index:2;
+    width:52px; height:52px; border-radius:50%;
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px;
+    background:#fff; box-shadow:0 3px 0 rgba(0,0,0,0.10);
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+  }
+  .step-node .step-em { line-height:1; }
+  .step-node .node-tick {
+    position:absolute; bottom:-3px; right:-3px;
+    width:22px; height:22px; border-radius:50%;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark), 0 0 0 3px #fff;
+  }
+  .step-node .node-pulse {
+    position:absolute; inset:-6px; border-radius:50%;
+    border:3px solid var(--green); opacity:0.35;
+    animation:node-pulse 1.8s ease-out infinite;
+  }
+  @keyframes node-pulse {
+    0% { transform:scale(0.82); opacity:0.5; }
+    100% { transform:scale(1.28); opacity:0; }
+  }
+
+  .step.done .step-node { background:var(--green-bg); box-shadow:0 3px 0 rgba(88,204,2,0.28); }
+  .step.current .step-node {
+    background:var(--green); color:#fff;
+    box-shadow:0 3px 0 var(--green-dark), 0 0 0 4px rgba(88,204,2,0.16);
+  }
+  .step.current .step-node .step-em { filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25)); }
+  .step.locked .step-node { background:#f0f0f0; box-shadow:0 3px 0 rgba(0,0,0,0.06); opacity:0.85; }
+  .step.locked .step-node .step-em { filter:grayscale(1); opacity:0.6; }
+
+  .step-card {
+    flex:1; min-width:0;
+    background:#fff; border-radius:16px;
+    padding:14px 18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    border:2px solid transparent;
+  }
+  .step.done .step-card { background:linear-gradient(135deg, #f6fff0, #eefce0); }
+  .step.current .step-card {
+    border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.13), 0 4px 0 var(--green-dark);
+    transform:translateY(-2px);
+  }
+  .step.locked .step-card { background:#f7f7f7; box-shadow:0 4px 0 rgba(0,0,0,0.04); }
+
+  .step-head { display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+  .step-title { font-size:17px; font-weight:900; }
+  .step.locked .step-title { color:var(--text-dim); }
+  .step-status {
+    margin-left:auto; flex-shrink:0;
+    font-size:11px; font-weight:900; padding:4px 11px; border-radius:10px;
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .step-status.done { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .step-status.current { background:var(--blue); color:#fff; box-shadow:0 2px 0 var(--blue-dark); }
+  .step-status.locked { background:#e5e5e5; color:var(--text-faint); }
+
+  .step-desc { font-size:13px; font-weight:700; color:var(--text-dim); margin-bottom:11px; }
+  .step.locked .step-desc { color:var(--text-faint); }
+  .step-desc .lesson-tag {
+    display:inline-block; background:#eef3fb; color:var(--blue-dark);
+    font-size:11px; font-weight:900; padding:2px 8px; border-radius:7px; margin-right:6px;
+  }
+  .step.locked .step-desc .lesson-tag { background:#eee; color:var(--text-faint); }
+
+  .step-foot { display:flex; align-items:center; gap:12px; }
+  .step-bar { flex:1; height:8px; background:#e8e8e8; border-radius:8px; overflow:hidden; }
+  .step-bar i { display:block; height:100%; border-radius:8px; }
+  .step-bar .fill-green { background:linear-gradient(to right, var(--green), #7ade16); }
+  .step-bar .fill-blue { background:var(--blue); }
+  .step-count { font-size:13px; font-weight:900; color:var(--text); min-width:40px; text-align:right; }
+  .step.done .step-count { color:var(--green-dark); }
+  .step.current .step-count { color:var(--blue-dark); }
+  .step.locked .step-count { color:var(--text-faint); }
+  .step-time {
+    font-size:11px; font-weight:800; color:var(--text-faint);
+    background:#f0f0f0; padding:3px 9px; border-radius:8px;
+    display:inline-flex; align-items:center; gap:3px; flex-shrink:0;
+  }
+  .step.current .step-time { background:var(--blue-light); color:var(--blue-dark); }
+
+  .step-cta {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:#fff; color:var(--green-dark);
+    border:none; cursor:pointer; font-family:inherit;
+    font-weight:900; font-size:13px;
+    padding:8px 16px; border-radius:11px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.14);
+    transition:transform 0.1s;
+  }
+  .step-cta:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.14); }
+
+  .step-foot.with-cta { align-items:center; }
+  .step-foot.with-cta .step-bar { max-width:170px; }
+
+  /* =========================================================
+     Sidebar — 词汇量测试
+     ========================================================= */
+  .side-test {
+    background:linear-gradient(160deg, #fff9f0 0%, #fff3e0 100%);
+    border:2px solid var(--orange);
+    border-radius:18px; padding:20px;
+    box-shadow:0 5px 0 var(--orange-dark), 0 10px 22px rgba(255,150,0,0.16);
+    position:relative; overflow:hidden;
+  }
+  .side-test::after {
+    content:''; position:absolute; top:-46px; right:-40px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,150,0,0.10);
+  }
+  .side-test .st-icon {
+    font-size:30px; position:relative; z-index:1;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.14)); margin-bottom:10px;
+    display:block;
+  }
+  .side-test .st-title { font-size:18px; font-weight:900; margin-bottom:6px; position:relative; z-index:1; }
+  .side-test .st-desc { font-size:13px; font-weight:600; color:#8a5a00; line-height:1.55; margin-bottom:14px; position:relative; z-index:1; }
+  .side-test .st-benefits {
+    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; position:relative; z-index:1;
+  }
+  .st-benefit {
+    display:inline-flex; align-items:center; gap:5px;
+    background:#fff; color:var(--orange-dark);
+    padding:4px 10px; border-radius:10px;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 rgba(0,0,0,0.06);
+  }
+  .side-test .btn { position:relative; z-index:1; }
+
+  /* =========================================================
+     Sidebar — 每日挑战 banner
+     ========================================================= */
+  .side-daily {
+    background:linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
+    border-radius:18px; padding:18px 20px; color:#fff;
+    box-shadow:0 5px 0 var(--blue-dark), 0 10px 24px rgba(28,176,246,0.24);
+    position:relative; overflow:hidden;
+  }
+  .side-daily::after {
+    content:''; position:absolute; top:-40px; right:-30px;
+    width:130px; height:130px; border-radius:50%;
+    background:rgba(255,255,255,0.14);
+  }
+  .side-daily::before {
+    content:''; position:absolute; bottom:-56px; left:-36px;
+    width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,0.08);
+  }
+  .sd-row { display:flex; align-items:center; gap:13px; position:relative; z-index:1; }
+  .sd-icon {
+    font-size:30px; flex-shrink:0;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  }
+  .sd-body { flex:1; min-width:0; }
+  .sd-title { font-size:15px; font-weight:900; margin-bottom:3px; }
+  .sd-desc { font-size:12px; font-weight:700; opacity:0.92; line-height:1.45; }
+  .sd-go {
+    flex-shrink:0; background:rgba(255,255,255,0.26); backdrop-filter:blur(4px);
+    padding:9px 14px; border-radius:11px;
+    font-weight:900; font-size:13px;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .sd-meta {
+    display:flex; align-items:center; gap:14px; margin-top:13px;
+    padding-top:12px; border-top:1px solid rgba(255,255,255,0.22);
+    position:relative; z-index:1;
+  }
+  .sd-meta-item { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:800; }
+  .sd-meta-item b { font-size:14px; }
+
+  /* =========================================================
+     Sidebar — 本周学习
+     ========================================================= */
+  .side-week { background:#fff; border-radius:18px; padding:20px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .week-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .week-head .wh-emoji { font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .week-head .wh-title { font-size:17px; font-weight:900; }
+  .week-head .wh-tag {
+    margin-left:auto; font-size:11px; font-weight:800;
+    color:var(--text-dim); background:#f2f2f2;
+    padding:4px 10px; border-radius:10px;
+  }
+  .week-desc { font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:16px; }
+
+  .week-bars { display:flex; align-items:flex-end; gap:8px; height:82px; margin-bottom:7px; }
+  .wb-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+  .wb-bar {
+    width:100%; border-radius:7px 7px 4px 4px;
+    background:#ececec; min-height:6px;
+    transition:height 0.4s ease;
+  }
+  .wb-col.today .wb-bar { background:linear-gradient(to top, var(--green-dark), var(--green)); box-shadow:0 -2px 0 var(--green-dark); }
+  .wb-col.done .wb-bar { background:var(--green); opacity:0.85; }
+  .wb-day { font-size:10px; font-weight:800; color:var(--text-faint); }
+  .wb-col.today .wb-day { color:var(--green-dark); font-weight:900; }
+
+  .week-nums { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; padding-top:16px; border-top:1px solid #f0f0f0; }
+  .wn-cell { text-align:center; background:#f7f7f7; border-radius:13px; padding:12px 8px; }
+  .wn-cell .wn-v { font-size:24px; font-weight:900; line-height:1.1; }
+  .wn-cell .wn-v.green { color:var(--green); }
+  .wn-cell .wn-v.gold { color:var(--gold); }
+  .wn-cell .wn-l { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+  .wn-cell .wn-delta { font-size:10px; font-weight:800; margin-top:2px; color:var(--green-dark); }
+
+  /* =========================================================
+     Bottom — 下一步 hero
+     ========================================================= */
+  .next-hero {
+    background:linear-gradient(135deg, #58cc02 0%, #46a302 60%, #378a00 100%);
+    border-radius:22px; padding:24px 30px; color:#fff;
+    box-shadow:0 6px 0 #378a00, 0 12px 30px rgba(88,204,2,0.30);
+    position:relative; overflow:hidden;
+    display:flex; align-items:center; gap:26px;
+    margin-bottom:16px;
+  }
+  .next-hero::after {
+    content:''; position:absolute; top:-70px; right:-40px;
+    width:220px; height:220px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .next-hero::before {
+    content:''; position:absolute; bottom:-90px; left:-50px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .next-node {
+    position:relative; z-index:1;
+    width:74px; height:74px; border-radius:50%;
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center;
+    font-size:36px; flex-shrink:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.18);
+  }
+  .next-body { flex:1; min-width:0; position:relative; z-index:1; }
+  .next-tag {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.2); backdrop-filter:blur(4px);
+    padding:5px 12px; border-radius:20px;
+    font-size:12px; font-weight:900; letter-spacing:0.4px;
+    margin-bottom:9px;
+  }
+  .next-tag .pulse-dot { width:7px; height:7px; }
+  .next-title { font-size:26px; font-weight:900; letter-spacing:-0.4px; margin-bottom:4px; }
+  .next-desc { font-size:14px; font-weight:700; opacity:0.94; margin-bottom:13px; }
+  .next-prog-row { display:flex; align-items:center; gap:12px; }
+  .next-prog { flex:1; height:10px; background:rgba(255,255,255,0.26); border-radius:10px; overflow:hidden; }
+  .next-prog i { display:block; height:100%; background:#fff; border-radius:10px; box-shadow:0 0 8px rgba(255,255,255,0.7); }
+  .next-prog-lbl { font-size:12px; font-weight:900; opacity:0.95; white-space:nowrap; }
+  .next-btn {
+    position:relative; z-index:1; flex-shrink:0;
+    background:#fff; color:var(--green-dark);
+    border:none; cursor:pointer; font-family:inherit;
+    font-weight:900; font-size:17px; letter-spacing:0.4px;
+    padding:16px 30px; border-radius:14px;
+    box-shadow:0 5px 0 rgba(0,0,0,0.22);
+    transition:transform 0.1s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .next-btn:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.22); }
+
+  .footer-link { display:block; text-align:center; margin:2px 0 6px; font-size:13px; font-weight:700; color:var(--text-dim); }
+  .footer-link:hover { color:var(--green); }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div class="crumb">
+        <span class="sep">›</span>
+        <span class="pg">今日动线</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,340 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.5</div>
+    </div>
+  </div>
+
+  <!-- ===== Hero · 今日进度环 ===== -->
+  <div class="today-hero">
+    <div class="hero-ring">
+      <svg width="148" height="148" viewBox="0 0 148 148">
+        <circle cx="74" cy="74" r="62" fill="none" stroke="#dcecd2" stroke-width="13"/>
+        <circle cx="74" cy="74" r="62" fill="none" stroke="var(--green)" stroke-width="13" stroke-linecap="round"
+          stroke-dasharray="389.56" stroke-dashoffset="116.87"
+          transform="rotate(-90 74 74)"
+          style="filter:drop-shadow(0 0 6px rgba(88,204,2,0.4));"/>
+      </svg>
+      <div class="hero-ring-center">
+        <div class="hr-pct">70%</div>
+        <div class="hr-sub">3 / 5 完成</div>
+      </div>
+    </div>
+    <div class="hero-info">
+      <div class="hero-banner">✅ 继续前进！你已经完成了 60% 的五环任务！</div>
+      <div class="hero-title">继续前进 🚀</div>
+      <div class="hero-meta">
+        <span>📅 9月10日 · 周三</span>
+        <span class="dot">·</span>
+        <span>🔥 连续 <b>12 天</b></span>
+        <span class="dot">·</span>
+        <span>⏱️ 已练习 38 分钟</span>
+      </div>
+      <div class="hero-badges">
+        <div class="goal-chip">
+          🏅 再坚持 3 天解锁「坚持之星」
+          <span class="gc-mini"><i style="width:75%;"></i></span>
+        </div>
+        <div class="xp-chip">⚡ 今日 +120 XP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Main Grid ===== -->
+  <div class="today-grid">
+
+    <!-- ===== Left · 五环旅程 ===== -->
+    <div class="card">
+      <div class="sec-head">
+        <span class="sh-emoji">🧭</span>
+        <div>
+          <div class="sh-title">今日五环旅程</div>
+          <div class="sh-sub">每天一条主线 · 完成五环即打卡</div>
+        </div>
+        <span class="sh-count">3/5 完成</span>
+      </div>
+
+      <div class="journey">
+        <div class="journey-line"></div>
+
+        <!-- Step 1 · 背单词（已完成） -->
+        <div class="step done">
+          <div class="step-node">
+            <span class="step-em">📖</span>
+            <span class="node-tick">✓</span>
+          </div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-title">背单词</span>
+              <span class="step-status done">已完成</span>
+            </div>
+            <div class="step-desc"><span class="lesson-tag">第 3 课</span>10 个单词 · 英中互翻 + 拼写自测</div>
+            <div class="step-foot">
+              <div class="step-bar"><i class="fill-green" style="width:100%;"></i></div>
+              <span class="step-count">10/10</span>
+              <span class="step-time">⏱ 5'</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 · 单词听打（进行中） -->
+        <div class="step current">
+          <div class="step-node">
+            <span class="node-pulse"></span>
+            <span class="step-em">🎧</span>
+          </div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-title">单词听打</span>
+              <span class="step-status current">进行中</span>
+            </div>
+            <div class="step-desc"><span class="lesson-tag">第 3 课</span>听音拼写 · 巩固今天背过的单词</div>
+            <div class="step-foot with-cta">
+              <div class="step-bar"><i class="fill-blue" style="width:60%;"></i></div>
+              <span class="step-count">6/10</span>
+              <span class="step-time">⏱ 5'</span>
+              <button class="step-cta">继续 ▶</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 · 句子听写 -->
+        <div class="step locked">
+          <div class="step-node"><span class="step-em">✍️</span></div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-title">句子听写</span>
+              <span class="step-status locked">🔒 待开始</span>
+            </div>
+            <div class="step-desc"><span class="lesson-tag">第 3 课</span>8 个句子 · 逐词填格</div>
+            <div class="step-foot">
+              <div class="step-bar"><i class="fill-green" style="width:0%;"></i></div>
+              <span class="step-count">0/8</span>
+              <span class="step-time">⏱ 5'</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4 · 听音排句 -->
+        <div class="step locked">
+          <div class="step-node"><span class="step-em">🔀</span></div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-title">听音排句</span>
+              <span class="step-status locked">🔒 待开始</span>
+            </div>
+            <div class="step-desc">把打乱的词块听回正确语序 · 练语感</div>
+            <div class="step-foot">
+              <div class="step-bar"><i class="fill-green" style="width:0%;"></i></div>
+              <span class="step-count">0/3</span>
+              <span class="step-time">⏱ 3'</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 · 错词回收 -->
+        <div class="step locked">
+          <div class="step-node"><span class="step-em">🔄</span></div>
+          <div class="step-card">
+            <div class="step-head">
+              <span class="step-title">错词回收</span>
+              <span class="step-status locked">🔒 待开始</span>
+            </div>
+            <div class="step-desc">到期错词清零，不清会越滚越多</div>
+            <div class="step-foot">
+              <div class="step-bar"><i class="fill-green" style="width:0%;"></i></div>
+              <span class="step-count">0/4</span>
+              <span class="step-time">⏱ 3'</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===== Right · Sidebar ===== -->
+    <div class="col-stack">
+
+      <!-- 词汇量测试 -->
+      <div class="side-test">
+        <span class="st-icon">📊</span>
+        <div class="st-title">先测词汇量</div>
+        <div class="st-desc">花 2 分钟测测词汇量，按你的水平推荐词库和每日量，任务更合身。</div>
+        <div class="st-benefits">
+          <span class="st-benefit">🎯 CEFR 等级</span>
+          <span class="st-benefit">📚 自动推词库</span>
+          <span class="st-benefit">📈 每日配额</span>
+        </div>
+        <a href="#" class="btn btn-orange btn-sm" style="box-shadow:0 3px 0 var(--orange-dark);">📊 去测一下 · 2 分钟</a>
+      </div>
+
+      <!-- 每日挑战 -->
+      <div class="side-daily">
+        <div class="sd-row">
+          <span class="sd-icon">🏆</span>
+          <div class="sd-body">
+            <div class="sd-title">今日词力 · 每日挑战</div>
+            <div class="sd-desc">10 道全站同题 · 完成即给小树浇水</div>
+          </div>
+          <a href="#" class="sd-go">去挑战 →</a>
+        </div>
+        <div class="sd-meta">
+          <span class="sd-meta-item">👥 3,482 人</span>
+          <span class="sd-meta-item">🎁 +200 词力</span>
+          <span class="sd-meta-item">⏳ 23:14:09</span>
+        </div>
+      </div>
+
+      <!-- 本周学习 -->
+      <div class="side-week">
+        <div class="week-head">
+          <span class="wh-emoji">📈</span>
+          <span class="wh-title">本周学习</span>
+          <span class="wh-tag">过去 7 天</span>
+        </div>
+        <div class="week-desc">每天多练 15 分钟，词汇量翻倍更快</div>
+        <div class="week-bars">
+          <div class="wb-col done"><div class="wb-bar" style="height:64%;"></div><span class="wb-day">一</span></div>
+          <div class="wb-col done"><div class="wb-bar" style="height:82%;"></div><span class="wb-day">二</span></div>
+          <div class="wb-col done"><div class="wb-bar" style="height:46%;"></div><span class="wb-day">三</span></div>
+          <div class="wb-col done"><div class="wb-bar" style="height:90%;"></div><span class="wb-day">四</span></div>
+          <div class="wb-col done"><div class="wb-bar" style="height:58%;"></div><span class="wb-day">五</span></div>
+          <div class="wb-col today"><div class="wb-bar" style="height:71%;"></div><span class="wb-day">今</span></div>
+          <div class="wb-col"><div class="wb-bar" style="height:0%;"></div><span class="wb-day">日</span></div>
+        </div>
+        <div class="week-nums">
+          <div class="wn-cell">
+            <div class="wn-v green">3.5h</div>
+            <div class="wn-l">总练习</div>
+            <div class="wn-delta">▲ 上周 2.8h</div>
+          </div>
+          <div class="wn-cell">
+            <div class="wn-v gold">210</div>
+            <div class="wn-l">练习词数</div>
+            <div class="wn-delta">▲ 上周 168</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ===== Bottom · 下一步 Hero ===== -->
+  <div class="next-hero">
+    <div class="next-node">🎧</div>
+    <div class="next-body">
+      <div class="next-tag"><span class="pulse-dot"></span> 下一步 · 约 5 分钟</div>
+      <div class="next-title">单词听打</div>
+      <div class="next-desc">第 3 课 · 听音拼写，巩固今天背过的单词</div>
+      <div class="next-prog-row">
+        <div class="next-prog"><i style="width:60%;"></i></div>
+        <span class="next-prog-lbl">进度 6/10</span>
+      </div>
+    </div>
+    <button class="next-btn">开始练习 →</button>
+  </div>
+
+  <div class="footer-link">
+    📚 全部素材与自由练习 →
+  </div>
+
+</div>
+</body>
+</html>

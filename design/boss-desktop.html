@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boss战 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Boss Arena Hero ---- */
+  .boss-hero {
+    background:linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    border-radius:22px; padding:28px 32px; color:#fff;
+    box-shadow:0 8px 0 rgba(0,0,0,0.25), 0 14px 40px rgba(0,0,0,0.3);
+    position:relative; overflow:hidden; margin-bottom:20px;
+  }
+  .boss-hero::after {
+    content:''; position:absolute; top:-80px; right:-40px;
+    width:300px; height:300px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,75,75,0.15), transparent 70%);
+    animation:boss-glow 3s ease-in-out infinite;
+  }
+  .boss-hero::before {
+    content:''; position:absolute; bottom:-100px; left:-60px;
+    width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle, rgba(206,130,255,0.1), transparent 70%);
+  }
+  @keyframes boss-glow { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+
+  .boss-hero-row {
+    display:flex; align-items:center; gap:28px;
+    position:relative; z-index:1;
+  }
+
+  /* Boss avatar */
+  .boss-avatar-wrap {
+    flex-shrink:0; position:relative;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .boss-avatar-ring {
+    width:120px; height:120px; border-radius:50%;
+    background:linear-gradient(135deg, var(--red), #ff7a7a);
+    padding:4px; box-shadow:0 0 0 4px rgba(255,75,75,0.2), 0 0 30px rgba(255,75,75,0.3);
+    animation:avatar-pulse 2s ease-in-out infinite;
+  }
+  @keyframes avatar-pulse { 0%,100%{box-shadow:0 0 0 4px rgba(255,75,75,0.2),0 0 30px rgba(255,75,75,0.3)} 50%{box-shadow:0 0 0 8px rgba(255,75,75,0.1),0 0 50px rgba(255,75,75,0.4)} }
+  .boss-avatar-inner {
+    width:100%; height:100%; border-radius:50%;
+    background:#1a1a2e; display:flex; align-items:center; justify-content:center;
+    font-size:64px;
+  }
+  .boss-diff {
+    margin-top:10px;
+    padding:4px 14px; border-radius:8px;
+    background:var(--red); color:#fff;
+    font-size:12px; font-weight:900; letter-spacing:0.5px;
+    box-shadow:0 3px 0 var(--red-dark);
+  }
+  .boss-diff.easy { background:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .boss-diff.hard { background:var(--purple); box-shadow:0 3px 0 var(--purple-dark); }
+
+  .boss-hero-info { flex:1; min-width:0; }
+  .boss-hero-info .bh-name {
+    font-size:32px; font-weight:900; letter-spacing:-0.5px;
+    margin-bottom:2px;
+    background:linear-gradient(90deg, #fff, #ffd9d9);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .boss-hero-info .bh-title {
+    font-size:14px; font-weight:800; opacity:0.7; margin-bottom:14px;
+  }
+
+  /* Boss HP bar */
+  .boss-hp-wrap {
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:12px;
+  }
+  .boss-hp-label {
+    display:flex; align-items:center; gap:6px;
+    font-size:14px; font-weight:900; flex-shrink:0;
+  }
+  .boss-hp-bar {
+    flex:1; height:22px; border-radius:11px;
+    background:rgba(255,255,255,0.1);
+    overflow:hidden; position:relative;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .boss-hp-fill {
+    height:100%; border-radius:11px;
+    background:linear-gradient(90deg, #ff4b4b, #ff7a7a);
+    position:relative;
+    transition:width 0.8s ease;
+    box-shadow:0 0 10px rgba(255,75,75,0.5);
+  }
+  .boss-hp-fill::after {
+    content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+    border-radius:11px;
+  }
+  .boss-hp-num {
+    font-size:20px; font-weight:900; flex-shrink:0;
+    min-width:80px; text-align:right;
+  }
+  .boss-hp-num small { font-size:13px; opacity:0.6; font-weight:700; }
+
+  .boss-hero-meta {
+    display:flex; gap:18px; flex-wrap:wrap;
+  }
+  .bh-meta-item {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:800; opacity:0.85;
+  }
+  .bh-meta-item .mi-ic { font-size:16px; }
+
+  .boss-hero-cta {
+    flex-shrink:0; display:flex; flex-direction:column; gap:10px;
+    align-items:flex-end;
+  }
+  .combat-btn {
+    display:flex; align-items:center; gap:10px;
+    padding:16px 32px; border-radius:16px;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    color:#fff; font-weight:900; font-size:18px;
+    border:none; cursor:pointer; text-decoration:none;
+    box-shadow:0 6px 0 var(--green-dark), 0 10px 24px rgba(88,204,2,0.3);
+    transition:transform 0.1s;
+    letter-spacing:0.5px;
+  }
+  .combat-btn:active { transform:translateY(3px); box-shadow:0 2px 0 var(--green-dark); }
+  .combat-btn .cb-ic { font-size:24px; }
+  .combat-timer {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:800; opacity:0.7;
+  }
+  .combat-timer .ct-ic { font-size:16px; }
+
+  /* ---- Main grid ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1.6fr 1fr; gap:18px;
+    margin-bottom:18px;
+  }
+
+  /* ---- Battle Arena ---- */
+  .arena-card {
+    background:#fff; border-radius:20px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
+    overflow:hidden; position:relative;
+  }
+  .arena-topline {
+    height:5px;
+    background:linear-gradient(90deg, var(--red) 0%, var(--orange) 50%, var(--green) 100%);
+  }
+  .arena-body { padding:24px 26px; }
+
+  .arena-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .ah-left { display:flex; align-items:center; gap:10px; }
+  .ah-left .ah-icon { font-size:28px; }
+  .ah-left b { font-size:18px; font-weight:900; }
+  .ah-left .ah-sub { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .ah-right { display:flex; align-items:center; gap:10px; }
+  .ah-round {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:800; color:var(--text-dim);
+  }
+  .ah-round b { color:var(--text); font-size:16px; }
+
+  /* Current word challenge */
+  .word-challenge {
+    background:linear-gradient(135deg, #f8f0ff, #fff);
+    border:2px solid rgba(206,130,255,0.2);
+    border-radius:16px; padding:20px 24px;
+    margin-bottom:18px; position:relative;
+  }
+  .word-challenge::before {
+    content:''; position:absolute; top:-1px; left:24px; right:24px; height:3px;
+    background:linear-gradient(90deg, var(--purple), var(--blue));
+    border-radius:0 0 3px 3px;
+  }
+  .wc-label {
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:800; color:var(--purple-dark);
+    margin-bottom:10px;
+  }
+  .wc-word {
+    font-size:36px; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg, var(--purple-dark), var(--blue-dark));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:6px;
+  }
+  .wc-hint {
+    font-size:13px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:6px;
+  }
+  .wc-hint .wc-emoji { font-size:18px; }
+
+  /* Answer input */
+  .answer-section { margin-bottom:18px; }
+  .answer-label {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .answer-label .al-text {
+    font-size:13px; font-weight:800; color:var(--text-dim);
+  }
+  .answer-label .al-count {
+    font-size:12px; font-weight:800; color:var(--text-faint);
+  }
+  .answer-input-wrap {
+    display:flex; gap:8px; align-items:center;
+  }
+  .answer-input {
+    flex:1; padding:14px 18px;
+    border:3px solid var(--border); border-radius:14px;
+    font-family:inherit; font-size:18px; font-weight:800;
+    background:#fff; outline:none;
+    transition:border-color 0.2s;
+  }
+  .answer-input:focus { border-color:var(--green); }
+  .answer-input.correct { border-color:var(--green); background:var(--green-bg); color:var(--green-dark); }
+  .answer-input.wrong { border-color:var(--red); background:var(--red-light); color:var(--red-dark); }
+  .answer-submit {
+    padding:14px 28px; border-radius:14px;
+    background:var(--green); color:#fff;
+    font-family:inherit; font-weight:900; font-size:16px;
+    border:none; cursor:pointer;
+    box-shadow:0 4px 0 var(--green-dark);
+    transition:transform 0.1s; white-space:nowrap;
+  }
+  .answer-submit:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+
+  /* Combo / Chain meter */
+  .combo-meter {
+    display:flex; align-items:center; gap:14px;
+    padding:16px 20px; border-radius:16px;
+    background:linear-gradient(135deg, #fff5f5, #fff);
+    border:2px solid rgba(255,150,0,0.2);
+    position:relative; overflow:hidden;
+  }
+  .combo-fire {
+    font-size:36px; flex-shrink:0;
+    animation:fire-flicker 0.5s ease-in-out infinite alternate;
+    filter:drop-shadow(0 0 8px rgba(255,150,0,0.5));
+  }
+  @keyframes fire-flicker { 0%{transform:scale(1) rotate(-2deg)} 100%{transform:scale(1.1) rotate(2deg)} }
+  .combo-body { flex:1; min-width:0; }
+  .combo-label {
+    font-size:12px; font-weight:800; color:var(--orange-dark);
+    margin-bottom:4px;
+  }
+  .combo-chain {
+    display:flex; align-items:center; gap:6px;
+  }
+  .combo-num {
+    font-size:32px; font-weight:900;
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    letter-spacing:-1px;
+  }
+  .combo-unit { font-size:14px; font-weight:800; color:var(--orange); }
+  .combo-bar-wrap {
+    flex:1; height:8px; border-radius:4px;
+    background:#f0f0f0; overflow:hidden;
+  }
+  .combo-fill {
+    height:100%; border-radius:4px;
+    background:linear-gradient(90deg, var(--orange), #ffb347);
+    box-shadow:0 0 6px rgba(255,150,0,0.4);
+  }
+  .combo-xp {
+    flex-shrink:0;
+    display:flex; align-items:center; gap:4px;
+    background:var(--gold); color:#fff;
+    padding:6px 12px; border-radius:10px;
+    font-weight:900; font-size:14px;
+    box-shadow:0 3px 0 #d4a800;
+  }
+
+  /* Damage indicator */
+  .damage-popup {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:6px 14px; border-radius:10px;
+    background:var(--red); color:#fff;
+    font-weight:900; font-size:14px;
+    box-shadow:0 3px 0 var(--red-dark);
+    animation:dmg-shake 0.3s ease;
+  }
+  @keyframes dmg-shake { 0%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} 100%{transform:translateX(0)} }
+  .damage-popup.crit { background:linear-gradient(135deg, var(--orange), #ffb347); box-shadow:0 3px 0 var(--orange-dark); }
+
+  /* ---- Boss Roster (Right sidebar) ---- */
+  .sidebar { display:flex; flex-direction:column; gap:16px; }
+
+  .roster-card { background:#fff; }
+  .roster-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .roster-header .rh-left { display:flex; align-items:center; gap:8px; }
+  .roster-header .rh-left b { font-size:16px; font-weight:900; }
+  .roster-header .rh-count {
+    background:var(--red-light); color:var(--red-dark);
+    padding:3px 10px; border-radius:8px;
+    font-size:12px; font-weight:900;
+  }
+
+  .boss-list { display:flex; flex-direction:column; gap:8px; }
+  .boss-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border-radius:14px;
+    background:#f8f8f8; transition:all 0.2s;
+    cursor:pointer;
+  }
+  .boss-item:hover { background:#f0f0f0; }
+  .boss-item.active {
+    background:linear-gradient(135deg, #fff5f5, #fff);
+    border:2px solid rgba(255,75,75,0.3);
+    box-shadow:0 4px 0 rgba(255,75,75,0.1);
+  }
+  .boss-item.defeated {
+    opacity:0.5;
+  }
+  .boss-item.defeated .bi-avatar {
+    filter:grayscale(1) opacity(0.6);
+  }
+  .bi-avatar {
+    width:42px; height:42px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; flex-shrink:0;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .bi-info { flex:1; min-width:0; }
+  .bi-name {
+    font-size:14px; font-weight:800;
+    display:flex; align-items:center; gap:6px;
+  }
+  .bi-name .bi-diff {
+    font-size:10px; font-weight:800; padding:1px 6px;
+    border-radius:6px; flex-shrink:0;
+  }
+  .bi-diff.easy { background:var(--green-bg); color:var(--green-dark); }
+  .bi-diff.normal { background:var(--orange-light); color:var(--orange-dark); }
+  .bi-diff.hard { background:var(--purple-light); color:var(--purple-dark); }
+  .bi-hp {
+    display:flex; align-items:center; gap:6px;
+    margin-top:4px;
+  }
+  .bi-hp-bar {
+    flex:1; height:6px; border-radius:3px;
+    background:#e5e5e5; overflow:hidden;
+  }
+  .bi-hp-fill { height:100%; border-radius:3px; }
+  .bi-hp-fill.green { background:var(--green); }
+  .bi-hp-fill.orange { background:var(--orange); }
+  .bi-hp-fill.red { background:var(--red); }
+  .bi-hp-fill.purple { background:var(--purple); }
+  .bi-hp-num {
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    flex-shrink:0; min-width:40px; text-align:right;
+  }
+  .bi-xp-badge {
+    font-size:10px; font-weight:800;
+    padding:3px 8px; border-radius:6px;
+    background:var(--gold-light); color:#d4a800;
+    flex-shrink:0;
+  }
+  .bi-defeated-tag {
+    display:flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:800;
+    color:var(--green-dark);
+    flex-shrink:0;
+  }
+
+  /* ---- Stats strip ---- */
+  .stats-strip {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:12px;
+    margin-bottom:18px;
+  }
+  .ss-card {
+    text-align:center; padding:16px 10px;
+    background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    position:relative; overflow:hidden;
+  }
+  .ss-card::after {
+    content:''; position:absolute; top:-10px; right:-10px;
+    width:40px; height:40px; border-radius:50%;
+    background:rgba(0,0,0,0.02);
+  }
+  .ss-icon { font-size:24px; margin-bottom:4px; }
+  .ss-val { font-size:26px; font-weight:900; letter-spacing:-0.5px; }
+  .ss-val.green { color:var(--green); }
+  .ss-val.red { color:var(--red); }
+  .ss-val.orange { color:var(--orange); }
+  .ss-val.gold { color:var(--gold); }
+  .ss-val.purple { color:var(--purple); }
+  .ss-lbl { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* ---- Defeated Gallery ---- */
+  .gallery-card { background:#fff; margin-bottom:18px; }
+  .gallery-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+    margin-top:14px;
+  }
+  .trophy-item {
+    display:flex; flex-direction:column; align-items:center;
+    padding:16px 12px; border-radius:14px;
+    background:linear-gradient(135deg, #fffbf0, #fff);
+    border:2px solid rgba(255,200,0,0.2);
+    position:relative; overflow:hidden;
+    transition:transform 0.2s;
+  }
+  .trophy-item:hover { transform:translateY(-2px); }
+  .trophy-avatar {
+    width:52px; height:52px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; background:#fff;
+    box-shadow:0 4px 0 rgba(0,0,0,0.08);
+    margin-bottom:8px;
+    filter:grayscale(0.2);
+  }
+  .trophy-name {
+    font-size:12px; font-weight:800; color:var(--text);
+    margin-bottom:2px; text-align:center;
+  }
+  .trophy-meta {
+    font-size:10px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:4px;
+  }
+  .trophy-meta .tm-ic { font-size:12px; }
+  .trophy-xp {
+    margin-top:6px;
+    background:var(--gold-light); color:#d4a800;
+    padding:2px 8px; border-radius:6px;
+    font-size:10px; font-weight:900;
+  }
+
+  /* ---- Combat log ---- */
+  .log-card { background:#fff; }
+  .log-list { display:flex; flex-direction:column; gap:6px; }
+  .log-item {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:10px;
+    background:#f8f8f8; font-size:12px; font-weight:700;
+  }
+  .log-item .li-dot {
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  }
+  .log-item .li-dot.hit { background:var(--green); }
+  .log-item .li-dot.miss { background:var(--red); }
+  .log-item .li-dot.kill { background:var(--gold); box-shadow:0 0 6px rgba(255,200,0,0.5); }
+  .log-item .li-text { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .log-item .li-time {
+    font-size:10px; font-weight:800; color:var(--text-faint);
+    flex-shrink:0;
+  }
+  .log-item .li-dmg {
+    font-size:11px; font-weight:900;
+    color:var(--red-dark); flex-shrink:0;
+  }
+  .log-item .li-dmg.crit { color:var(--orange-dark); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Topbar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">Boss战</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Boss Arena Hero ===== -->
+  <div class="boss-hero">
+    <div class="boss-hero-row">
+
+      <div class="boss-avatar-wrap">
+        <div class="boss-avatar-ring">
+          <div class="boss-avatar-inner">🐉</div>
+        </div>
+        <div class="boss-diff">HARD BOSS</div>
+      </div>
+
+      <div class="boss-hero-info">
+        <div class="bh-name">拼写巨龙 · spelling-DRAGON</div>
+        <div class="bh-title">错词本最强 Boss · 5 连对可击杀</div>
+
+        <div class="boss-hp-wrap">
+          <div class="boss-hp-label">⚔️ HP</div>
+          <div class="boss-hp-bar">
+            <div class="boss-hp-fill" style="width:60%;"></div>
+          </div>
+          <div class="boss-hp-num">60 <small>/ 100</small></div>
+        </div>
+
+        <div class="boss-hero-meta">
+          <div class="bh-meta-item"><span class="mi-ic">🗡️</span> 已命中 <b>40</b></div>
+          <div class="bh-meta-item"><span class="mi-ic">🛡️</span> 剩余 <b>60</b> HP</div>
+          <div class="bh-meta-item"><span class="mi-ic">⚡</span> 击杀奖励 <b style="color:#ffd700;">+80 XP</b></div>
+          <div class="bh-meta-item"><span class="mi-ic">🎯</span> 连对奖励 <b style="color:var(--orange);">×1.5</b></div>
+        </div>
+      </div>
+
+      <div class="boss-hero-cta">
+        <a href="#" class="combat-btn">
+          <span class="cb-ic">⚔️</span> 开始战斗！
+        </a>
+        <div class="combat-timer">
+          <span class="ct-ic">⏱️</span> 挑战限时 10 分钟
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Stats strip ===== -->
+  <div class="stats-strip">
+    <div class="ss-card">
+      <div class="ss-icon">⚔️</div>
+      <div class="ss-val red">12</div>
+      <div class="ss-lbl">总击杀</div>
+    </div>
+    <div class="ss-card">
+      <div class="ss-icon">🔥</div>
+      <div class="ss-val orange">7</div>
+      <div class="ss-lbl">最长连击</div>
+    </div>
+    <div class="ss-card">
+      <div class="ss-icon">🎯</div>
+      <div class="ss-val green">89%</div>
+      <div class="ss-lbl">命中率</div>
+    </div>
+    <div class="ss-card">
+      <div class="ss-icon">⚡</div>
+      <div class="ss-val gold">1,240</div>
+      <div class="ss-lbl">累计XP</div>
+    </div>
+    <div class="ss-card">
+      <div class="ss-icon">🏆</div>
+      <div class="ss-val purple">3/5</div>
+      <div class="ss-lbl">今日进度</div>
+    </div>
+  </div>
+
+  <!-- ===== Main grid ===== -->
+  <div class="main-grid">
+
+    <!-- ---- Left: Battle Arena ---- -->
+    <div class="arena-card">
+      <div class="arena-topline"></div>
+      <div class="arena-body">
+
+        <!-- Arena head -->
+        <div class="arena-head">
+          <div class="ah-left">
+            <span class="ah-icon">⚔️</span>
+            <div>
+              <b>战斗阶段</b>
+              <div class="ah-sub">拼写巨龙 · 第 3 回合</div>
+            </div>
+          </div>
+          <div class="ah-right">
+            <div class="ah-round">
+              回合 <b>3</b> / 5
+            </div>
+          </div>
+        </div>
+
+        <!-- Word challenge -->
+        <div class="word-challenge">
+          <div class="wc-label">📖 当前目标 · 听音拼写</div>
+          <div class="wc-word">extraordinary</div>
+          <div class="wc-hint">
+            <span class="wc-emoji">🎧</span>
+            播放发音 · 拼出正确单词
+          </div>
+        </div>
+
+        <!-- Answer input -->
+        <div class="answer-section">
+          <div class="answer-label">
+            <span class="al-text">✏️ 你的答案</span>
+            <span class="al-count">11 / 12 字母</span>
+          </div>
+          <div class="answer-input-wrap">
+            <input type="text" class="answer-input" value="extraordinary" placeholder="输入拼写...">
+            <button class="answer-submit">确认 ✕</button>
+          </div>
+          <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+            <span class="damage-popup">💥 -25</span>
+            <span style="font-size:12px; font-weight:700; color:var(--text-dim);">拼写错误！少了 'n'，注意 extraordinary 的正确拼写</span>
+          </div>
+        </div>
+
+        <!-- Combo meter -->
+        <div class="combo-meter">
+          <span class="combo-fire">🔥</span>
+          <div class="combo-body">
+            <div class="combo-label">COMBO · 连击奖励</div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="combo-chain">
+                <span class="combo-num">2</span>
+                <span class="combo-unit">连对</span>
+              </div>
+              <div class="combo-bar-wrap">
+                <div class="combo-fill" style="width:40%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="combo-xp">⚡ ×1.5</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ---- Right: Boss Roster ---- -->
+    <div class="sidebar">
+
+      <!-- Boss roster -->
+      <div class="card roster-card">
+        <div class="roster-header">
+          <div class="rh-left">
+            <span style="font-size:20px;">🏰</span>
+            <b>Boss 名录</b>
+          </div>
+          <span class="rh-count">3 / 5 剩余</span>
+        </div>
+
+        <div class="boss-list">
+          <!-- Boss 1 - Active (current) -->
+          <div class="boss-item active">
+            <div class="bi-avatar" style="background:linear-gradient(135deg, #ff4b4b, #ff7a7a);">🐉</div>
+            <div class="bi-info">
+              <div class="bi-name">
+                拼写巨龙 <span class="bi-diff hard">HARD</span>
+              </div>
+              <div class="bi-hp">
+                <div class="bi-hp-bar"><div class="bi-hp-fill red" style="width:60%;"></div></div>
+                <span class="bi-hp-num">60/100</span>
+              </div>
+            </div>
+            <span class="bi-xp-badge">+80</span>
+          </div>
+
+          <!-- Boss 2 -->
+          <div class="boss-item">
+            <div class="bi-avatar" style="background:linear-gradient(135deg, #ce82ff, #e0aaff);">🦇</div>
+            <div class="bi-info">
+              <div class="bi-name">
+                语法蝙蝠 <span class="bi-diff normal">NORMAL</span>
+              </div>
+              <div class="bi-hp">
+                <div class="bi-hp-bar"><div class="bi-hp-fill purple" style="width:100%;"></div></div>
+                <span class="bi-hp-num">100/100</span>
+              </div>
+            </div>
+            <span class="bi-xp-badge">+50</span>
+          </div>
+
+          <!-- Boss 3 -->
+          <div class="boss-item">
+            <div class="bi-avatar" style="background:linear-gradient(135deg, #1cb0f6, #4dd0ff);">🐙</div>
+            <div class="bi-info">
+              <div class="bi-name">
+                发音章鱼 <span class="bi-diff normal">NORMAL</span>
+              </div>
+              <div class="bi-hp">
+                <div class="bi-hp-bar"><div class="bi-hp-fill orange" style="width:100%;"></div></div>
+                <span class="bi-hp-num">100/100</span>
+              </div>
+            </div>
+            <span class="bi-xp-badge">+50</span>
+          </div>
+
+          <!-- Boss 4 - Defeated -->
+          <div class="boss-item defeated">
+            <div class="bi-avatar" style="background:linear-gradient(135deg, #58cc02, #7ae002);">🦊</div>
+            <div class="bi-info">
+              <div class="bi-name">
+                语法狐狸 <span class="bi-diff easy">EASY</span>
+              </div>
+              <div class="bi-hp">
+                <div class="bi-hp-bar"><div class="bi-hp-fill green" style="width:0%;"></div></div>
+                <span class="bi-hp-num">0/60</span>
+              </div>
+            </div>
+            <span class="bi-defeated-tag">✅ 已击杀</span>
+          </div>
+
+          <!-- Boss 5 - Defeated -->
+          <div class="boss-item defeated">
+            <div class="bi-avatar" style="background:linear-gradient(135deg, #ffc800, #ffd933);">🐝</div>
+            <div class="bi-info">
+              <div class="bi-name">
+                词根蜜蜂 <span class="bi-diff easy">EASY</span>
+              </div>
+              <div class="bi-hp">
+                <div class="bi-hp-bar"><div class="bi-hp-fill green" style="width:0%;"></div></div>
+                <span class="bi-hp-num">0/60</span>
+              </div>
+            </div>
+            <span class="bi-defeated-tag">✅ 已击杀</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Combat log -->
+      <div class="card log-card">
+        <div class="card-title" style="font-size:16px;">
+          <span class="card-icon" style="font-size:24px;">📜</span> 战斗记录
+        </div>
+        <div class="log-list">
+          <div class="log-item">
+            <div class="li-dot kill"></div>
+            <span class="li-text">🏆 击杀了 词根蜜蜂！</span>
+            <span class="li-time">2:34</span>
+            <span class="li-dmg" style="color:var(--gold);">+50XP</span>
+          </div>
+          <div class="log-item">
+            <div class="li-dot hit"></div>
+            <span class="li-text">命中 语法狐狸 -15</span>
+            <span class="li-time">2:12</span>
+            <span class="li-dmg">-15</span>
+          </div>
+          <div class="log-item">
+            <div class="li-dot miss"></div>
+            <span class="li-text">未命中 extraordinary</span>
+            <span class="li-time">1:48</span>
+            <span class="li-dmg" style="color:var(--text-faint);">0</span>
+          </div>
+          <div class="log-item">
+            <div class="li-dot hit"></div>
+            <span class="li-text">暴击 语法狐狸 -30！</span>
+            <span class="li-time">1:20</span>
+            <span class="li-dmg crit">-30 CRIT</span>
+          </div>
+          <div class="log-item">
+            <div class="li-dot kill"></div>
+            <span class="li-text">🏆 击杀了 语法狐狸！</span>
+            <span class="li-time">0:56</span>
+            <span class="li-dmg" style="color:var(--gold);">+60XP</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Defeated Gallery ===== -->
+  <div class="card gallery-card">
+    <div class="card-title" style="font-size:18px; justify-content:space-between;">
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span class="card-icon">🏆</span> 已击杀 Boss 画廊
+      </span>
+      <span style="font-size:13px; font-weight:700; color:var(--text-dim);">累计击杀 12 个 Boss · 获得 960 XP</span>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="trophy-item">
+        <div class="trophy-avatar">🦊</div>
+        <div class="trophy-name">语法狐狸</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 38秒击杀</div>
+        <div class="trophy-xp">+60 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🐝</div>
+        <div class="trophy-name">词根蜜蜂</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 52秒击杀</div>
+        <div class="trophy-xp">+50 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🦇</div>
+        <div class="trophy-name">语法蝙蝠</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 1分12秒</div>
+        <div class="trophy-xp">+50 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🐙</div>
+        <div class="trophy-name">发音章鱼</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 1分05秒</div>
+        <div class="trophy-xp">+50 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🐱</div>
+        <div class="trophy-name">拼写猫咪</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 28秒击杀</div>
+        <div class="trophy-xp">+40 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🐸</div>
+        <div class="trophy-name">语法青蛙</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 45秒击杀</div>
+        <div class="trophy-xp">+50 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🐺</div>
+        <div class="trophy-name">词根狼</div>
+        <div class="trophy-meta"><span class="tm-ic">⏱️</span> 1分20秒</div>
+        <div class="trophy-xp">+60 XP</div>
+      </div>
+      <div class="trophy-item">
+        <div class="trophy-avatar">🦊</div>
+        <div class="trophy-name">连击冠军</div>
+        <div class="trophy-meta"><span class="tm-ic">🔥</span> 7连击</div>
+        <div class="trophy-xp">+200 XP</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

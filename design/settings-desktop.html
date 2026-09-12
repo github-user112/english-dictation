@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设置 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============================================================
+     SettingsPage — 听力调音台（Listening Studio）
+     视觉灵魂：把设置做成一台「音频调音台」——深色控制台 + 动态
+     均衡器 + 波形，让"调音"这个动作本身成为页面主角。
+     ============================================================ */
+
+  /* ---- Page head ---- */
+  .page-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin:18px 4px 18px; gap:16px; flex-wrap:wrap;
+  }
+  .page-head h1 {
+    font-size:32px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;
+    display:flex; align-items:center; gap:10px;
+  }
+  .page-head h1 .emoji { font-size:34px; }
+  .page-head p { font-size:14px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+  .head-actions { display:flex; gap:8px; }
+
+  /* ============ STUDIO HERO (签名区) ============ */
+  .studio-hero {
+    background:linear-gradient(135deg, #0f2547 0%, #173a6b 45%, #1cb0f6 130%);
+    border-radius:22px; padding:26px 30px; color:#fff;
+    box-shadow:0 6px 0 #0a1a33, 0 14px 36px rgba(15,37,71,0.35);
+    position:relative; overflow:hidden; margin-bottom:20px;
+  }
+  .studio-hero::after {
+    content:''; position:absolute; top:-90px; right:-40px;
+    width:280px; height:280px; border-radius:50%;
+    background:rgba(28,176,246,0.14);
+  }
+  .studio-hero::before {
+    content:''; position:absolute; bottom:-100px; left:-50px;
+    width:240px; height:240px; border-radius:50%;
+    background:rgba(255,255,255,0.05);
+  }
+  /* subtle grid like a mixer surface */
+  .studio-hero .grid-bg {
+    position:absolute; inset:0; opacity:0.10; z-index:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+    background-size:44px 44px;
+  }
+  .sh-body {
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:150px 1fr 260px; gap:26px;
+    align-items:center;
+  }
+
+  /* --- equalizer --- */
+  .eq-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  .eq {
+    display:flex; align-items:flex-end; justify-content:center; gap:6px;
+    height:110px;
+  }
+  .eq span {
+    display:block; width:12px; border-radius:6px 6px 3px 3px;
+    background:linear-gradient(180deg, #ffe45c 0%, var(--orange) 60%, var(--orange-dark) 100%);
+    box-shadow:0 0 14px rgba(255,150,0,0.45);
+    animation:eq 1.05s ease-in-out infinite;
+  }
+  .eq span:nth-child(1){ height:46%; animation-delay:0s; }
+  .eq span:nth-child(2){ height:78%; animation-delay:0.12s; }
+  .eq span:nth-child(3){ height:100%; animation-delay:0.05s; }
+  .eq span:nth-child(4){ height:64%; animation-delay:0.20s; }
+  .eq span:nth-child(5){ height:88%; animation-delay:0.08s; }
+  .eq span:nth-child(6){ height:52%; animation-delay:0.16s; }
+  .eq span:nth-child(7){ height:70%; animation-delay:0.02s; }
+  @keyframes eq {
+    0%,100% { transform:scaleY(0.32); }
+    50%     { transform:scaleY(1); }
+  }
+  .eq-tag {
+    font-size:11px; font-weight:900; letter-spacing:2px; opacity:0.75;
+    background:rgba(255,255,255,0.12); padding:3px 10px; border-radius:8px;
+    backdrop-filter:blur(4px);
+  }
+
+  /* --- readout --- */
+  .sh-mid { min-width:0; }
+  .sh-title-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .sh-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.14); backdrop-filter:blur(4px);
+    padding:4px 12px; border-radius:10px; font-weight:900; font-size:11px;
+    letter-spacing:1.5px;
+  }
+  .sh-title { font-size:24px; font-weight:900; letter-spacing:-0.3px; }
+  .sh-voice {
+    display:flex; align-items:center; gap:14px; margin-bottom:14px;
+  }
+  .sh-voice-ic {
+    width:54px; height:54px; border-radius:16px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    display:flex; align-items:center; justify-content:center; font-size:28px;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .sh-voice-name { font-size:20px; font-weight:900; line-height:1.2; }
+  .sh-voice-meta { font-size:12px; font-weight:700; opacity:0.8; margin-top:2px; }
+  .sh-readout {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;
+  }
+  .rd {
+    background:rgba(255,255,255,0.10); backdrop-filter:blur(4px);
+    border-radius:12px; padding:9px 12px; text-align:center;
+  }
+  .rd .k { display:block; font-size:10px; font-weight:800; opacity:0.75; margin-bottom:2px; letter-spacing:0.5px; }
+  .rd .v { display:block; font-size:19px; font-weight:900; line-height:1.1; }
+
+  /* --- right side: waveform + preview --- */
+  .sh-right { display:flex; flex-direction:column; gap:12px; align-items:stretch; }
+  .sh-wave {
+    display:flex; align-items:center; justify-content:space-between; gap:2px;
+    height:56px; background:rgba(255,255,255,0.08); border-radius:14px;
+    padding:0 12px; backdrop-filter:blur(4px);
+  }
+  .sh-wave i {
+    display:block; width:3px; border-radius:2px;
+    background:linear-gradient(180deg, #fff, rgba(255,255,255,0.35));
+  }
+  .sh-demo-line {
+    font-size:12px; font-weight:700; opacity:0.85; line-height:1.4;
+    text-align:center; margin-bottom:2px;
+  }
+  .sh-demo-line b { font-family:'Nunito'; font-weight:900; opacity:1; }
+  .sh-preview {
+    width:100%; padding:14px; font-size:16px; letter-spacing:0.5px;
+  }
+
+  /* ============ TAB BAR ============ */
+  .tab-bar { display:flex; gap:8px; margin-bottom:20px; overflow-x:auto; }
+  .tab {
+    padding:11px 18px; border-radius:12px; font-weight:800; font-size:14px;
+    cursor:pointer; white-space:nowrap; text-decoration:none;
+    background:#e5e5e5; color:var(--text-dim); transition:all 0.2s;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .tab .t-ic { font-size:17px; }
+  .tab.active { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+
+  /* ============ GRID ============ */
+  .main-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+  .span-full { grid-column:1 / -1; }
+
+  .section-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; flex-wrap:wrap; }
+  .sc-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .sc-head .title .ic { font-size:26px; }
+  .sc-head .sub { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .sc-head .sub b { color:var(--green-dark); }
+
+  /* ============ VOICE GRID ============ */
+  .voice-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .voice-card {
+    position:relative; border:2px solid var(--border); border-radius:16px;
+    padding:14px; background:#fff; transition:all 0.15s;
+    display:flex; flex-direction:column; gap:9px;
+  }
+  .voice-card:hover { border-color:var(--blue); box-shadow:0 4px 14px rgba(28,176,246,0.16); }
+  .voice-card.selected {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12), 0 4px 0 rgba(88,204,2,0.18);
+  }
+  .vc-top { display:flex; align-items:center; gap:11px; }
+  .vc-avatar {
+    width:44px; height:44px; border-radius:13px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.10);
+  }
+  .vc-avatar.f { background:linear-gradient(135deg, #ff9de2, #ff6bbf); }
+  .vc-avatar.m { background:linear-gradient(135deg, #5ad0ff, #1cb0f6); }
+  .vc-id { flex:1; min-width:0; }
+  .vc-id b { display:block; font-size:15px; font-weight:900; }
+  .vc-id small { font-size:11px; font-weight:700; color:var(--text-dim); display:block; margin-top:1px; }
+  .vc-check {
+    width:24px; height:24px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff; font-size:13px; font-weight:900;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .vc-meta-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .vc-accent { font-size:12px; font-weight:800; color:var(--blue-dark); }
+  .vc-quality { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .vc-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:2px; }
+  .vc-tags { display:flex; gap:5px; flex-wrap:wrap; }
+  .vc-tags span {
+    font-size:10px; font-weight:800; padding:2px 8px; border-radius:8px;
+    background:#f0f0f0; color:var(--text-dim);
+  }
+  .vc-test { padding:7px 14px; font-size:12px; border-radius:10px; }
+  .vc-locked { font-size:11px; font-weight:800; color:var(--orange-dark); display:inline-flex; align-items:center; gap:4px; }
+
+  /* ============ RANGE SLIDER ============ */
+  .range-block { margin-bottom:16px; }
+  .range-block:last-child { margin-bottom:0; }
+  .range-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .range-top .rt-l { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; }
+  .range-top .rt-l .ic { font-size:18px; }
+  .range-top .rt-v {
+    font-size:15px; font-weight:900; color:var(--blue-dark);
+    background:var(--blue-light); padding:3px 12px; border-radius:10px;
+  }
+  .range {
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:10px; border-radius:10px; outline:none;
+    background:linear-gradient(90deg, var(--blue) 0%, var(--blue) var(--pct,50%), #e5e5e5 var(--pct,50%), #e5e5e5 100%);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.10);
+  }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:26px; height:26px; border-radius:50%;
+    background:#fff; border:3px solid var(--blue);
+    box-shadow:0 3px 0 var(--blue-dark), 0 3px 8px rgba(0,0,0,0.18);
+    cursor:pointer;
+  }
+  .range::-moz-range-thumb {
+    width:24px; height:24px; border-radius:50%;
+    background:#fff; border:3px solid var(--blue);
+    box-shadow:0 3px 0 var(--blue-dark); cursor:pointer;
+  }
+  .range.green {
+    background:linear-gradient(90deg, var(--green) 0%, var(--green) var(--pct,50%), #e5e5e5 var(--pct,50%), #e5e5e5 100%);
+  }
+  .range.green::-webkit-slider-thumb { border-color:var(--green); box-shadow:0 3px 0 var(--green-dark), 0 3px 8px rgba(0,0,0,0.18); }
+  .range.green::-moz-range-thumb { border-color:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .range-scale {
+    display:flex; justify-content:space-between; margin-top:7px;
+    font-size:10px; font-weight:800; color:var(--text-faint);
+  }
+
+  /* ---- speed presets ---- */
+  .speed-presets { display:flex; gap:8px; margin-top:12px; }
+  .sp-chip {
+    flex:1; padding:10px 6px; border-radius:12px; border:2px solid var(--border);
+    background:#fff; text-align:center; cursor:pointer; transition:all 0.15s;
+    font-family:inherit;
+  }
+  .sp-chip b { display:block; font-size:15px; font-weight:900; color:var(--text); }
+  .sp-chip small { font-size:10px; font-weight:800; color:var(--text-dim); }
+  .sp-chip:hover { border-color:var(--blue); }
+  .sp-chip.active {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 3px 0 rgba(88,204,2,0.20);
+  }
+  .sp-chip.active b { color:var(--green-dark); }
+
+  /* ---- demo sentence ---- */
+  .demo-box {
+    margin-top:16px; padding:14px 16px; border-radius:14px;
+    background:linear-gradient(135deg, var(--blue-light), #f0f9ff);
+    border:2px dashed rgba(28,176,246,0.35);
+    display:flex; align-items:center; gap:12px;
+  }
+  .demo-box .db-ic { font-size:24px; flex-shrink:0; }
+  .demo-box .db-txt { flex:1; min-width:0; }
+  .demo-box .db-txt small { display:block; font-size:10px; font-weight:900; letter-spacing:1px; color:var(--blue-dark); margin-bottom:2px; }
+  .demo-box .db-txt b { display:block; font-size:14px; font-weight:900; color:var(--text); line-height:1.3; }
+  .demo-box .db-play {
+    flex-shrink:0; width:44px; height:44px; border-radius:14px;
+    background:var(--blue); color:#fff; border:none; cursor:pointer;
+    font-size:18px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 var(--blue-dark); font-family:inherit;
+  }
+  .demo-box .db-play:active { box-shadow:0 1px 0 var(--blue-dark); transform:translateY(3px); }
+
+  /* ============ SETTING ROWS ============ */
+  .setting-list { display:flex; flex-direction:column; gap:10px; }
+  .setting-row {
+    display:flex; align-items:center; gap:13px;
+    padding:13px 15px; border-radius:14px; background:#f7f7f7;
+    transition:all 0.15s;
+  }
+  .setting-row:hover { background:#f0f0f0; }
+  .s-ic {
+    width:42px; height:42px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .s-ic.green { background:var(--green-light); }
+  .s-ic.blue  { background:var(--blue-light); }
+  .s-ic.orange{ background:var(--orange-light); }
+  .s-ic.purple{ background:var(--purple-light); }
+  .s-ic.gold  { background:var(--gold-light); }
+  .s-ic.red   { background:var(--red-light); }
+  .s-ic.gray  { background:#e8e8e8; }
+  .s-body { flex:1; min-width:0; }
+  .s-body b { display:block; font-size:14px; font-weight:800; margin-bottom:2px; }
+  .s-body small { font-size:12px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+
+  /* Toggle */
+  .toggle {
+    width:48px; height:28px; border-radius:14px; background:#ccc;
+    position:relative; cursor:pointer; flex-shrink:0; transition:background 0.2s;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle::after {
+    content:''; position:absolute; top:3px; left:3px;
+    width:22px; height:22px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:left 0.2s;
+  }
+  .toggle.on::after { left:23px; }
+  .s-val {
+    flex-shrink:0; font-size:12px; font-weight:900; color:var(--text-dim);
+    display:flex; align-items:center; gap:5px;
+  }
+  .s-val b { color:var(--green-dark); font-size:14px; }
+
+  /* chip picker (speed / pause options) */
+  .chip-group { display:flex; gap:7px; }
+  .chip {
+    padding:7px 12px; border-radius:11px; border:2px solid var(--border);
+    background:#fff; font-size:12px; font-weight:800; color:var(--text-dim);
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .chip.active { border-color:var(--green); background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+
+  /* ============ THEME CARDS ============ */
+  .theme-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:18px; }
+  .theme-card {
+    border:2px solid var(--border); border-radius:16px; padding:14px;
+    background:#fff; cursor:pointer; transition:all 0.15s;
+  }
+  .theme-card:hover { border-color:var(--purple); }
+  .theme-card.active {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12);
+  }
+  .tc-preview {
+    height:74px; border-radius:12px; margin-bottom:10px; overflow:hidden;
+    position:relative; display:flex; flex-direction:column; justify-content:flex-end;
+    padding:9px 10px; gap:4px;
+  }
+  .tc-preview .ln { height:5px; border-radius:3px; }
+  .tc-preview.light  { background:#f7f7f7; border:1px solid #e5e5e5; }
+  .tc-preview.light .ln { background:#d5d5d5; }
+  .tc-preview.light .ln.g { background:var(--green); }
+  .tc-preview.dark   { background:#14181f; }
+  .tc-preview.dark .ln  { background:#2c3340; }
+  .tc-preview.dark .ln.g{ background:var(--green); }
+  .tc-preview.auto   {
+    background:linear-gradient(100deg, #f7f7f7 0%, #f7f7f7 48%, #14181f 52%, #14181f 100%);
+  }
+  .tc-preview.auto .ln { background:#d5d5d5; }
+  .tc-preview.auto .ln.g { background:var(--green); }
+  .tc-name-row { display:flex; align-items:center; justify-content:space-between; }
+  .tc-name-row b { font-size:14px; font-weight:900; }
+  .tc-check {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff; font-size:12px; font-weight:900;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tc-desc { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* ============ KEYBOARD TABLE ============ */
+  .kbd-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kbd-row {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:11px 14px; border-radius:12px; background:#f7f7f7;
+  }
+  .kbd-row .kd { font-size:13px; font-weight:800; }
+  .kbd-row .kd small { display:block; font-size:11px; color:var(--text-dim); font-weight:600; margin-top:1px; }
+  .kbd-keys { display:flex; gap:5px; flex-shrink:0; }
+  .kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:30px; height:28px; padding:0 8px; border-radius:8px;
+    background:#fff; border:1px solid var(--border);
+    box-shadow:0 2px 0 var(--border-strong);
+    font-size:12px; font-weight:900; color:var(--text);
+    font-family:'Nunito', monospace;
+  }
+
+  /* ============ REMINDER SCHEDULER ============ */
+  .sched-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .time-dial {
+    background:linear-gradient(135deg, var(--orange-light), #fff3dd);
+    border-radius:16px; padding:18px; text-align:center;
+    border:2px solid rgba(255,150,0,0.3);
+  }
+  .time-dial .td-ic { font-size:34px; }
+  .time-dial .td-time {
+    font-size:40px; font-weight:900; color:var(--orange-dark);
+    letter-spacing:1px; line-height:1; margin:8px 0 4px;
+  }
+  .time-dial .td-lbl { font-size:12px; font-weight:800; color:var(--orange-dark); margin-bottom:12px; }
+  .time-dial .chip-group { justify-content:center; }
+
+  /* ============ DEVICE / MISC ROWS ============ */
+  .mini-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+
+  /* ============ FOOTER ============ */
+  .foot { text-align:center; margin-top:18px; font-size:12px; color:var(--text-faint); font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div style="font-weight:900; font-size:16px; color:var(--text);">设置</div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+      <div class="stat-item level">
+        <span class="icon">🎯</span>
+        <span>Lv.11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">🎛️</span> 听力调音台</h1>
+      <p>调好发音人、语速与音量，让每一次听打都听在最舒服的节奏上</p>
+    </div>
+    <div class="head-actions">
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">↺ 恢复默认</a>
+      <a href="#" class="btn btn-primary btn-sm" style="text-decoration:none;">💾 保存更改</a>
+    </div>
+  </div>
+
+  <!-- ============ STUDIO HERO ============ -->
+  <div class="studio-hero">
+    <div class="grid-bg"></div>
+    <div class="sh-body">
+
+      <!-- equalizer -->
+      <div class="eq-wrap">
+        <div class="eq">
+          <span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+        </div>
+        <div class="eq-tag">NOW MIXING</div>
+      </div>
+
+      <!-- readout -->
+      <div class="sh-mid">
+        <div class="sh-title-row">
+          <span class="sh-badge">🎛️ STUDIO</span>
+          <span class="sh-title">当前播放配置</span>
+        </div>
+        <div class="sh-voice">
+          <div class="sh-voice-ic">🎙️</div>
+          <div>
+            <div class="sh-voice-name">Aria · 美式女声</div>
+            <div class="sh-voice-meta">en-US-AriaNeural · 自然清晰 · 2400 Hz</div>
+          </div>
+        </div>
+        <div class="sh-readout">
+          <div class="rd"><span class="k">语速</span><span class="v">1.0×</span></div>
+          <div class="rd"><span class="k">音量</span><span class="v">80%</span></div>
+          <div class="rd"><span class="k">重复</span><span class="v">2 次</span></div>
+          <div class="rd"><span class="k">间隔</span><span class="v">3 秒</span></div>
+        </div>
+      </div>
+
+      <!-- waveform + preview -->
+      <div class="sh-right">
+        <div class="sh-wave">
+          <i style="height:32%"></i><i style="height:58%"></i><i style="height:44%"></i>
+          <i style="height:86%"></i><i style="height:66%"></i><i style="height:96%"></i>
+          <i style="height:50%"></i><i style="height:74%"></i><i style="height:38%"></i>
+          <i style="height:82%"></i><i style="height:60%"></i><i style="height:42%"></i>
+          <i style="height:70%"></i><i style="height:90%"></i><i style="height:48%"></i>
+          <i style="height:64%"></i><i style="height:88%"></i><i style="height:36%"></i>
+        </div>
+        <div class="sh-demo-line">🎧 试听：<b>The quick brown fox jumps over the lazy dog.</b></div>
+        <button class="btn btn-white btn-big sh-preview">▶ 试听效果</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ TAB BAR ============ -->
+  <div class="tab-bar">
+    <a href="#" class="tab active"><span class="t-ic">🎙️</span> 语音发音</a>
+    <a href="#" class="tab"><span class="t-ic">⏱️</span> 播放节奏</a>
+    <a href="#" class="tab"><span class="t-ic">🔊</span> 声音反馈</a>
+    <a href="#" class="tab"><span class="t-ic">🎨</span> 界面外观</a>
+    <a href="#" class="tab"><span class="t-ic">🔔</span> 提醒通知</a>
+    <a href="#" class="tab"><span class="t-ic">⌨️</span> 高级选项</a>
+  </div>
+
+  <!-- ============ VOICE + SPEED ============ -->
+  <div class="main-grid">
+
+    <!-- Voice selection -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🎙️</span> 选择发音人</div>
+        <div class="sub">共 <b>4</b> 位可用 · 当前 <b>Aria</b></div>
+      </div>
+      <div class="voice-grid">
+
+        <div class="voice-card selected">
+          <div class="vc-top">
+            <div class="vc-avatar f">👩</div>
+            <div class="vc-id">
+              <b>Aria</b>
+              <small>en-US-AriaNeural</small>
+            </div>
+            <div class="vc-check">✓</div>
+          </div>
+          <div class="vc-meta-row">
+            <span class="vc-accent">🇺🇸 美式 · 女声</span>
+            <span class="vc-quality">⭐ 高分辨率</span>
+          </div>
+          <div class="vc-foot">
+            <div class="vc-tags"><span>自然</span><span>清晰</span><span>推荐</span></div>
+            <button class="btn btn-white vc-test">▶ 试听</button>
+          </div>
+        </div>
+
+        <div class="voice-card">
+          <div class="vc-top">
+            <div class="vc-avatar f">👩‍🦰</div>
+            <div class="vc-id">
+              <b>Sonia</b>
+              <small>en-GB-SoniaNeural</small>
+            </div>
+          </div>
+          <div class="vc-meta-row">
+            <span class="vc-accent">🇬🇧 英式 · 女声</span>
+            <span class="vc-quality">高分辨率</span>
+          </div>
+          <div class="vc-foot">
+            <div class="vc-tags"><span>优雅</span><span>标准</span></div>
+            <button class="btn btn-white vc-test">▶ 试听</button>
+          </div>
+        </div>
+
+        <div class="voice-card">
+          <div class="vc-top">
+            <div class="vc-avatar m">👨</div>
+            <div class="vc-id">
+              <b>Guy</b>
+              <small>en-US-GuyNeural</small>
+            </div>
+          </div>
+          <div class="vc-meta-row">
+            <span class="vc-accent">🇺🇸 美式 · 男声</span>
+            <span class="vc-quality">高分辨率</span>
+          </div>
+          <div class="vc-foot">
+            <div class="vc-tags"><span>沉稳</span><span>低沉</span></div>
+            <button class="btn btn-white vc-test">▶ 试听</button>
+          </div>
+        </div>
+
+        <div class="voice-card">
+          <div class="vc-top">
+            <div class="vc-avatar m">🧑‍💼</div>
+            <div class="vc-id">
+              <b>Ryan</b>
+              <small>en-GB-RyanNeural</small>
+            </div>
+          </div>
+          <div class="vc-meta-row">
+            <span class="vc-accent">🇬🇧 英式 · 男声</span>
+            <span class="vc-quality">高分辨率</span>
+          </div>
+          <div class="vc-foot">
+            <div class="vc-tags"><span>新闻播报</span></div>
+            <button class="btn btn-white vc-test">▶ 试听</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Speed -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">⏩</span> 语速调节</div>
+        <div class="sub">0.5× — 2.0×</div>
+      </div>
+
+      <div class="range-block">
+        <div class="range-top">
+          <div class="rt-l"><span class="ic">🎚️</span> 播放速率</div>
+          <div class="rt-v">1.0× 正常</div>
+        </div>
+        <input type="range" class="range" min="0" max="15" value="7" style="--pct:53%;">
+        <div class="range-scale">
+          <span>0.5× 慢速</span><span>0.75×</span><span>1.0× 正常</span><span>1.5×</span><span>2.0× 快速</span>
+        </div>
+        <div class="speed-presets">
+          <button class="sp-chip"><b>0.75×</b><small>慢速</small></button>
+          <button class="sp-chip active"><b>1.0×</b><small>正常</small></button>
+          <button class="sp-chip"><b>1.25×</b><small>较快</small></button>
+          <button class="sp-chip"><b>1.5×</b><small>快速</small></button>
+        </div>
+      </div>
+
+      <div class="demo-box">
+        <span class="db-ic">🎧</span>
+        <div class="db-txt">
+          <small>PREVIEW · 按当前语速试听</small>
+          <b>Practice makes perfect. Keep going!</b>
+        </div>
+        <button class="db-play">▶</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ VOLUME + PLAYBACK ============ -->
+  <div class="main-grid">
+
+    <!-- Volume -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🔊</span> 音量控制</div>
+        <div class="sub">系统输出</div>
+      </div>
+
+      <div class="range-block">
+        <div class="range-top">
+          <div class="rt-l"><span class="ic">🔊</span> 播放音量</div>
+          <div class="rt-v" style="color:var(--green-dark); background:var(--green-light);">80%</div>
+        </div>
+        <input type="range" class="range green" min="0" max="100" value="80" style="--pct:80%;">
+        <div class="range-scale">
+          <span>🔇 静音</span><span>25%</span><span>50%</span><span>75%</span><span>🔊 100%</span>
+        </div>
+      </div>
+
+      <div class="demo-box">
+        <span class="db-ic">📢</span>
+        <div class="db-txt">
+          <small>声音测试 · 确认设备</small>
+          <b>If you can hear this, everything is working.</b>
+        </div>
+        <button class="db-play">🔊</button>
+      </div>
+
+      <div class="mini-stats">
+        <div class="stat-box">
+          <div class="val green" style="font-size:22px;">🎧</div>
+          <div class="lbl">AirPods Pro 2</div>
+        </div>
+        <div class="stat-box">
+          <div class="val blue" style="font-size:22px;">🎚️</div>
+          <div class="lbl">采样率 2400 Hz</div>
+        </div>
+        <div class="stat-box">
+          <div class="val orange" style="font-size:22px;">⚡</div>
+          <div class="lbl">延迟 42 ms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playback rhythm -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">⏱️</span> 播放节奏</div>
+        <div class="sub">听打/听写通用</div>
+      </div>
+
+      <div class="setting-list">
+        <div class="setting-row">
+          <div class="s-ic blue">🔁</div>
+          <div class="s-body">
+            <b>自动重复次数</b>
+            <small>播放结束后重复播放的次数</small>
+          </div>
+          <div class="s-val"><b>2 次</b></div>
+        </div>
+        <div class="setting-row">
+          <div class="s-ic green">⏸️</div>
+          <div class="s-body">
+            <b>播放间隔</b>
+            <small>相邻单词之间的停顿时长</small>
+          </div>
+          <div class="s-val"><b>3 秒</b></div>
+        </div>
+        <div class="setting-row">
+          <div class="s-ic orange">▶️</div>
+          <div class="s-body">
+            <b>自动播放下一个</b>
+            <small>判定后无需手动点击</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="setting-row">
+          <div class="s-ic purple">📖</div>
+          <div class="s-body">
+            <b>逐词播放</b>
+            <small>句子听写时按单词逐个播报</small>
+          </div>
+          <div class="toggle"></div>
+        </div>
+        <div class="setting-row">
+          <div class="s-ic red">📣</div>
+          <div class="s-body">
+            <b>错题强化朗读</b>
+            <small>答错的词以慢速重复 3 遍</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="setting-row">
+          <div class="s-ic gold">🔢</div>
+          <div class="s-body">
+            <b>跟读时长</b>
+            <small>跟读模式允许的最大录制时间</small>
+          </div>
+          <div class="s-val"><b>15 秒</b></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ SOUND FEEDBACK ============ -->
+  <div class="section-card" style="margin-bottom:18px;">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🎵</span> 声音反馈</div>
+      <div class="sub">让反馈音效更贴合你的学习节奏</div>
+    </div>
+    <div class="setting-list">
+      <div class="setting-row">
+        <div class="s-ic green">✅</div>
+        <div class="s-body">
+          <b>答对音效</b>
+          <small>清脆上行铃声 · 每次判对时播放</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic red">❌</div>
+        <div class="s-body">
+          <b>答错音效</b>
+          <small>低沉提示音 · 引导你立即复查</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic orange">🔥</div>
+        <div class="s-body">
+          <b>连击音效</b>
+          <small>连续答对 5 题以上时升高音调</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic purple">🏆</div>
+        <div class="s-body">
+          <b>成就音效</b>
+          <small>解锁徽章、升级时播放庆祝音乐</small>
+        </div>
+        <div class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic blue">📳</div>
+        <div class="s-body">
+          <b>触感反馈</b>
+          <small>移动端振动 · 判分瞬间轻震一下</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ APPEARANCE + REMINDERS ============ -->
+  <div class="main-grid">
+
+    <!-- Appearance -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🎨</span> 界面外观</div>
+        <div class="sub">主题与字号</div>
+      </div>
+
+      <div class="theme-grid">
+        <div class="theme-card active">
+          <div class="tc-preview light">
+            <div class="ln g" style="width:56%"></div>
+            <div class="ln" style="width:78%"></div>
+            <div class="ln" style="width:40%"></div>
+          </div>
+          <div class="tc-name-row">
+            <b>☀️ 浅色</b>
+            <span class="tc-check">✓</span>
+          </div>
+          <div class="tc-desc">明亮清爽，白天学习首选</div>
+        </div>
+        <div class="theme-card">
+          <div class="tc-preview dark">
+            <div class="ln g" style="width:56%"></div>
+            <div class="ln" style="width:78%"></div>
+            <div class="ln" style="width:40%"></div>
+          </div>
+          <div class="tc-name-row"><b>🌙 深色</b></div>
+          <div class="tc-desc">夜间护眼，减少屏幕刺激</div>
+        </div>
+        <div class="theme-card">
+          <div class="tc-preview auto">
+            <div class="ln g" style="width:56%"></div>
+            <div class="ln" style="width:78%"></div>
+            <div class="ln" style="width:40%"></div>
+          </div>
+          <div class="tc-name-row"><b>🌗 跟随系统</b></div>
+          <div class="tc-desc">自动切换，无需手动设置</div>
+        </div>
+      </div>
+
+      <div class="range-block">
+        <div class="range-top">
+          <div class="rt-l"><span class="ic">🔍</span> 界面字号</div>
+          <div class="rt-v" style="color:var(--purple-dark); background:var(--purple-light);">中</div>
+        </div>
+        <input type="range" class="range" min="0" max="3" value="1" style="--pct:33%; background:linear-gradient(90deg, var(--purple) 0%, var(--purple) 33%, #e5e5e5 33%, #e5e5e5 100%);">
+        <div class="range-scale">
+          <span>小</span><span>中</span><span>大</span><span>超大</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reminders -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🔔</span> 提醒与通知</div>
+        <div class="sub">不错过每一次打卡</div>
+      </div>
+
+      <div class="sched-grid">
+        <div class="time-dial">
+          <div class="td-ic">⏰</div>
+          <div class="td-time">20:00</div>
+          <div class="td-lbl">每日学习提醒</div>
+          <div class="chip-group">
+            <button class="chip">08:00</button>
+            <button class="chip active">20:00</button>
+            <button class="chip">22:00</button>
+          </div>
+        </div>
+        <div class="setting-list" style="gap:9px;">
+          <div class="setting-row" style="padding:11px 13px;">
+            <div class="s-ic orange" style="width:38px; height:38px; font-size:18px;">🔥</div>
+            <div class="s-body">
+              <b style="font-size:13px;">连续打卡提醒</b>
+              <small style="font-size:11px;">中断风险时提醒</small>
+            </div>
+            <div class="toggle on"></div>
+          </div>
+          <div class="setting-row" style="padding:11px 13px;">
+            <div class="s-ic blue" style="width:38px; height:38px; font-size:18px;">📊</div>
+            <div class="s-body">
+              <b style="font-size:13px;">每周学习报告</b>
+              <small style="font-size:11px;">周一 09:00 推送</small>
+            </div>
+            <div class="toggle on"></div>
+          </div>
+          <div class="setting-row" style="padding:11px 13px;">
+            <div class="s-ic purple" style="width:38px; height:38px; font-size:18px;">🎯</div>
+            <div class="s-body">
+              <b style="font-size:13px;">学习计划提醒</b>
+              <small style="font-size:11px;">每日配额完成前提示</small>
+            </div>
+            <div class="toggle"></div>
+          </div>
+          <div class="setting-row" style="padding:11px 13px;">
+            <div class="s-ic red" style="width:38px; height:38px; font-size:18px;">🤫</div>
+            <div class="s-body">
+              <b style="font-size:13px;">免打扰时段</b>
+              <small style="font-size:11px;">23:00 — 08:00</small>
+            </div>
+            <div class="toggle on"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ ADVANCED ============ -->
+  <div class="section-card" style="margin-bottom:18px;">
+    <div class="sc-head">
+      <div class="title"><span class="ic">⌨️</span> 高级选项</div>
+      <div class="sub">键盘快捷键 · 语言 · 数据</div>
+    </div>
+
+    <div class="kbd-wrap">
+      <div class="kbd-row">
+        <div class="kd">播放 / 暂停<small>空格键切换</small></div>
+        <div class="kbd-keys"><span class="kbd">Space</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">重播当前<small>从头再听一遍</small></div>
+        <div class="kbd-keys"><span class="kbd">R</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">下一个<small>跳过当前词/句</small></div>
+        <div class="kbd-keys"><span class="kbd">N</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">上一个<small>回到前一个词</small></div>
+        <div class="kbd-keys"><span class="kbd">P</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">切换语速<small>0.75× / 1× / 1.25×</small></div>
+        <div class="kbd-keys"><span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">隐藏译文<small>专注听力，不显示原文</small></div>
+        <div class="kbd-keys"><span class="kbd">H</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">提交答案<small>听打完成后确认</small></div>
+        <div class="kbd-keys"><span class="kbd">Enter</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">返回上一级<small>退出当前练习</small></div>
+        <div class="kbd-keys"><span class="kbd">Esc</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BOTTOM ACTIONS ============ -->
+  <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:10px; font-size:13px; font-weight:800; color:var(--text-dim);">
+      <span style="font-size:20px;">💡</span>
+      所有更改将立即生效并同步到你的其他设备
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-white">↺ 恢复默认设置</button>
+      <button class="btn btn-primary btn-big">💾 保存全部更改</button>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">
+    <p>英语听打 · 设置 v1.0 · TTS 由 edge-tts 提供 · 发音人 4 位 · 语速 0.5×—2.0×</p>
+  </div>
+
+</div>
+
+</body>
+</html>

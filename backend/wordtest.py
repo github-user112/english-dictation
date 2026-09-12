@@ -22,6 +22,7 @@ from .auth import get_user, resp
 from .catalog import now
 from .db import db
 from .materials import load_material, audio_url
+from .misc import local_today
 
 bp = Blueprint("wordtest", __name__)
 
@@ -109,7 +110,7 @@ def _pick_question(level, used_ids):
 
     # 种子含 level + used_ids 排序后字符串：同一天同一状态出同一题，
     # 仅供调试复现，正确性不依赖它（当前题存在会话行里，不靠复算）
-    seed = f"wt|{date.today().isoformat()}|{level}|{sorted(used_ids)}"
+    seed = f"wt|{local_today().isoformat()}|{level}|{sorted(used_ids)}"
     rng = random.Random(seed)
     correct = rng.choice(candidates)
     used_ids.add(correct["id"])
@@ -158,7 +159,7 @@ def _public(q):
 def api_wordtest_start():
     """开局：服务端建会话，客户端只拿 session_id 与题面。"""
     user = get_user()
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     with db(immediate=True) as conn:   # 计数-判-写须原子：并发开局不能双双绕过日限
         started = conn.execute(
             "SELECT COUNT(*) c FROM wordtest_session "

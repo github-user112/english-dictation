@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #f0fdf4 0%, #f7f7f7 50%);
+    padding: 0;
+  }
+
+  /* ===== Top Hero Banner ===== */
+  .login-hero {
+    background: linear-gradient(160deg, #58cc02 0%, #46a302 60%, #3a8c02 100%);
+    padding: 36px 20px 32px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+  .login-hero::after {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -30px;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .login-hero::before {
+    content: '';
+    position: absolute;
+    bottom: -50px;
+    left: -20px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .lh-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 900;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .lh-brand .owl {
+    font-size: 28px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    animation: owl-bob 3s ease-in-out infinite;
+  }
+  .lh-headline {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+  }
+  .lh-sub {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.9;
+    line-height: 1.5;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== Main Content Card ===== */
+  .login-main {
+    flex: 1;
+    padding: 20px;
+    margin-top: -20px;
+    position: relative;
+    z-index: 1;
+  }
+  .login-card {
+    background: #fff;
+    border-radius: 22px;
+    padding: 24px 20px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08);
+  }
+  .lc-header {
+    margin-bottom: 20px;
+  }
+  .lc-header h2 {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+  .lc-header p {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .lc-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .lc-tab {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid var(--border);
+    background: #fff;
+    color: var(--text-dim);
+  }
+  .lc-tab.active {
+    background: var(--green);
+    color: #fff;
+    border-color: var(--green);
+    box-shadow: 0 3px 0 var(--green-dark);
+  }
+  .lc-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .lc-field {
+    position: relative;
+  }
+  .lc-field .field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    opacity: 0.5;
+  }
+  .lc-field input {
+    width: 100%;
+    padding: 14px 14px 14px 44px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .lc-field input:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(88,204,2,0.1);
+  }
+  .lc-field input::placeholder {
+    color: var(--text-faint);
+  }
+  .lc-submit {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 900;
+    font-size: 16px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 var(--green-dark);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: transform 0.1s;
+    margin-top: 4px;
+  }
+  .lc-submit:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 var(--green-dark);
+  }
+  .lc-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--text-faint);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .lc-divider::before,
+  .lc-divider::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+  }
+  .lc-alternatives {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .lc-alt-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 13px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .lc-alt-btn:hover {
+    border-color: var(--green);
+    background: var(--green-bg);
+  }
+  .lc-alt-btn .alt-icon {
+    font-size: 18px;
+  }
+  .lc-footnote {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .lc-footnote a {
+    color: var(--green);
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .lc-footnote a:hover {
+    text-decoration: underline;
+  }
+
+  /* ===== Feature Pills ===== */
+  .feature-pills {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .fp-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .fp-pill .fp-icon {
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="login-page">
+
+  <!-- Top Hero Banner -->
+  <div class="login-hero">
+    <div class="lh-brand">
+      <span class="owl">🦉</span>
+      英语听打
+    </div>
+    <h1 class="lh-headline">免费学英文<br>每天进步一点</h1>
+    <p class="lh-sub">游戏化方式提升英语听力和拼写能力</p>
+  </div>
+
+  <!-- Main Content -->
+  <div class="login-main">
+    <div class="login-card">
+      <div class="lc-header">
+        <h2>欢迎回来 👋</h2>
+        <p>登录你的账号，继续学习之旅</p>
+      </div>
+
+      <div class="lc-tabs">
+        <div class="lc-tab active">登录</div>
+        <div class="lc-tab">注册</div>
+      </div>
+
+      <div class="lc-form">
+        <div class="lc-field">
+          <span class="field-icon">📧</span>
+          <input type="email" placeholder="邮箱地址">
+        </div>
+        <div class="lc-field">
+          <span class="field-icon">🔒</span>
+          <input type="password" placeholder="密码">
+        </div>
+      </div>
+
+      <a class="lc-submit" href="#">登 录</a>
+
+      <div class="lc-divider">
+        或
+      </div>
+
+      <div class="lc-alternatives">
+        <a class="lc-alt-btn" href="#">
+          <span class="alt-icon">📱</span>
+          手机验证码
+        </a>
+        <a class="lc-alt-btn" href="#">
+          <span class="alt-icon">🌐</span>
+          游客模式
+        </a>
+      </div>
+
+      <p class="lc-footnote">
+        还没有账号？<a href="#">立即注册</a> · 忘记密码？<a href="#">找回密码</a>
+      </p>
+
+      <div class="feature-pills">
+        <div class="fp-pill"><span class="fp-icon">🎯</span> 今日五环任务</div>
+        <div class="fp-pill"><span class="fp-icon">🔥</span> 连续打卡</div>
+        <div class="fp-pill"><span class="fp-icon">🏆</span> 排行榜PK</div>
+        <div class="fp-pill"><span class="fp-icon">📊</span> 学习报告</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

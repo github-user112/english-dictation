@@ -68,16 +68,16 @@ describe("ArrangePage", () => {
     await flushPromises();
     await play(wrapper);
 
-    // 故意拼错：test This is a
-    for (const w of ["test", "This", "is", "a"]) await chunkByText(wrapper, w).trigger("click");
-    expect(wrapper.findAll(".slot-line .chunk")).toHaveLength(4);
-    // 点答案区取回第二块（This）再点回去：顺序变为 test is a This，仍是错的
-    await wrapper.findAll(".slot-line .chunk")[1].trigger("click");
+    // 故意拼错：未满时可取回重排；第四块放满即自动判对错，无需点提交
+    for (const w of ["test", "This", "is"]) await chunkByText(wrapper, w).trigger("click");
     expect(wrapper.findAll(".slot-line .chunk")).toHaveLength(3);
-    await chunkByText(wrapper, "This").trigger("click");
-    expect(wrapper.findAll(".slot-line .chunk")).toHaveLength(4);
+    await wrapper.findAll(".slot-line .chunk")[1].trigger("click");   // 取回 This
+    expect(wrapper.findAll(".slot-line .chunk")).toHaveLength(2);
+    await chunkByText(wrapper, "This").trigger("click");              // 放回：test is This
+    expect(wrapper.findAll(".slot-line .chunk")).toHaveLength(3);
+    expect(answers).toHaveLength(0);                                  // 未满不判
 
-    await wrapper.find("button[aria-label='提交这句']").trigger("click");
+    await chunkByText(wrapper, "a").trigger("click");                 // 放满 → 自动提交
     await flushPromises();
     expect(answers).toHaveLength(1);
     expect(wrapper.text()).toContain("正确语序");

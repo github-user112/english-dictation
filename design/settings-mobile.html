@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设置 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============================================================
+     SettingsPage (mobile) — 听力调音台
+     单列堆叠 · 大触控目标 · 底部导航
+     ============================================================ */
+
+  /* ---- Top bar simplified ---- */
+  .topbar { padding:10px 14px; }
+  .topbar-brand { font-size:17px; gap:8px; }
+  .topbar-brand .owl { font-size:22px; }
+  .topbar-stats { gap:12px; }
+  .stat-item { font-size:14px; }
+  .stat-item .icon { font-size:16px; }
+
+  /* ---- Page head ---- */
+  .page-head {
+    margin:14px 4px 12px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:8px;
+  }
+  .page-head h1 {
+    font-size:22px; font-weight:900; letter-spacing:-0.5px;
+    display:flex; align-items:center; gap:7px; line-height:1.1;
+  }
+  .page-head h1 .emoji { font-size:24px; }
+  .page-head p { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; line-height:1.4; }
+  .page-head-actions { display:flex; gap:6px; flex-shrink:0; }
+  .page-head-actions .btn-sm { padding:8px 11px; font-size:11px; border-radius:10px; }
+
+  /* ============ STUDIO HERO (mobile) ============ */
+  .studio-hero {
+    background:linear-gradient(135deg, #0f2547 0%, #173a6b 45%, #1cb0f6 130%);
+    border-radius:18px; padding:18px 16px; color:#fff;
+    box-shadow:0 5px 0 #0a1a33, 0 10px 26px rgba(15,37,71,0.32);
+    position:relative; overflow:hidden; margin-bottom:14px;
+  }
+  .studio-hero::after {
+    content:''; position:absolute; top:-60px; right:-25px;
+    width:170px; height:170px; border-radius:50%;
+    background:rgba(28,176,246,0.14);
+  }
+  .studio-hero::before {
+    content:''; position:absolute; bottom:-70px; left:-30px;
+    width:150px; height:150px; border-radius:50%;
+    background:rgba(255,255,255,0.05);
+  }
+  .grid-bg {
+    position:absolute; inset:0; opacity:0.10; z-index:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+    background-size:36px 36px;
+  }
+  .sh-body { position:relative; z-index:1; }
+
+  /* --- eq row --- */
+  .eq-row {
+    display:flex; align-items:center; gap:12px; margin-bottom:14px;
+  }
+  .eq {
+    display:flex; align-items:flex-end; justify-content:center; gap:4px;
+    height:52px; flex-shrink:0;
+  }
+  .eq span {
+    display:block; width:7px; border-radius:4px 4px 2px 2px;
+    background:linear-gradient(180deg, #ffe45c 0%, var(--orange) 60%, var(--orange-dark) 100%);
+    box-shadow:0 0 10px rgba(255,150,0,0.45);
+    animation:eq 1.05s ease-in-out infinite;
+  }
+  .eq span:nth-child(1){ height:46%; animation-delay:0s; }
+  .eq span:nth-child(2){ height:78%; animation-delay:0.12s; }
+  .eq span:nth-child(3){ height:100%; animation-delay:0.05s; }
+  .eq span:nth-child(4){ height:64%; animation-delay:0.20s; }
+  .eq span:nth-child(5){ height:88%; animation-delay:0.08s; }
+  .eq span:nth-child(6){ height:52%; animation-delay:0.16s; }
+  .eq span:nth-child(7){ height:70%; animation-delay:0.02s; }
+  @keyframes eq {
+    0%,100% { transform:scaleY(0.32); }
+    50%     { transform:scaleY(1); }
+  }
+  .eq-side { flex:1; min-width:0; }
+  .eq-tag {
+    font-size:9px; font-weight:900; letter-spacing:1.5px; opacity:0.75;
+    background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:7px;
+    display:inline-block; margin-bottom:5px;
+  }
+  .eq-voice { display:flex; align-items:center; gap:8px; }
+  .eq-voice-ic {
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+  .eq-voice-name { font-size:14px; font-weight:900; line-height:1.2; }
+  .eq-voice-meta { font-size:10px; font-weight:700; opacity:0.8; margin-top:1px; }
+
+  /* --- readout grid --- */
+  .sh-readout {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:7px;
+    margin-bottom:12px;
+  }
+  .rd {
+    background:rgba(255,255,255,0.10); backdrop-filter:blur(4px);
+    border-radius:11px; padding:8px 6px; text-align:center;
+  }
+  .rd .k { display:block; font-size:9px; font-weight:800; opacity:0.75; margin-bottom:2px; letter-spacing:0.5px; }
+  .rd .v { display:block; font-size:16px; font-weight:900; line-height:1.1; }
+
+  /* --- demo + preview --- */
+  .sh-demo-line {
+    font-size:11px; font-weight:700; opacity:0.85; line-height:1.4;
+    text-align:center; margin-bottom:10px;
+    background:rgba(255,255,255,0.08); border-radius:11px; padding:8px 10px;
+  }
+  .sh-demo-line b { font-weight:900; opacity:1; }
+  .sh-preview { width:100%; padding:14px; font-size:16px; }
+
+  /* ============ TAB BAR (scrollable) ============ */
+  .mob-tab-bar {
+    display:flex; gap:6px; margin-bottom:14px; overflow-x:auto;
+    padding-bottom:3px;
+  }
+  .mob-tab {
+    flex-shrink:0; padding:9px 14px; border-radius:11px;
+    font-weight:800; font-size:12px; text-align:center;
+    background:#e5e5e5; color:var(--text-dim);
+    cursor:pointer; font-family:inherit; border:none;
+    display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  }
+  .mob-tab .t-ic { font-size:15px; }
+  .mob-tab.active { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+
+  /* ============ Section cards ============ */
+  .section-card {
+    background:var(--panel); border-radius:18px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:13px;
+  }
+  .sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; }
+  .sc-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .sc-head .title .ic { font-size:22px; }
+  .sc-head .sub { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .sc-head .sub b { color:var(--green-dark); }
+
+  /* ============ VOICE LIST (mobile) ============ */
+  .voice-list { display:flex; flex-direction:column; gap:10px; }
+  .voice-item {
+    display:flex; align-items:center; gap:12px;
+    border:2px solid var(--border); border-radius:14px; padding:12px;
+    background:#fff; transition:all 0.15s;
+  }
+  .voice-item:active { transform:scale(0.99); }
+  .voice-item.selected {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12);
+  }
+  .vi-avatar {
+    width:42px; height:42px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:21px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.10);
+  }
+  .vi-avatar.f { background:linear-gradient(135deg, #ff9de2, #ff6bbf); }
+  .vi-avatar.m { background:linear-gradient(135deg, #5ad0ff, #1cb0f6); }
+  .vi-body { flex:1; min-width:0; }
+  .vi-name-row { display:flex; align-items:center; gap:6px; margin-bottom:2px; }
+  .vi-body b { font-size:14px; font-weight:900; }
+  .vi-body small { font-size:10px; font-weight:700; color:var(--text-dim); display:block; }
+  .vi-accent { font-size:11px; font-weight:800; color:var(--blue-dark); margin-top:2px; }
+  .vi-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .vi-check {
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff; font-size:13px; font-weight:900;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .vi-test {
+    padding:8px 13px; font-size:12px; border-radius:10px;
+  }
+
+  /* ============ RANGE SLIDER ============ */
+  .range-block { margin-bottom:16px; }
+  .range-block:last-child { margin-bottom:0; }
+  .range-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .range-top .rt-l { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:800; }
+  .range-top .rt-l .ic { font-size:17px; }
+  .range-top .rt-v {
+    font-size:13px; font-weight:900; color:var(--blue-dark);
+    background:var(--blue-light); padding:3px 11px; border-radius:9px;
+  }
+  .range {
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:12px; border-radius:12px; outline:none;
+    background:linear-gradient(90deg, var(--blue) 0%, var(--blue) var(--pct,50%), #e5e5e5 var(--pct,50%), #e5e5e5 100%);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.10);
+  }
+  .range::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:30px; height:30px; border-radius:50%;
+    background:#fff; border:4px solid var(--blue);
+    box-shadow:0 3px 0 var(--blue-dark), 0 3px 8px rgba(0,0,0,0.18);
+    cursor:pointer;
+  }
+  .range::-moz-range-thumb {
+    width:26px; height:26px; border-radius:50%;
+    background:#fff; border:4px solid var(--blue);
+    box-shadow:0 3px 0 var(--blue-dark); cursor:pointer;
+  }
+  .range.green {
+    background:linear-gradient(90deg, var(--green) 0%, var(--green) var(--pct,50%), #e5e5e5 var(--pct,50%), #e5e5e5 100%);
+  }
+  .range.green::-webkit-slider-thumb { border-color:var(--green); box-shadow:0 3px 0 var(--green-dark), 0 3px 8px rgba(0,0,0,0.18); }
+  .range.green::-moz-range-thumb { border-color:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .range.purple {
+    background:linear-gradient(90deg, var(--purple) 0%, var(--purple) var(--pct,50%), #e5e5e5 var(--pct,50%), #e5e5e5 100%);
+  }
+  .range.purple::-webkit-slider-thumb { border-color:var(--purple); box-shadow:0 3px 0 var(--purple-dark), 0 3px 8px rgba(0,0,0,0.18); }
+  .range.purple::-moz-range-thumb { border-color:var(--purple); box-shadow:0 3px 0 var(--purple-dark); }
+  .range-scale {
+    display:flex; justify-content:space-between; margin-top:7px;
+    font-size:9px; font-weight:800; color:var(--text-faint);
+  }
+
+  /* ---- speed presets ---- */
+  .speed-presets { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:13px; }
+  .sp-chip {
+    padding:10px 4px; border-radius:12px; border:2px solid var(--border);
+    background:#fff; text-align:center; cursor:pointer; font-family:inherit;
+  }
+  .sp-chip b { display:block; font-size:14px; font-weight:900; color:var(--text); }
+  .sp-chip small { font-size:9px; font-weight:800; color:var(--text-dim); }
+  .sp-chip.active {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 3px 0 rgba(88,204,2,0.20);
+  }
+  .sp-chip.active b { color:var(--green-dark); }
+
+  /* ---- demo sentence ---- */
+  .demo-box {
+    margin-top:15px; padding:13px 14px; border-radius:14px;
+    background:linear-gradient(135deg, var(--blue-light), #f0f9ff);
+    border:2px dashed rgba(28,176,246,0.35);
+    display:flex; align-items:center; gap:11px;
+  }
+  .demo-box .db-ic { font-size:22px; flex-shrink:0; }
+  .demo-box .db-txt { flex:1; min-width:0; }
+  .demo-box .db-txt small { display:block; font-size:9px; font-weight:900; letter-spacing:1px; color:var(--blue-dark); margin-bottom:2px; }
+  .demo-box .db-txt b { display:block; font-size:13px; font-weight:900; color:var(--text); line-height:1.3; }
+  .demo-box .db-play {
+    flex-shrink:0; width:46px; height:46px; border-radius:14px;
+    background:var(--blue); color:#fff; border:none; cursor:pointer;
+    font-size:18px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 var(--blue-dark); font-family:inherit;
+  }
+  .demo-box .db-play:active { box-shadow:0 1px 0 var(--blue-dark); transform:translateY(3px); }
+
+  /* ============ SETTING ROWS ============ */
+  .setting-list { display:flex; flex-direction:column; gap:9px; }
+  .setting-row {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 13px; border-radius:14px; background:#f7f7f7;
+    transition:all 0.15s;
+  }
+  .setting-row:active { background:#eee; }
+  .s-ic {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .s-ic.green { background:var(--green-light); }
+  .s-ic.blue  { background:var(--blue-light); }
+  .s-ic.orange{ background:var(--orange-light); }
+  .s-ic.purple{ background:var(--purple-light); }
+  .s-ic.gold  { background:var(--gold-light); }
+  .s-ic.red   { background:var(--red-light); }
+  .s-body { flex:1; min-width:0; }
+  .s-body b { display:block; font-size:13px; font-weight:800; margin-bottom:2px; }
+  .s-body small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.35; }
+
+  /* Toggle */
+  .toggle {
+    width:48px; height:28px; border-radius:14px; background:#ccc;
+    position:relative; cursor:pointer; flex-shrink:0; transition:background 0.2s;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle::after {
+    content:''; position:absolute; top:3px; left:3px;
+    width:22px; height:22px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:left 0.2s;
+  }
+  .toggle.on::after { left:23px; }
+  .s-val { flex-shrink:0; font-size:12px; font-weight:900; color:var(--text-dim); }
+  .s-val b { color:var(--green-dark); font-size:14px; }
+
+  /* chip picker */
+  .chip-group { display:flex; gap:7px; }
+  .chip {
+    padding:8px 12px; border-radius:11px; border:2px solid var(--border);
+    background:#fff; font-size:12px; font-weight:800; color:var(--text-dim);
+    cursor:pointer; font-family:inherit;
+  }
+  .chip.active { border-color:var(--green); background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+
+  /* ============ THEME CARDS ============ */
+  .theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:16px; }
+  .theme-card {
+    border:2px solid var(--border); border-radius:14px; padding:10px;
+    background:#fff; cursor:pointer;
+  }
+  .theme-card:active { transform:scale(0.98); }
+  .theme-card.active {
+    border-color:var(--green); background:var(--green-bg);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12);
+  }
+  .tc-preview {
+    height:54px; border-radius:10px; margin-bottom:8px; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    padding:7px 8px; gap:3px;
+  }
+  .tc-preview .ln { height:4px; border-radius:3px; }
+  .tc-preview.light { background:#f7f7f7; border:1px solid #e5e5e5; }
+  .tc-preview.light .ln { background:#d5d5d5; }
+  .tc-preview.light .ln.g { background:var(--green); }
+  .tc-preview.dark { background:#14181f; }
+  .tc-preview.dark .ln { background:#2c3340; }
+  .tc-preview.dark .ln.g { background:var(--green); }
+  .tc-preview.auto {
+    background:linear-gradient(100deg, #f7f7f7 0%, #f7f7f7 48%, #14181f 52%, #14181f 100%);
+  }
+  .tc-preview.auto .ln { background:#d5d5d5; }
+  .tc-preview.auto .ln.g { background:var(--green); }
+  .tc-name-row { display:flex; align-items:center; justify-content:space-between; }
+  .tc-name-row b { font-size:12px; font-weight:900; }
+  .tc-check {
+    width:19px; height:19px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff; font-size:10px; font-weight:900;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ============ MINI STATS ============ */
+  .mini-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:15px; }
+  .mini-stats .stat-box { padding:12px 6px; border-radius:12px; }
+  .mini-stats .stat-box .val { font-size:20px !important; }
+  .mini-stats .stat-box .lbl { font-size:10px; margin-top:3px; }
+
+  /* ============ TIME DIAL ============ */
+  .time-dial {
+    background:linear-gradient(135deg, var(--orange-light), #fff3dd);
+    border-radius:16px; padding:18px 14px; text-align:center;
+    border:2px solid rgba(255,150,0,0.3); margin-bottom:12px;
+  }
+  .time-dial .td-ic { font-size:30px; }
+  .time-dial .td-time {
+    font-size:36px; font-weight:900; color:var(--orange-dark);
+    letter-spacing:1px; line-height:1; margin:7px 0 3px;
+  }
+  .time-dial .td-lbl { font-size:12px; font-weight:800; color:var(--orange-dark); margin-bottom:12px; }
+  .time-dial .chip-group { justify-content:center; }
+
+  /* ============ KEYBOARD ============ */
+  .kbd-wrap { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .kbd-row {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .kbd-row .kd { font-size:12px; font-weight:800; }
+  .kbd-row .kd small { display:block; font-size:10px; color:var(--text-dim); font-weight:600; margin-top:1px; }
+  .kbd-keys { display:flex; gap:4px; flex-shrink:0; }
+  .kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:28px; height:26px; padding:0 7px; border-radius:8px;
+    background:#fff; border:1px solid var(--border);
+    box-shadow:0 2px 0 var(--border-strong);
+    font-size:11px; font-weight:900; color:var(--text);
+    font-family:'Nunito', monospace;
+  }
+
+  /* ============ SAVE BAR ============ */
+  .save-bar {
+    display:flex; gap:8px; margin-bottom:14px;
+  }
+  .save-bar .btn { flex:1; padding:14px 8px; font-size:14px; }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:8px; padding-bottom:6px;
+    font-size:10px; color:var(--text-faint); font-weight:700; line-height:1.6;
+  }
+  .foot .foot-link { display:inline-block; margin:0 5px; color:var(--text-dim); }
+
+  /* ============ Bottom Nav ============ */
+  .bottom-nav {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:400px;
+    background:#fff; border-top:1px solid var(--border);
+    display:flex; justify-content:space-around; align-items:center;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index:50; box-shadow:0 -4px 12px rgba(0,0,0,0.06);
+  }
+  .bn-item {
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-size:10px; font-weight:800; color:var(--text-dim);
+    text-decoration:none; padding:4px 8px; border-radius:10px;
+  }
+  .bn-item.active { color:var(--green-dark); background:var(--green-bg); }
+  .bn-item .bn-ic { font-size:20px; }
+  .bottom-spacer { height:72px; }
+</style>
+</head>
+<body>
+
+<div class="container-mobile">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">🎛️</span> 听力调音台</h1>
+      <p>调好发音人、语速与音量，听在最舒服的节奏上</p>
+    </div>
+    <div class="page-head-actions">
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">↺</a>
+      <a href="#" class="btn btn-primary btn-sm" style="text-decoration:none;">💾</a>
+    </div>
+  </div>
+
+  <!-- ============ STUDIO HERO ============ -->
+  <div class="studio-hero">
+    <div class="grid-bg"></div>
+    <div class="sh-body">
+
+      <div class="eq-row">
+        <div class="eq">
+          <span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+        </div>
+        <div class="eq-side">
+          <span class="eq-tag">🎛️ NOW MIXING</span>
+          <div class="eq-voice">
+            <div class="eq-voice-ic">🎙️</div>
+            <div>
+              <div class="eq-voice-name">Aria · 美式女声</div>
+              <div class="eq-voice-meta">en-US-AriaNeural · 自然清晰</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sh-readout">
+        <div class="rd"><span class="k">语速</span><span class="v">1.0×</span></div>
+        <div class="rd"><span class="k">音量</span><span class="v">80%</span></div>
+        <div class="rd"><span class="k">重复</span><span class="v">2 次</span></div>
+        <div class="rd"><span class="k">间隔</span><span class="v">3 秒</span></div>
+      </div>
+
+      <div class="sh-demo-line">🎧 试听：<b>The quick brown fox jumps over the lazy dog.</b></div>
+
+      <button class="btn btn-white btn-big sh-preview">▶ 试听效果</button>
+    </div>
+  </div>
+
+  <!-- ============ TAB BAR ============ -->
+  <div class="mob-tab-bar">
+    <button class="mob-tab active"><span class="t-ic">🎙️</span> 语音</button>
+    <button class="mob-tab"><span class="t-ic">⏱️</span> 播放</button>
+    <button class="mob-tab"><span class="t-ic">🔊</span> 声音</button>
+    <button class="mob-tab"><span class="t-ic">🎨</span> 外观</button>
+    <button class="mob-tab"><span class="t-ic">🔔</span> 提醒</button>
+    <button class="mob-tab"><span class="t-ic">⌨️</span> 高级</button>
+  </div>
+
+  <!-- ============ VOICE ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🎙️</span> 选择发音人</div>
+      <div class="sub">共 <b>4</b> 位 · 当前 <b>Aria</b></div>
+    </div>
+    <div class="voice-list">
+
+      <div class="voice-item selected">
+        <div class="vi-avatar f">👩</div>
+        <div class="vi-body">
+          <div class="vi-name-row"><b>Aria</b></div>
+          <small>en-US-AriaNeural</small>
+          <div class="vi-accent">🇺🇸 美式 · 女声 · ⭐ 推荐</div>
+        </div>
+        <div class="vi-right">
+          <button class="btn btn-white vi-test">▶ 试听</button>
+          <div class="vi-check">✓</div>
+        </div>
+      </div>
+
+      <div class="voice-item">
+        <div class="vi-avatar f">👩‍🦰</div>
+        <div class="vi-body">
+          <div class="vi-name-row"><b>Sonia</b></div>
+          <small>en-GB-SoniaNeural</small>
+          <div class="vi-accent">🇬🇧 英式 · 女声 · 优雅</div>
+        </div>
+        <div class="vi-right">
+          <button class="btn btn-white vi-test">▶ 试听</button>
+        </div>
+      </div>
+
+      <div class="voice-item">
+        <div class="vi-avatar m">👨</div>
+        <div class="vi-body">
+          <div class="vi-name-row"><b>Guy</b></div>
+          <small>en-US-GuyNeural</small>
+          <div class="vi-accent">🇺🇸 美式 · 男声 · 沉稳</div>
+        </div>
+        <div class="vi-right">
+          <button class="btn btn-white vi-test">▶ 试听</button>
+        </div>
+      </div>
+
+      <div class="voice-item">
+        <div class="vi-avatar m">🧑‍💼</div>
+        <div class="vi-body">
+          <div class="vi-name-row"><b>Ryan</b></div>
+          <small>en-GB-RyanNeural</small>
+          <div class="vi-accent">🇬🇧 英式 · 男声 · 新闻播报</div>
+        </div>
+        <div class="vi-right">
+          <button class="btn btn-white vi-test">▶ 试听</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ SPEED ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">⏩</span> 语速调节</div>
+      <div class="sub">0.5× — 2.0×</div>
+    </div>
+
+    <div class="range-block">
+      <div class="range-top">
+        <div class="rt-l"><span class="ic">🎚️</span> 播放速率</div>
+        <div class="rt-v">1.0× 正常</div>
+      </div>
+      <input type="range" class="range" min="0" max="15" value="7" style="--pct:53%;">
+      <div class="range-scale">
+        <span>0.5×</span><span>0.75×</span><span>1.0×</span><span>1.5×</span><span>2.0×</span>
+      </div>
+      <div class="speed-presets">
+        <button class="sp-chip"><b>0.75×</b><small>慢速</small></button>
+        <button class="sp-chip active"><b>1.0×</b><small>正常</small></button>
+        <button class="sp-chip"><b>1.25×</b><small>较快</small></button>
+        <button class="sp-chip"><b>1.5×</b><small>快速</small></button>
+      </div>
+    </div>
+
+    <div class="demo-box">
+      <span class="db-ic">🎧</span>
+      <div class="db-txt">
+        <small>PREVIEW · 按当前语速试听</small>
+        <b>Practice makes perfect. Keep going!</b>
+      </div>
+      <button class="db-play">▶</button>
+    </div>
+  </div>
+
+  <!-- ============ VOLUME ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🔊</span> 音量控制</div>
+      <div class="sub">系统输出</div>
+    </div>
+
+    <div class="range-block">
+      <div class="range-top">
+        <div class="rt-l"><span class="ic">🔊</span> 播放音量</div>
+        <div class="rt-v" style="color:var(--green-dark); background:var(--green-light);">80%</div>
+      </div>
+      <input type="range" class="range green" min="0" max="100" value="80" style="--pct:80%;">
+      <div class="range-scale">
+        <span>🔇 静音</span><span>25%</span><span>50%</span><span>75%</span><span>🔊 100%</span>
+      </div>
+    </div>
+
+    <div class="demo-box">
+      <span class="db-ic">📢</span>
+      <div class="db-txt">
+        <small>声音测试 · 确认设备</small>
+        <b>If you can hear this, everything is working.</b>
+      </div>
+      <button class="db-play">🔊</button>
+    </div>
+
+    <div class="mini-stats">
+      <div class="stat-box">
+        <div class="val green">🎧</div>
+        <div class="lbl">AirPods Pro 2</div>
+      </div>
+      <div class="stat-box">
+        <div class="val blue">🎚️</div>
+        <div class="lbl">采样率 2400 Hz</div>
+      </div>
+      <div class="stat-box">
+        <div class="val orange">⚡</div>
+        <div class="lbl">延迟 42 ms</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PLAYBACK RHYTHM ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">⏱️</span> 播放节奏</div>
+      <div class="sub">听打/听写通用</div>
+    </div>
+
+    <div class="range-block">
+      <div class="range-top">
+        <div class="rt-l"><span class="ic">🔁</span> 自动重复次数</div>
+        <div class="rt-v">2 次</div>
+      </div>
+      <input type="range" class="range" min="0" max="5" value="2" style="--pct:40%;">
+      <div class="range-scale">
+        <span>0 次</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+      </div>
+    </div>
+
+    <div class="range-block">
+      <div class="range-top">
+        <div class="rt-l"><span class="ic">⏸️</span> 播放间隔</div>
+        <div class="rt-v">3 秒</div>
+      </div>
+      <input type="range" class="range" min="0" max="10" value="3" style="--pct:30%;">
+      <div class="range-scale">
+        <span>0 秒</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span>
+      </div>
+    </div>
+
+    <div class="setting-list">
+      <div class="setting-row">
+        <div class="s-ic orange">▶️</div>
+        <div class="s-body">
+          <b>自动播放下一个</b>
+          <small>判定后无需手动点击</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic purple">📖</div>
+        <div class="s-body">
+          <b>逐词播放</b>
+          <small>句子听写时按单词逐个播报</small>
+        </div>
+        <div class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic red">📣</div>
+        <div class="s-body">
+          <b>错题强化朗读</b>
+          <small>答错的词以慢速重复 3 遍</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic gold">🔢</div>
+        <div class="s-body">
+          <b>跟读时长</b>
+          <small>跟读模式最大录制时间</small>
+        </div>
+        <div class="s-val"><b>15 秒</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SOUND FEEDBACK ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🎵</span> 声音反馈</div>
+      <div class="sub">贴合你的节奏</div>
+    </div>
+    <div class="setting-list">
+      <div class="setting-row">
+        <div class="s-ic green">✅</div>
+        <div class="s-body">
+          <b>答对音效</b>
+          <small>清脆上行铃声 · 判对时播放</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic red">❌</div>
+        <div class="s-body">
+          <b>答错音效</b>
+          <small>低沉提示音 · 引导复查</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic orange">🔥</div>
+        <div class="s-body">
+          <b>连击音效</b>
+          <small>连续答对 5 题以上音调升高</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic purple">🏆</div>
+        <div class="s-body">
+          <b>成就音效</b>
+          <small>解锁徽章、升级时庆祝音乐</small>
+        </div>
+        <div class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic blue">📳</div>
+        <div class="s-body">
+          <b>触感反馈</b>
+          <small>判分瞬间轻微振动</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ APPEARANCE ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🎨</span> 界面外观</div>
+      <div class="sub">主题与字号</div>
+    </div>
+
+    <div class="theme-grid">
+      <div class="theme-card active">
+        <div class="tc-preview light">
+          <div class="ln g" style="width:56%"></div>
+          <div class="ln" style="width:78%"></div>
+          <div class="ln" style="width:40%"></div>
+        </div>
+        <div class="tc-name-row">
+          <b>☀️ 浅色</b>
+          <span class="tc-check">✓</span>
+        </div>
+      </div>
+      <div class="theme-card">
+        <div class="tc-preview dark">
+          <div class="ln g" style="width:56%"></div>
+          <div class="ln" style="width:78%"></div>
+          <div class="ln" style="width:40%"></div>
+        </div>
+        <div class="tc-name-row"><b>🌙 深色</b></div>
+      </div>
+      <div class="theme-card">
+        <div class="tc-preview auto">
+          <div class="ln g" style="width:56%"></div>
+          <div class="ln" style="width:78%"></div>
+          <div class="ln" style="width:40%"></div>
+        </div>
+        <div class="tc-name-row"><b>🌗 跟随</b></div>
+      </div>
+    </div>
+
+    <div class="range-block">
+      <div class="range-top">
+        <div class="rt-l"><span class="ic">🔍</span> 界面字号</div>
+        <div class="rt-v" style="color:var(--purple-dark); background:var(--purple-light);">中</div>
+      </div>
+      <input type="range" class="range purple" min="0" max="3" value="1" style="--pct:33%;">
+      <div class="range-scale">
+        <span>小</span><span>中</span><span>大</span><span>超大</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ REMINDERS ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🔔</span> 提醒与通知</div>
+      <div class="sub">不错过打卡</div>
+    </div>
+
+    <div class="time-dial">
+      <div class="td-ic">⏰</div>
+      <div class="td-time">20:00</div>
+      <div class="td-lbl">每日学习提醒</div>
+      <div class="chip-group">
+        <button class="chip">08:00</button>
+        <button class="chip active">20:00</button>
+        <button class="chip">22:00</button>
+      </div>
+    </div>
+
+    <div class="setting-list">
+      <div class="setting-row">
+        <div class="s-ic orange">🔥</div>
+        <div class="s-body">
+          <b>连续打卡提醒</b>
+          <small>中断风险时提醒</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic blue">📊</div>
+        <div class="s-body">
+          <b>每周学习报告</b>
+          <small>周一 09:00 推送</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic purple">🎯</div>
+        <div class="s-body">
+          <b>学习计划提醒</b>
+          <small>每日配额完成前提示</small>
+        </div>
+        <div class="toggle"></div>
+      </div>
+      <div class="setting-row">
+        <div class="s-ic red">🤫</div>
+        <div class="s-body">
+          <b>免打扰时段</b>
+          <small>23:00 — 08:00</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADVANCED ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">⌨️</span> 高级选项</div>
+      <div class="sub">快捷键</div>
+    </div>
+    <div class="kbd-wrap">
+      <div class="kbd-row">
+        <div class="kd">播放/暂停<small>切换</small></div>
+        <div class="kbd-keys"><span class="kbd">Space</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">重播<small>从头再听</small></div>
+        <div class="kbd-keys"><span class="kbd">R</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">下一个<small>跳过当前</small></div>
+        <div class="kbd-keys"><span class="kbd">N</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">上一个<small>回到前面</small></div>
+        <div class="kbd-keys"><span class="kbd">P</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">切语速<small>0.75/1/1.25×</small></div>
+        <div class="kbd-keys"><span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div>
+      </div>
+      <div class="kbd-row">
+        <div class="kd">藏译文<small>专注听力</small></div>
+        <div class="kbd-keys"><span class="kbd">H</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SAVE BAR ============ -->
+  <div class="save-bar">
+    <button class="btn btn-white">↺ 恢复默认</button>
+    <button class="btn btn-primary">💾 保存全部</button>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">
+    <p>英语听打 · 设置 v1.0 · TTS 由 edge-tts 提供</p>
+    <p>
+      <a class="foot-link" href="#">服务条款</a> ·
+      <a class="foot-link" href="#">隐私政策</a> ·
+      <a class="foot-link" href="#">联系支持</a>
+    </p>
+  </div>
+
+  <div class="bottom-spacer"></div>
+</div>
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottom-nav">
+  <a class="bn-item" href="#">
+    <span class="bn-ic">🏠</span>
+    <span>今日</span>
+  </a>
+  <a class="bn-item" href="#">
+    <span class="bn-ic">📚</span>
+    <span>学习</span>
+  </a>
+  <a class="bn-item" href="#">
+    <span class="bn-ic">👤</span>
+    <span>我的</span>
+  </a>
+  <a class="bn-item active" href="#">
+    <span class="bn-ic">⚙️</span>
+    <span>设置</span>
+  </a>
+</nav>
+
+</body>
+</html>

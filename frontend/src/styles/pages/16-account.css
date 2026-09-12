@@ -387,3 +387,13 @@
   .acct-identity-card .account-identity .brand-mark { width: 50px; height: 50px; font-size: 24px; }
   .acct-identity-card .account-identity b { font-size: 19px; }
 }
+
+/* 退出登录：在渐变身份卡上，ghost 按钮反白处理 */
+.acct-identity-card .btn.ghost {
+  margin-top: 16px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, .35);
+  box-shadow: none;
+}
+.acct-identity-card .btn.ghost:hover { background: rgba(255, 255, 255, .24); }

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { Account, logout } from "../lib/account";
+import { Account } from "../lib/account";
 import { Profile, refreshProfile } from "../lib/profile";
 
 const page = ref("catalog");
@@ -41,12 +41,6 @@ function sync() {
   page.value = h.split("?")[0];
   closeMore();
 }
-async function signOut() {
-  try {
-    await logout();
-    location.hash = "#/catalog";
-  } catch { /* 账户页仍可通过刷新重试 */ }
-}
 function onProfileChanged() { refreshProfile(true).catch(() => {}); }
 onMounted(() => {
   window.addEventListener("hashchange", sync);
@@ -80,7 +74,6 @@ onUnmounted(() => {
           <span class="mobile-avatar" aria-hidden="true">{{ accountInitial }}</span>
           <span class="mobile-username">{{ Account.username }}</span>
         </a>
-        <button class="mobile-logout" aria-label="退出登录" @click="signOut">退出</button>
       </template>
     </div>
     <nav id="nav">
@@ -122,7 +115,7 @@ onUnmounted(() => {
       <a v-for="m in MORE" :key="`i-${m.p}`" class="nav-link nav-more-inline"
          :class="{active: page === m.p}" :href="`#/${m.p}`">{{ m.s }}</a>
       <a v-if="!Account.loading && !Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">登录 / 注册</a>
-      <div v-else-if="Account.authenticated" class="account-nav"><a class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a><button class="btn sm ghost" @click="signOut">退出</button></div>
+      <a v-else-if="Account.authenticated" class="nav-link account-link" :class="{active: page==='account'}" href="#/account">{{ Account.username }}</a>
     </nav>
   </header>
 </template>

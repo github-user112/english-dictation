@@ -18,6 +18,7 @@ from .db import db
 from .friends import notify_level, record_activity
 from .materials import audio_url, load_material
 from .profile import derive_profile
+from .misc import local_today
 
 bp = Blueprint("daily", __name__)
 
@@ -105,7 +106,7 @@ def api_daily():
         return jsonify({"error": "每日挑战仅支持词汇素材"}), 400
     round_no = clamp_int(request.args.get("r"), 0, 0, 99)
 
-    day = date.today().isoformat()
+    day = local_today().isoformat()
     questions = _build_questions(list_key, day, round_no)
     if len(questions) < 2:
         return jsonify({"error": "该素材词太少，无法出题"}), 400
@@ -140,7 +141,7 @@ def api_daily_result():
     if not isinstance(answers, list):
         return jsonify({"error": "answers 无效"}), 400
 
-    day = date.today().isoformat()
+    day = local_today().isoformat()
     questions = _build_questions(list_key, day)
     option_ids = {qd["id"]: {o["id"] for o in qd["options"]} for qd in questions}
 

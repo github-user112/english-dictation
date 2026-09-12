@@ -55,7 +55,7 @@ onMounted(async () => {
   donutGrown.value = true;
 });
 
-const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打", quiz: "听音选词", sprint: "限时冲刺", boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句" };
+const modeNames = { pure: "纯听写", assisted: "辅助听写", follow: "跟打", quiz: "听音选词", sprint: "限时冲刺", boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句", wrong: "错词回收" };
 const last14 = computed(() => {
   if (!stats.value) return [];
   const dayMap = new Map((stats.value.days || []).map((d) => [d.day, d]));

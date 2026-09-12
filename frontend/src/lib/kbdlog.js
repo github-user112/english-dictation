@@ -35,6 +35,24 @@ function init() {
   if (p.get("log") === "1") setKbdEnabled(true);
 }
 
+// 原始事件探针：keydown/keyup/beforeinput/input/compositionupdate 全部落环形缓冲，
+// 只盯隐藏输入框 #catch，只读不拦截。移动端 IME 排障就靠它看真实事件序列。
+function probe(label) {
+  return (e) => {
+    const t = e.target;
+    if (!t || t.id !== "catch") return;
+    kbdLog(label, { key: e.key, code: e.code, inputType: e.inputType,
+      data: e.data, val: t.value, composing: e.isComposing || undefined });
+  };
+}
+if (typeof document !== "undefined") {
+  for (const [ev, label] of [["keydown", "keydown"], ["keyup", "keyup"],
+    ["beforeinput", "beforeinput"], ["input", "inputRaw"],
+    ["compositionupdate", "compUpdate"]]) {
+    document.addEventListener(ev, probe(label), true);
+  }
+}
+
 if (typeof document !== "undefined") {
   window.__kbdEnable = () => setKbdEnabled(true);
   window.__kbdDisable = () => setKbdEnabled(false);

@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>词汇量测试 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden; padding-bottom:40px;
+  }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:10px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+  .stat-item.level { color:var(--purple); }
+  .stat-item .icon { font-size:15px; }
+
+  /* ---- Completion Hero ---- */
+  .m-hero {
+    margin:12px 14px; padding:22px 20px;
+    background:linear-gradient(135deg, #58cc02 0%, #6fdd1a 45%, #ffc800 100%);
+    border-radius:18px; color:#fff;
+    box-shadow:0 5px 0 #46a302, 0 8px 24px rgba(88,204,2,0.25);
+    position:relative; overflow:hidden;
+  }
+  .m-hero::after {
+    content:''; position:absolute; top:-40px; right:-20px;
+    width:160px; height:160px; border-radius:50%;
+    background:rgba(255,255,255,0.1);
+  }
+  .m-hero::before {
+    content:''; position:absolute; bottom:-50px; left:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .m-hero-top { display:flex; align-items:center; gap:14px; position:relative; z-index:1; margin-bottom:14px; }
+  .m-hero-icon { font-size:48px; flex-shrink:0; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2)); animation:m-hero-pop 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes m-hero-pop { 0%{transform:scale(0.5) rotate(-10deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+  .m-hero-text { flex:1; min-width:0; }
+  .m-hero-text h1 { font-size:22px; font-weight:900; margin-bottom:2px; }
+  .m-hero-text .m-sub { font-size:13px; font-weight:800; opacity:0.9; }
+  .m-hero-text .m-sub2 { font-size:11px; font-weight:700; opacity:0.75; margin-top:2px; }
+  .m-hero-badges { display:flex; gap:6px; flex-wrap:wrap; position:relative; z-index:1; }
+  .m-hero-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(255,255,255,0.2); backdrop-filter:blur(4px);
+    padding:5px 10px; border-radius:10px; font-weight:900; font-size:11px;
+  }
+  .m-hero-badge b { font-size:14px; }
+
+  /* ---- Stats Grid ---- */
+  .m-stats-grid {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:10px; margin:0 14px 14px;
+  }
+  .m-stat {
+    text-align:center; padding:14px 10px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+  }
+  .m-stat .mv { font-size:22px; font-weight:900; letter-spacing:-0.5px; }
+  .m-stat .mv.green { color:var(--green); }
+  .m-stat .mv.red { color:var(--red); }
+  .m-stat .mv.orange { color:var(--orange); }
+  .m-stat .mv.blue { color:var(--blue); }
+  .m-stat .mv.gold { color:var(--gold); }
+  .m-stat .mv.purple { color:var(--purple); }
+  .m-stat .ml { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  /* ---- Section Title ---- */
+  .m-section {
+    margin:0 14px 14px;
+  }
+  .m-section-title {
+    display:flex; align-items:center; gap:8px;
+    font-size:15px; font-weight:900; margin-bottom:10px;
+    padding:0 4px;
+  }
+  .m-section-title .msi { font-size:20px; }
+  .m-section-desc {
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    margin-bottom:10px; padding:0 4px;
+  }
+
+  /* ---- CEFR Ladder (Mobile) ---- */
+  .m-cfr-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-cfr-ladder { display:flex; gap:4px; margin:14px 0; }
+  .m-cfr-step {
+    flex:1; text-align:center; padding:8px 2px 6px;
+    border-radius:10px; position:relative;
+  }
+  .m-cfr-step .mcs-emoji { font-size:20px; display:block; margin-bottom:2px; }
+  .m-cfr-step .mcs-level { font-size:12px; font-weight:900; color:var(--text); display:block; }
+  .m-cfr-step .mcs-name { font-size:8px; font-weight:700; color:var(--text-dim); display:block; }
+  .m-cfr-step .mcs-bar { height:4px; border-radius:4px; background:#e5e5e5; margin-top:5px; }
+  .m-cfr-step.past { background:var(--green-bg); }
+  .m-cfr-step.past .mcs-bar { background:var(--green-light); }
+  .m-cfr-step.active {
+    background:var(--green); color:#fff;
+    box-shadow:0 3px 0 var(--green-dark);
+    transform:translateY(-3px);
+  }
+  .m-cfr-step.active .mcs-level { color:#fff; }
+  .m-cfr-step.active .mcs-name { color:rgba(255,255,255,0.85); }
+  .m-cfr-step.active .mcs-bar { background:#fff; }
+  .m-cfr-step.locked .mcs-emoji { opacity:0.35; filter:grayscale(1); }
+  .m-cfr-step.locked .mcs-bar { background:#e5e5e5; }
+  .m-cfr-step.locked .mcs-level { color:var(--text-faint); }
+  .m-cfr-step.locked .mcs-name { color:var(--text-faint); }
+  .m-cfr-marker { position:absolute; top:-12px; left:50%; transform:translateX(-50%); font-size:14px; animation:m-marker-bob 1.5s ease-in-out infinite; }
+  @keyframes m-marker-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-3px)} }
+
+  /* ---- Vocabulary Gauge (Mobile) ---- */
+  .m-gauge-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-gauge-wrap { display:flex; align-items:center; gap:16px; margin:14px 0; }
+  .m-gauge-svg { flex-shrink:0; position:relative; }
+  .m-gauge-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .m-gauge-center .mgv { font-size:26px; font-weight:900; color:var(--green); letter-spacing:-0.5px; }
+  .m-gauge-center .mgv-sub { font-size:10px; font-weight:800; color:var(--text-dim); }
+  .m-gauge-info { flex:1; min-width:0; }
+  .m-gi-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:5px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .m-gi-row:last-child { border-bottom:none; }
+  .m-gi-row .mgi-label { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .m-gi-row .mgi-val { font-size:12px; font-weight:900; }
+  .m-gi-row .mgi-val.green { color:var(--green); }
+  .m-gi-row .mgi-val.blue { color:var(--blue); }
+  .m-gi-row .mgi-val.orange { color:var(--orange); }
+  .m-gi-row .mgi-val.purple { color:var(--purple); }
+  .m-gauge-bar {
+    display:flex; height:8px; border-radius:8px; overflow:hidden; margin-top:12px;
+    background:#f0f0f0;
+  }
+  .m-gauge-bar .mgb-seg { height:100%; }
+  .m-gauge-bar .mgb-seg.easy { background:var(--green); }
+  .m-gauge-bar .mgb-seg.medium { background:var(--blue); }
+  .m-gauge-bar .mgb-seg.hard { background:var(--orange); }
+  .m-gauge-bar .mgb-seg.advanced { background:var(--red); }
+  .m-gauge-bar-labels {
+    display:flex; justify-content:space-between; margin-top:4px;
+    font-size:8px; font-weight:800; color:var(--text-dim);
+  }
+
+  /* ---- Difficulty Rows (Mobile) ---- */
+  .m-diff-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-diff-rows { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .m-diff-row {
+    display:flex; align-items:center; gap:10px;
+  }
+  .m-diff-row .mdr-emoji { font-size:20px; flex-shrink:0; }
+  .m-diff-row .mdr-body { flex:1; min-width:0; }
+  .m-diff-row .mdr-body b { font-size:12px; font-weight:800; display:block; margin-bottom:3px; }
+  .m-diff-row .mdr-bar { height:8px; background:#e5e5e5; border-radius:8px; overflow:hidden; }
+  .m-diff-row .mdr-fill { height:100%; border-radius:8px; }
+  .m-diff-row .mdr-fill.green { background:linear-gradient(90deg, var(--green), #6fdd1a); }
+  .m-diff-row .mdr-fill.blue { background:linear-gradient(90deg, var(--blue), #4dd0ff); }
+  .m-diff-row .mdr-fill.orange { background:linear-gradient(90deg, var(--orange), #ffb347); }
+  .m-diff-row .mdr-fill.red { background:linear-gradient(90deg, var(--red), #ff7a7a); }
+  .m-diff-row .mdr-count { font-size:13px; font-weight:900; color:var(--text-dim); flex-shrink:0; min-width:36px; text-align:right; }
+
+  /* ---- Skill Areas Card ---- */
+  .m-skill-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-skill-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
+  }
+  .m-skill {
+    padding:12px 10px; border-radius:12px; text-align:center;
+    background:#f7f7f7;
+  }
+  .m-skill .ms-emoji { font-size:28px; display:block; margin-bottom:4px; }
+  .m-skill .ms-name { font-size:12px; font-weight:800; display:block; }
+  .m-skill .ms-level { font-size:11px; font-weight:900; margin-top:2px; }
+  .m-skill .ms-level.green { color:var(--green); }
+  .m-skill .ms-level.blue { color:var(--blue); }
+  .m-skill .ms-level.orange { color:var(--orange); }
+  .m-skill .ms-level.purple { color:var(--purple); }
+  .m-skill .ms-bar { height:5px; background:#e5e5e5; border-radius:5px; overflow:hidden; margin-top:6px; }
+  .m-skill .ms-fill { height:100%; border-radius:5px; }
+
+  /* ---- Test Summary (Mobile) ---- */
+  .m-summary-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-summary-grid {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px;
+  }
+  .m-sum-item {
+    text-align:center; padding:10px 6px; border-radius:12px;
+    background:#f7f7f7;
+  }
+  .m-sum-item .msv { font-size:18px; font-weight:900; }
+  .m-sum-item .msv.green { color:var(--green); }
+  .m-sum-item .msv.red { color:var(--red); }
+  .m-sum-item .msv.orange { color:var(--orange); }
+  .m-sum-item .msv.blue { color:var(--blue); }
+  .m-sum-item .msv.gold { color:var(--gold); }
+  .m-sum-item .msv.purple { color:var(--purple); }
+  .m-sum-item .msl { font-size:9px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  /* ---- Study Plan Banner (Mobile) ---- */
+  .m-plan-banner {
+    margin:0 14px 14px;
+    padding:16px 18px; border-radius:16px;
+    background:linear-gradient(135deg, var(--purple-light), #f3e5ff);
+    border:2px solid rgba(206,130,255,0.25);
+    box-shadow:0 4px 0 rgba(206,130,255,0.15);
+    position:relative; overflow:hidden;
+  }
+  .m-plan-banner::after {
+    content:''; position:absolute; top:-15px; right:-10px;
+    width:60px; height:60px; border-radius:50%;
+    background:rgba(206,130,255,0.1);
+  }
+  .m-plan-top { display:flex; align-items:center; gap:10px; position:relative; z-index:1; margin-bottom:8px; }
+  .m-plan-icon { font-size:32px; flex-shrink:0; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .m-plan-body { flex:1; min-width:0; }
+  .m-plan-body b { font-size:14px; font-weight:900; display:block; color:var(--purple-dark); }
+  .m-plan-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .m-plan-details { display:flex; gap:8px; margin-top:8px; position:relative; z-index:1; }
+  .m-plan-details .mpd-item {
+    display:flex; align-items:center; gap:3px;
+    font-size:11px; font-weight:800; color:var(--purple-dark);
+    background:rgba(255,255,255,0.5); padding:4px 8px; border-radius:8px;
+  }
+
+  /* ---- Recommended Lists (Mobile) ---- */
+  .m-reco-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-reco-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  .m-reco-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px;
+    background:#f7f7f7;
+  }
+  .m-reco-item .mri-emoji { font-size:24px; flex-shrink:0; }
+  .m-reco-item .mri-body { flex:1; min-width:0; }
+  .m-reco-item .mri-body b { font-size:13px; font-weight:800; display:block; margin-bottom:3px; }
+  .m-reco-item .mri-bar { height:5px; background:#e5e5e5; border-radius:5px; overflow:hidden; }
+  .m-reco-item .mri-fill { height:100%; border-radius:5px; }
+  .m-reco-item .mri-count { font-size:11px; font-weight:900; color:var(--text-dim); flex-shrink:0; }
+  .m-reco-item .mri-badge {
+    font-size:8px; font-weight:800; padding:2px 6px; border-radius:6px;
+    flex-shrink:0;
+  }
+  .m-reco-item .mri-badge.done { background:var(--green); color:#fff; }
+  .m-reco-item .mri-badge.ing { background:var(--blue); color:#fff; }
+  .m-reco-item .mri-badge.todo { background:#e5e5e5; color:var(--text-dim); }
+
+  /* ---- Peer Comparison (Mobile) ---- */
+  .m-compare-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-compare-bar {
+    position:relative; height:24px; background:#e5e5e5; border-radius:12px;
+    overflow:hidden; margin:12px 0 6px;
+  }
+  .m-compare-fill {
+    position:absolute; top:0; left:0; height:100%;
+    background:linear-gradient(90deg, var(--green), #6fdd1a);
+    border-radius:12px; box-shadow:0 0 6px rgba(88,204,2,0.3);
+    display:flex; align-items:center; padding:0 10px;
+    color:#fff; font-size:10px; font-weight:900; white-space:nowrap;
+  }
+  .m-compare-markers {
+    display:flex; justify-content:space-between; margin-top:3px;
+    font-size:9px; font-weight:700; color:var(--text-faint);
+  }
+  .m-compare-rows { margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f0; }
+  .m-cr-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:4px 0; font-size:11px; font-weight:700;
+  }
+  .m-cr-row .mcr-label { color:var(--text-dim); }
+  .m-cr-row .mcr-val { font-weight:900; }
+
+  /* ---- Test History (Mobile) ---- */
+  .m-history-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-history-timeline { margin-top:12px; }
+  .m-history-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px;
+    margin-bottom:6px;
+  }
+  .m-history-item:last-child { margin-bottom:0; }
+  .m-history-item .mhi-date {
+    flex-shrink:0; width:44px; text-align:center;
+  }
+  .m-history-item .mhi-date .d { font-size:12px; font-weight:900; display:block; }
+  .m-history-item .mhi-date .m { font-size:9px; font-weight:700; color:var(--text-dim); }
+  .m-history-item .mhi-dot {
+    width:12px; height:12px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:7px; font-weight:900;
+  }
+  .m-history-item .mhi-dot.best { background:var(--green); color:#fff; }
+  .m-history-item .mhi-dot.normal { background:var(--blue); color:#fff; }
+  .m-history-item .mhi-dot.worse { background:var(--red); color:#fff; }
+  .m-history-item .mhi-body { flex:1; min-width:0; }
+  .m-history-item .mhi-body b { font-size:12px; font-weight:800; display:block; }
+  .m-history-item .mhi-body small { font-size:10px; font-weight:700; color:var(--text-dim); }
+  .m-history-item .mhi-score {
+    font-size:13px; font-weight:900; flex-shrink:0;
+    padding:4px 10px; border-radius:8px;
+    background:#f7f7f7;
+  }
+  .m-history-item .mhi-score.green { color:var(--green); }
+  .m-history-item .mhi-score.blue { color:var(--blue); }
+  .m-history-item .mhi-change {
+    font-size:10px; font-weight:800; flex-shrink:0;
+  }
+  .m-history-item .mhi-change.up { color:var(--green); }
+
+  /* ---- Action Bar (Mobile) ---- */
+  .m-action {
+    display:flex; gap:8px; margin:0 14px 14px;
+  }
+  .m-action .btn {
+    flex:1; padding:12px 14px; font-size:13px; border-radius:14px;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .m-action .btn-primary {
+    background:var(--green); color:#fff; font-weight:900;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .m-action .btn-primary:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+  .m-action .btn-ghost {
+    background:#fff; color:var(--text-dim); font-weight:800;
+    box-shadow:0 4px 0 rgba(0,0,0,0.08);
+  }
+  .m-action .btn-ghost:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.08); }
+
+  /* ---- Question Preview Card ---- */
+  .m-question-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+  }
+  .m-question-card::before {
+    content:''; position:absolute; top:-40px; right:-20px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.06), transparent 70%);
+  }
+  .m-q-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; position:relative; }
+  .m-q-type {
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(135deg, var(--blue), #4dd0ff);
+    color:#fff; padding:6px 14px; border-radius:10px;
+    font-weight:900; font-size:12px;
+    box-shadow:0 3px 0 var(--blue-dark);
+  }
+  .m-q-num {
+    font-size:12px; font-weight:800; color:var(--text-dim);
+    background:#f7f7f7; padding:4px 10px; border-radius:8px;
+  }
+  .m-q-audio {
+    display:flex; align-items:center; gap:12px;
+    background:linear-gradient(135deg, var(--blue-bg), #f0f9ff);
+    border-radius:12px; padding:12px 14px;
+    margin-bottom:14px; border:2px solid rgba(28,176,246,0.2);
+    position:relative;
+  }
+  .m-q-play {
+    width:44px; height:44px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 var(--blue-dark); flex-shrink:0;
+  }
+  .m-q-audio-body { flex:1; min-width:0; }
+  .m-q-audio-body .mqa-t { font-weight:900; font-size:13px; }
+  .m-q-audio-body .mqa-m { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .m-q-audio-speed {
+    background:rgba(28,176,246,0.1); color:var(--blue-dark);
+    padding:4px 8px; border-radius:8px; font-weight:900; font-size:11px;
+    border:none; flex-shrink:0;
+  }
+  .m-q-instr { text-align:center; font-size:12px; font-weight:800; color:var(--text-dim); margin-bottom:12px; position:relative; }
+  .m-q-word {
+    font-size:28px; font-weight:900; text-align:center;
+    letter-spacing:-0.5px; margin-bottom:14px;
+    background:linear-gradient(135deg, var(--blue-dark), var(--purple));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  .m-q-options { display:flex; flex-direction:column; gap:8px; position:relative; }
+  .m-q-opt {
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; border-radius:12px;
+    background:#f7f7f7; border:2px solid #e5e5e5;
+    font-size:14px; font-weight:800; position:relative;
+  }
+  .m-q-opt .mql {
+    width:28px; height:28px; border-radius:8px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:12px; color:var(--text-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08); flex-shrink:0;
+  }
+  .m-q-opt .mqt { flex:1; min-width:0; }
+  .m-q-opt .mqi { font-size:18px; flex-shrink:0; }
+  .m-q-opt.correct {
+    background:var(--green-bg); border-color:var(--green);
+    box-shadow:0 3px 0 rgba(88,204,2,0.2);
+  }
+  .m-q-opt.correct .mql { background:var(--green); color:#fff; }
+  .m-q-opt.correct .mqt { color:var(--green-dark); }
+  .m-q-opt.wrong {
+    background:var(--red-light); border-color:var(--red);
+  }
+  .m-q-opt.wrong .mql { background:var(--red); color:#fff; }
+  .m-q-opt.wrong .mqt { color:var(--red-dark); text-decoration:line-through; }
+  .m-q-opt.selected {
+    border-color:var(--blue); background:var(--blue-bg);
+    box-shadow:0 3px 0 rgba(28,176,246,0.2);
+  }
+  .m-q-opt.selected .mql { background:var(--blue); color:#fff; }
+
+  /* ---- Tip Strip ---- */
+  .m-tip {
+    margin:0 14px 14px;
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; border-radius:12px;
+    background:var(--orange-light); border:1px solid rgba(255,150,0,0.2);
+  }
+  .m-tip .mt-emoji { font-size:20px; flex-shrink:0; }
+  .m-tip p { font-size:11px; font-weight:700; color:#8a5500; line-height:1.4; }
+
+  /* ---- Footer ---- */
+  .m-footer {
+    margin:16px 14px 8px;
+    text-align:center;
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    line-height:1.5;
+  }
+
+</style>
+</head>
+<body>
+<div class="container-mobile">
+  <div class="phone-frame">
+
+    <!-- ===== Topbar ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div class="topbar-stats">
+        <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+        <div class="stat-item xp"><span class="icon">⚡</span> 2,480</div>
+        <div class="stat-item level"><span class="icon">💎</span> 7</div>
+      </div>
+    </div>
+
+    <!-- ===== Completion Hero ===== -->
+    <div class="m-hero">
+      <div class="m-hero-top">
+        <div class="m-hero-icon">🏆</div>
+        <div class="m-hero-text">
+          <h1>词汇量测试完成！</h1>
+          <div class="m-sub">你已达到 B1 水平</div>
+          <div class="m-sub2">超过 68% 的学习者</div>
+        </div>
+      </div>
+      <div class="m-hero-badges">
+        <div class="m-hero-badge">📊 <b>B1</b></div>
+        <div class="m-hero-badge">📏 <b>4,200</b> 词</div>
+        <div class="m-hero-badge">⚡ <b>+150</b> XP</div>
+        <div class="m-hero-badge">🎖️ 新纪录!</div>
+      </div>
+    </div>
+
+    <!-- ===== Stats Grid ===== -->
+    <div class="m-stats-grid">
+      <div class="m-stat">
+        <div class="mv green">✓ 21</div>
+        <div class="ml">答对</div>
+      </div>
+      <div class="m-stat">
+        <div class="mv red">✕ 4</div>
+        <div class="ml">答错</div>
+      </div>
+      <div class="m-stat">
+        <div class="mv orange">🔥 84%</div>
+        <div class="ml">准确率</div>
+      </div>
+      <div class="m-stat">
+        <div class="mv blue">⏱ 4:32</div>
+        <div class="ml">总用时</div>
+      </div>
+    </div>
+
+    <!-- ===== CEFR Ladder ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📊</span> CEFR 等级评估</div>
+      <div class="m-section-desc">欧洲共同语言参考框架</div>
+    </div>
+    <div class="m-cfr-card">
+      <div class="m-cfr-ladder">
+        <div class="m-cfr-step past">
+          <span class="mcs-emoji">🌱</span>
+          <span class="mcs-level">A1</span>
+          <span class="mcs-name">入门</span>
+          <div class="mcs-bar"></div>
+        </div>
+        <div class="m-cfr-step past">
+          <span class="mcs-emoji">🌿</span>
+          <span class="mcs-level">A2</span>
+          <span class="mcs-name">初级</span>
+          <div class="mcs-bar"></div>
+        </div>
+        <div class="m-cfr-step active">
+          <span class="m-cfr-marker">⭐</span>
+          <span class="mcs-emoji">🌳</span>
+          <span class="mcs-level">B1</span>
+          <span class="mcs-name">中级</span>
+          <div class="mcs-bar"></div>
+        </div>
+        <div class="m-cfr-step locked">
+          <span class="mcs-emoji">🏔️</span>
+          <span class="mcs-level">B2</span>
+          <span class="mcs-name">中高级</span>
+          <div class="mcs-bar"></div>
+        </div>
+        <div class="m-cfr-step locked">
+          <span class="mcs-emoji">🏢</span>
+          <span class="mcs-level">C1</span>
+          <span class="mcs-name">高级</span>
+          <div class="mcs-bar"></div>
+        </div>
+        <div class="m-cfr-step locked">
+          <span class="mcs-emoji">🎓</span>
+          <span class="mcs-level">C2</span>
+          <span class="mcs-name">精通</span>
+          <div class="mcs-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Vocabulary Gauge ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📏</span> 词汇量估算</div>
+      <div class="m-section-desc">基于 25 道自适应题目推理</div>
+    </div>
+    <div class="m-gauge-card">
+      <div class="m-gauge-wrap">
+        <div class="m-gauge-svg">
+          <svg width="140" height="92" viewBox="0 0 180 120">
+            <path d="M 20 100 A 70 70 0 0 1 160 100" fill="none" stroke="#ececec" stroke-width="16" stroke-linecap="round"/>
+            <path d="M 20 100 A 70 70 0 0 1 160 100" fill="none" stroke="url(#m-gauge-grad)" stroke-width="16" stroke-linecap="round" stroke-dasharray="220 220" stroke-dashoffset="105" style="filter:drop-shadow(0 0 6px rgba(88,204,2,0.3));"/>
+            <defs>
+              <linearGradient id="m-gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#58cc02"/>
+                <stop offset="100%" style="stop-color:#ffc800"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="m-gauge-center">
+            <div class="mgv">4,200</div>
+            <div class="mgv-sub">词汇量</div>
+          </div>
+        </div>
+        <div class="m-gauge-info">
+          <div class="m-gi-row">
+            <span class="mgi-label">词汇范围</span>
+            <span class="mgi-val green">3,500–5,000</span>
+          </div>
+          <div class="m-gi-row">
+            <span class="mgi-label">CEFR 对应</span>
+            <span class="mgi-val purple">B1 中级</span>
+          </div>
+          <div class="m-gi-row">
+            <span class="mgi-label">同龄排名</span>
+            <span class="mgi-val blue">前 32%</span>
+          </div>
+          <div class="m-gi-row">
+            <span class="mgi-label">距 B2 还差</span>
+            <span class="mgi-val orange">≈3,000 词</span>
+          </div>
+        </div>
+      </div>
+      <div class="m-gauge-bar">
+        <div class="mgb-seg easy" style="width:35%;"></div>
+        <div class="mgb-seg medium" style="width:30%;"></div>
+        <div class="mgb-seg hard" style="width:22%;"></div>
+        <div class="mgb-seg advanced" style="width:13%;"></div>
+      </div>
+      <div class="m-gauge-bar-labels">
+        <span>A1基础</span>
+        <span>A2-B1中级</span>
+        <span>B2高级</span>
+        <span>C1+精通</span>
+      </div>
+    </div>
+
+    <!-- ===== Difficulty Distribution ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📊</span> 掌握程度分析</div>
+      <div class="m-section-desc">各难度词汇的答题正确率</div>
+    </div>
+    <div class="m-diff-card">
+      <div class="m-diff-rows">
+        <div class="m-diff-row">
+          <span class="mdr-emoji">🌱</span>
+          <div class="mdr-body">
+            <b>基础词汇 (A1-A2)</b>
+            <div class="mdr-bar"><div class="mdr-fill green" style="width:95%;"></div></div>
+          </div>
+          <span class="mdr-count">95%</span>
+        </div>
+        <div class="m-diff-row">
+          <span class="mdr-emoji">🌿</span>
+          <div class="mdr-body">
+            <b>中级词汇 (B1)</b>
+            <div class="mdr-bar"><div class="mdr-fill blue" style="width:80%;"></div></div>
+          </div>
+          <span class="mdr-count">80%</span>
+        </div>
+        <div class="m-diff-row">
+          <span class="mdr-emoji">🌳</span>
+          <div class="mdr-body">
+            <b>高级词汇 (B2)</b>
+            <div class="mdr-bar"><div class="mdr-fill orange" style="width:55%;"></div></div>
+          </div>
+          <span class="mdr-count">55%</span>
+        </div>
+        <div class="m-diff-row">
+          <span class="mdr-emoji">🏔️</span>
+          <div class="mdr-body">
+            <b>精通词汇 (C1+)</b>
+            <div class="mdr-bar"><div class="mdr-fill red" style="width:28%;"></div></div>
+          </div>
+          <span class="mdr-count">28%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Skill Areas ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">🎯</span> 四维度能力</div>
+      <div class="m-section-desc">听说读写四项能力评估</div>
+    </div>
+    <div class="m-skill-card">
+      <div class="m-skill-grid">
+        <div class="m-skill">
+          <span class="ms-emoji">👂</span>
+          <span class="ms-name">听力</span>
+          <div class="ms-level green">B1</div>
+          <div class="ms-bar"><div class="ms-fill" style="width:78%;background:var(--green);"></div></div>
+        </div>
+        <div class="m-skill">
+          <span class="ms-emoji">📖</span>
+          <span class="ms-name">阅读</span>
+          <div class="ms-level green">B1</div>
+          <div class="ms-bar"><div class="ms-fill" style="width:82%;background:var(--green);"></div></div>
+        </div>
+        <div class="m-skill">
+          <span class="ms-emoji">🎤</span>
+          <span class="ms-name">口语</span>
+          <div class="ms-level orange">A2</div>
+          <div class="ms-bar"><div class="ms-fill" style="width:65%;background:var(--orange);"></div></div>
+        </div>
+        <div class="m-skill">
+          <span class="ms-emoji">✍️</span>
+          <span class="ms-name">写作</span>
+          <div class="ms-level blue">B1</div>
+          <div class="ms-bar"><div class="ms-fill" style="width:75%;background:var(--blue);"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Question Preview ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📝</span> 测试题回顾</div>
+      <div class="m-section-desc">查看你的答题情况</div>
+    </div>
+    <div class="m-question-card">
+      <div class="m-q-head">
+        <span class="m-q-type">🎯 听音拼词</span>
+        <span class="m-q-num">第 12 题 / 25</span>
+      </div>
+      <div class="m-q-audio">
+        <button class="m-q-play">▶</button>
+        <div class="m-q-audio-body">
+          <div class="mqa-t">🎧 播放单词</div>
+          <div class="mqa-m">🔊 标准英音</div>
+        </div>
+        <button class="m-q-audio-speed">0.5x</button>
+      </div>
+      <div class="m-q-instr">🎧 听音频，选择正确的拼写</div>
+      <div class="m-q-word">environment</div>
+      <div class="m-q-options">
+        <div class="m-q-opt correct">
+          <div class="mql">A</div>
+          <div class="mqt">environment</div>
+          <div class="mqi">🌍</div>
+        </div>
+        <div class="m-q-opt">
+          <div class="mql">B</div>
+          <div class="mqt">enviorment</div>
+          <div class="mqi">🌱</div>
+        </div>
+        <div class="m-q-opt wrong">
+          <div class="mql">C</div>
+          <div class="mqt">environnement</div>
+          <div class="mqi">🌳</div>
+        </div>
+        <div class="m-q-opt">
+          <div class="mql">D</div>
+          <div class="mqt">enviroment</div>
+          <div class="mqi">🌿</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Study Plan Banner ===== -->
+    <div class="m-plan-banner">
+      <div class="m-plan-top">
+        <span class="m-plan-icon">🎯</span>
+        <div class="m-plan-body">
+          <b>推荐：B1 → B2 冲刺</b>
+          <small>30 天计划</small>
+        </div>
+      </div>
+      <div class="m-plan-details">
+        <span class="mpd-item">📚 10 词/天</span>
+        <span class="mpd-item">🎧 5 听打/天</span>
+        <span class="mpd-item">📝 1 课/天</span>
+      </div>
+    </div>
+
+    <!-- ===== Recommended Word Lists ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📚</span> 推荐词库</div>
+      <div class="m-section-desc">基于 B1 水平推荐</div>
+    </div>
+    <div class="m-reco-card">
+      <div class="m-reco-list">
+        <div class="m-reco-item">
+          <span class="mri-emoji">📖</span>
+          <div class="mri-body">
+            <b>新概念第二册</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:100%;background:var(--green);"></div></div>
+          </div>
+          <span class="mri-count">1,500词</span>
+          <span class="mri-badge done">✓</span>
+        </div>
+        <div class="m-reco-item">
+          <span class="mri-emoji">📘</span>
+          <div class="mri-body">
+            <b>CET-4 核心</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:100%;background:var(--green);"></div></div>
+          </div>
+          <span class="mri-count">4,500词</span>
+          <span class="mri-badge done">✓</span>
+        </div>
+        <div class="m-reco-item">
+          <span class="mri-emoji">📗</span>
+          <div class="mri-body">
+            <b>新概念第三册</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:62%;background:var(--blue);"></div></div>
+          </div>
+          <span class="mri-count">2,800词</span>
+          <span class="mri-badge ing">62%</span>
+        </div>
+        <div class="m-reco-item">
+          <span class="mri-emoji">📙</span>
+          <div class="mri-body">
+            <b>CET-6 核心</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:35%;background:var(--purple);"></div></div>
+          </div>
+          <span class="mri-count">6,000词</span>
+          <span class="mri-badge ing">35%</span>
+        </div>
+        <div class="m-reco-item">
+          <span class="mri-emoji">📕</span>
+          <div class="mri-body">
+            <b>考研核心</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:0%;background:var(--orange);"></div></div>
+          </div>
+          <span class="mri-count">5,500词</span>
+          <span class="mri-badge todo">○</span>
+        </div>
+        <div class="m-reco-item">
+          <span class="mri-emoji">🔴</span>
+          <div class="mri-body">
+            <b>托福词汇</b>
+            <div class="mri-bar"><div class="mri-fill" style="width:0%;background:var(--orange);"></div></div>
+          </div>
+          <span class="mri-count">8,000词</span>
+          <span class="mri-badge todo">○</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Peer Comparison ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">👥</span> 同龄对比</div>
+      <div class="m-section-desc">与同龄学习者词汇量对比</div>
+    </div>
+    <div class="m-compare-card">
+      <div class="m-compare-bar">
+        <div class="m-compare-fill" style="width:68%;">你在这里 68%</div>
+      </div>
+      <div class="m-compare-markers">
+        <span>0</span>
+        <span>2k</span>
+        <span>4k</span>
+        <span>6k</span>
+        <span>8k</span>
+        <span>10k+</span>
+      </div>
+      <div class="m-compare-rows">
+        <div class="m-cr-row">
+          <span class="mcr-label">你的词汇量</span>
+          <span class="mcr-val" style="color:var(--green);">4,200</span>
+        </div>
+        <div class="m-cr-row">
+          <span class="mcr-label">同龄平均</span>
+          <span class="mcr-val">3,100</span>
+        </div>
+        <div class="m-cr-row">
+          <span class="mcr-label">同龄前 10%</span>
+          <span class="mcr-val" style="color:var(--gold);">6,500</span>
+        </div>
+        <div class="m-cr-row">
+          <span class="mcr-label">同龄前 1%</span>
+          <span class="mcr-val" style="color:var(--purple);">9,200</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Test History ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📜</span> 测试历史</div>
+      <div class="m-section-desc">近 4 次测试结果</div>
+    </div>
+    <div class="m-history-card">
+      <div class="m-history-timeline">
+        <div class="m-history-item">
+          <div class="mhi-date"><span class="d">10</span><span class="m">九月</span></div>
+          <div class="mhi-dot best">👑</div>
+          <div class="mhi-body">
+            <b>B1 · 4,200 词</b>
+            <small>25题 · 84% 准确率</small>
+          </div>
+          <div class="mhi-score green">+200</div>
+          <div class="mhi-change up">▲</div>
+        </div>
+        <div class="m-history-item">
+          <div class="mhi-date"><span class="d">03</span><span class="m">九月</span></div>
+          <div class="mhi-dot normal">·</div>
+          <div class="mhi-body">
+            <b>B1 · 4,100 词</b>
+            <small>25题 · 80% 准确率</small>
+          </div>
+          <div class="mhi-score blue">+100</div>
+          <div class="mhi-change up">▲</div>
+        </div>
+        <div class="m-history-item">
+          <div class="mhi-date"><span class="d">27</span><span class="m">八月</span></div>
+          <div class="mhi-dot normal">·</div>
+          <div class="mhi-body">
+            <b>A2 · 3,500 词</b>
+            <small>25题 · 76% 准确率</small>
+          </div>
+          <div class="mhi-score blue">+100</div>
+          <div class="mhi-change up">▲</div>
+        </div>
+        <div class="m-history-item">
+          <div class="mhi-date"><span class="d">20</span><span class="m">八月</span></div>
+          <div class="mhi-dot worse">·</div>
+          <div class="mhi-body">
+            <b>A2 · 3,400 词</b>
+            <small>25题 · 72% 准确率</small>
+          </div>
+          <div class="mhi-score blue">+100</div>
+          <div class="mhi-change up">▲</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Action Bar ===== -->
+    <div class="m-action">
+      <button class="btn btn-ghost">🔄 重测</button>
+      <button class="btn btn-ghost">📤 分享</button>
+      <button class="btn btn-primary">🎯 开始计划</button>
+    </div>
+
+    <!-- ===== Tip Strip ===== -->
+    <div class="m-tip">
+      <span class="mt-emoji">💡</span>
+      <p>建议每两周重新测试一次词汇量，跟踪成长曲线。词汇量测试使用自适应算法，会根据答题表现自动调整题目难度。</p>
+    </div>
+
+    <div class="m-footer">
+      🦉 英语听打 · 词汇量测试<br>
+      你的英语之路，从这里开始 🚀
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

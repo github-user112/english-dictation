@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boss战 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+    padding-bottom:40px;
+  }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:10px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+  .stat-item .icon { font-size:15px; }
+
+  /* ---- Boss Hero (mobile compact) ---- */
+  .m-boss-hero {
+    margin:14px;
+    background:linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    border-radius:18px; padding:22px 20px; color:#fff;
+    box-shadow:0 6px 0 rgba(0,0,0,0.25), 0 10px 30px rgba(0,0,0,0.3);
+    position:relative; overflow:hidden;
+  }
+  .m-boss-hero::after {
+    content:''; position:absolute; top:-50px; right:-30px;
+    width:160px; height:160px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,75,75,0.15), transparent 70%);
+    animation:boss-glow 3s ease-in-out infinite;
+  }
+  @keyframes boss-glow { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+  .m-boss-row {
+    display:flex; align-items:center; gap:16px;
+    position:relative; z-index:1;
+  }
+  .m-boss-avatar-wrap {
+    flex-shrink:0; display:flex; flex-direction:column; align-items:center;
+  }
+  .m-boss-avatar-ring {
+    width:72px; height:72px; border-radius:50%;
+    background:linear-gradient(135deg, var(--red), #ff7a7a);
+    padding:3px; box-shadow:0 0 0 3px rgba(255,75,75,0.2), 0 0 20px rgba(255,75,75,0.3);
+    animation:avatar-pulse 2s ease-in-out infinite;
+  }
+  @keyframes avatar-pulse {
+    0%,100%{box-shadow:0 0 0 3px rgba(255,75,75,0.2),0 0 20px rgba(255,75,75,0.3)}
+    50%{box-shadow:0 0 0 6px rgba(255,75,75,0.1),0 0 35px rgba(255,75,75,0.4)}
+  }
+  .m-boss-avatar-inner {
+    width:100%; height:100%; border-radius:50%;
+    background:#1a1a2e; display:flex; align-items:center; justify-content:center;
+    font-size:40px;
+  }
+  .m-boss-diff {
+    margin-top:6px;
+    padding:3px 10px; border-radius:6px;
+    background:var(--red); color:#fff;
+    font-size:10px; font-weight:900; letter-spacing:0.5px;
+    box-shadow:0 2px 0 var(--red-dark);
+  }
+
+  .m-boss-info { flex:1; min-width:0; }
+  .m-bh-name {
+    font-size:20px; font-weight:900; letter-spacing:-0.3px;
+    margin-bottom:1px;
+    background:linear-gradient(90deg, #fff, #ffd9d9);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .m-bh-title {
+    font-size:11px; font-weight:700; opacity:0.7; margin-bottom:10px;
+  }
+  .m-bh-meta {
+    display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;
+  }
+  .m-bh-meta-item {
+    font-size:11px; font-weight:800; opacity:0.8;
+    display:flex; align-items:center; gap:3px;
+  }
+  .m-bh-meta-item .mi-ic { font-size:13px; }
+
+  /* Boss HP bar (mobile) */
+  .m-hp-wrap { margin-bottom:4px; }
+  .m-hp-label {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:4px;
+  }
+  .m-hp-label .lft { display:flex; align-items:center; gap:4px; font-size:11px; font-weight:900; }
+  .m-hp-label .rgt { font-size:13px; font-weight:900; }
+  .m-hp-label .rgt small { font-size:10px; opacity:0.6; font-weight:700; }
+  .m-hp-bar {
+    height:16px; border-radius:8px;
+    background:rgba(255,255,255,0.1);
+    overflow:hidden; position:relative;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .m-hp-fill {
+    height:100%; border-radius:8px;
+    background:linear-gradient(90deg, #ff4b4b, #ff7a7a);
+    position:relative;
+    box-shadow:0 0 8px rgba(255,75,75,0.5);
+  }
+  .m-hp-fill::after {
+    content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+    border-radius:8px;
+  }
+
+  /* Combat CTA (mobile) */
+  .m-combat-cta {
+    display:flex; flex-direction:column; gap:8px;
+    margin-top:14px; position:relative; z-index:1;
+  }
+  .m-combat-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:14px 20px; border-radius:14px;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    color:#fff; font-weight:900; font-size:17px;
+    border:none; cursor:pointer; text-decoration:none;
+    box-shadow:0 5px 0 var(--green-dark), 0 8px 20px rgba(88,204,2,0.3);
+    transition:transform 0.1s;
+    letter-spacing:0.5px;
+  }
+  .m-combat-btn:active { transform:translateY(3px); box-shadow:0 2px 0 var(--green-dark); }
+  .m-combat-btn .cb-ic { font-size:22px; }
+  .m-combat-timer {
+    display:flex; align-items:center; justify-content:center; gap:5px;
+    font-size:11px; font-weight:700; opacity:0.6;
+  }
+  .m-combat-timer .ct-ic { font-size:13px; }
+
+  /* ---- Stats strip (mobile) ---- */
+  .m-stats {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+    margin:0 14px 14px;
+  }
+  .m-ss {
+    text-align:center; padding:12px 8px;
+    background:#fff; border-radius:12px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .m-ss .ss-ic { font-size:20px; margin-bottom:2px; }
+  .m-ss .ss-v { font-size:22px; font-weight:900; letter-spacing:-0.3px; }
+  .m-ss .ss-v.green { color:var(--green); }
+  .m-ss .ss-v.red { color:var(--red); }
+  .m-ss .ss-v.orange { color:var(--orange); }
+  .m-ss .ss-v.gold { color:var(--gold); }
+  .m-ss .ss-v.purple { color:var(--purple); }
+  .m-ss .ss-l { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  /* ---- Battle Arena (mobile) ---- */
+  .m-arena {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    overflow:hidden;
+  }
+  .m-arena-top {
+    height:4px;
+    background:linear-gradient(90deg, var(--red) 0%, var(--orange) 50%, var(--green) 100%);
+  }
+  .m-arena-body { padding:18px 16px; }
+
+  .m-arena-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .m-ah-left { display:flex; align-items:center; gap:8px; }
+  .m-ah-left .ah-ic { font-size:22px; }
+  .m-ah-left b { font-size:15px; font-weight:900; display:block; }
+  .m-ah-left .ah-sub { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .m-ah-right {
+    font-size:11px; font-weight:800; color:var(--text-dim);
+  }
+  .m-ah-right b { color:var(--text); font-size:14px; }
+
+  /* Word challenge (mobile) */
+  .m-wc {
+    background:linear-gradient(135deg, #f8f0ff, #fff);
+    border:2px solid rgba(206,130,255,0.2);
+    border-radius:14px; padding:16px 18px;
+    margin-bottom:14px; position:relative;
+  }
+  .m-wc::before {
+    content:''; position:absolute; top:-1px; left:18px; right:18px; height:3px;
+    background:linear-gradient(90deg, var(--purple), var(--blue));
+    border-radius:0 0 3px 3px;
+  }
+  .m-wc-label {
+    font-size:11px; font-weight:800; color:var(--purple-dark);
+    margin-bottom:8px;
+  }
+  .m-wc-word {
+    font-size:28px; font-weight:900; letter-spacing:-0.5px;
+    background:linear-gradient(135deg, var(--purple-dark), var(--blue-dark));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:4px;
+  }
+  .m-wc-hint {
+    font-size:12px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:5px;
+  }
+
+  /* Answer input (mobile) */
+  .m-answer-label {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .m-answer-label .al-text { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .m-answer-label .al-count { font-size:11px; font-weight:800; color:var(--text-faint); }
+  .m-answer-wrap {
+    display:flex; gap:8px; align-items:center;
+  }
+  .m-answer-input {
+    flex:1; padding:12px 14px;
+    border:3px solid var(--border); border-radius:12px;
+    font-family:inherit; font-size:16px; font-weight:800;
+    background:#fff; outline:none;
+  }
+  .m-answer-input.wrong { border-color:var(--red); background:var(--red-light); color:var(--red-dark); }
+  .m-answer-submit {
+    padding:12px 18px; border-radius:12px;
+    background:var(--green); color:#fff;
+    font-family:inherit; font-weight:900; font-size:14px;
+    border:none; cursor:pointer;
+    box-shadow:0 4px 0 var(--green-dark);
+    transition:transform 0.1s; white-space:nowrap;
+  }
+  .m-answer-submit:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+  .m-answer-feedback {
+    display:flex; align-items:center; gap:6px;
+    margin-top:8px;
+  }
+  .m-dmg {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:4px 10px; border-radius:8px;
+    background:var(--red); color:#fff;
+    font-weight:900; font-size:12px;
+    box-shadow:0 2px 0 var(--red-dark);
+  }
+  .m-feedback-text {
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    line-height:1.3;
+  }
+
+  /* Combo meter (mobile) */
+  .m-combo {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 16px; border-radius:14px;
+    background:linear-gradient(135deg, #fff5f5, #fff);
+    border:2px solid rgba(255,150,0,0.2);
+    margin-top:14px;
+  }
+  .m-combo-fire {
+    font-size:28px; flex-shrink:0;
+    animation:fire-flicker 0.5s ease-in-out infinite alternate;
+    filter:drop-shadow(0 0 6px rgba(255,150,0,0.5));
+  }
+  @keyframes fire-flicker { 0%{transform:scale(1) rotate(-2deg)} 100%{transform:scale(1.1) rotate(2deg)} }
+  .m-combo-body { flex:1; min-width:0; }
+  .m-combo-label {
+    font-size:10px; font-weight:800; color:var(--orange-dark);
+    margin-bottom:3px;
+  }
+  .m-combo-row {
+    display:flex; align-items:center; gap:8px;
+  }
+  .m-combo-num {
+    font-size:24px; font-weight:900;
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    letter-spacing:-0.5px;
+  }
+  .m-combo-unit { font-size:12px; font-weight:800; color:var(--orange); }
+  .m-combo-bar {
+    flex:1; height:6px; border-radius:3px;
+    background:#f0f0f0; overflow:hidden;
+  }
+  .m-combo-fill {
+    height:100%; border-radius:3px;
+    background:linear-gradient(90deg, var(--orange), #ffb347);
+    box-shadow:0 0 4px rgba(255,150,0,0.4);
+  }
+  .m-combo-xp {
+    flex-shrink:0;
+    background:var(--gold); color:#fff;
+    padding:4px 10px; border-radius:8px;
+    font-weight:900; font-size:12px;
+    box-shadow:0 2px 0 #d4a800;
+  }
+
+  /* ---- Boss List (mobile) ---- */
+  .m-boss-list-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-boss-list-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .m-boss-list-head .h-left { display:flex; align-items:center; gap:6px; }
+  .m-boss-list-head .h-left b { font-size:15px; font-weight:900; }
+  .m-boss-list-head .h-count {
+    background:var(--red-light); color:var(--red-dark);
+    padding:2px 8px; border-radius:6px;
+    font-size:10px; font-weight:900;
+  }
+
+  .m-boss-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px;
+    background:#f8f8f8; margin-bottom:8px;
+  }
+  .m-boss-item:last-child { margin-bottom:0; }
+  .m-boss-item.active {
+    background:linear-gradient(135deg, #fff5f5, #fff);
+    border:2px solid rgba(255,75,75,0.3);
+    box-shadow:0 3px 0 rgba(255,75,75,0.1);
+  }
+  .m-boss-item.defeated { opacity:0.5; }
+  .m-boss-item.defeated .mbi-avatar { filter:grayscale(1) opacity(0.6); }
+  .mbi-avatar {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; flex-shrink:0;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .mbi-info { flex:1; min-width:0; }
+  .mbi-name {
+    font-size:13px; font-weight:800;
+    display:flex; align-items:center; gap:5px;
+  }
+  .mbi-name .mbi-diff {
+    font-size:9px; font-weight:800; padding:1px 5px;
+    border-radius:5px; flex-shrink:0;
+  }
+  .mbi-diff.easy { background:var(--green-bg); color:var(--green-dark); }
+  .mbi-diff.normal { background:var(--orange-light); color:var(--orange-dark); }
+  .mbi-diff.hard { background:var(--purple-light); color:var(--purple-dark); }
+  .mbi-hp {
+    display:flex; align-items:center; gap:5px; margin-top:3px;
+  }
+  .mbi-hp-bar {
+    flex:1; height:5px; border-radius:3px;
+    background:#e5e5e5; overflow:hidden;
+  }
+  .mbi-hp-fill { height:100%; border-radius:3px; }
+  .mbi-hp-fill.green { background:var(--green); }
+  .mbi-hp-fill.red { background:var(--red); }
+  .mbi-hp-fill.purple { background:var(--purple); }
+  .mbi-hp-fill.orange { background:var(--orange); }
+  .mbi-hp-num {
+    font-size:10px; font-weight:800; color:var(--text-dim);
+    flex-shrink:0;
+  }
+  .mbi-xp {
+    font-size:9px; font-weight:800;
+    padding:2px 6px; border-radius:5px;
+    background:var(--gold-light); color:#d4a800;
+    flex-shrink:0;
+  }
+  .mbi-defeated {
+    display:flex; align-items:center; gap:3px;
+    font-size:9px; font-weight:800;
+    color:var(--green-dark); flex-shrink:0;
+  }
+
+  /* ---- Combat Log (mobile) ---- */
+  .m-log-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-log-head {
+    display:flex; align-items:center; gap:6px;
+    font-size:15px; font-weight:900; margin-bottom:10px;
+  }
+  .m-log-list { display:flex; flex-direction:column; gap:5px; }
+  .m-log-item {
+    display:flex; align-items:center; gap:8px;
+    padding:6px 10px; border-radius:8px;
+    background:#f8f8f8; font-size:11px; font-weight:700;
+  }
+  .m-log-dot {
+    width:7px; height:7px; border-radius:50%; flex-shrink:0;
+  }
+  .m-log-dot.hit { background:var(--green); }
+  .m-log-dot.miss { background:var(--red); }
+  .m-log-dot.kill { background:var(--gold); box-shadow:0 0 4px rgba(255,200,0,0.5); }
+  .m-log-text { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .m-log-time {
+    font-size:9px; font-weight:800; color:var(--text-faint);
+    flex-shrink:0;
+  }
+  .m-log-dmg {
+    font-size:10px; font-weight:900; color:var(--red-dark);
+    flex-shrink:0;
+  }
+  .m-log-dmg.crit { color:var(--orange-dark); }
+  .m-log-dmg.xp { color:var(--gold); }
+
+  /* ---- Defeated Gallery (mobile) ---- */
+  .m-gallery {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-gallery-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .m-gallery-head .gh-left { display:flex; align-items:center; gap:6px; }
+  .m-gallery-head .gh-left b { font-size:15px; font-weight:900; }
+  .m-gallery-head .gh-sub { font-size:10px; font-weight:700; color:var(--text-dim); }
+  .m-gallery-grid {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:8px;
+  }
+  .m-trophy {
+    display:flex; flex-direction:column; align-items:center;
+    padding:12px 8px; border-radius:12px;
+    background:linear-gradient(135deg, #fffbf0, #fff);
+    border:1.5px solid rgba(255,200,0,0.2);
+    position:relative; overflow:hidden;
+  }
+  .m-trophy-avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; background:#fff;
+    box-shadow:0 3px 0 rgba(0,0,0,0.08);
+    margin-bottom:6px; filter:grayscale(0.2);
+  }
+  .m-trophy-name {
+    font-size:11px; font-weight:800; color:var(--text);
+    margin-bottom:1px; text-align:center;
+  }
+  .m-trophy-meta {
+    font-size:9px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:3px;
+  }
+  .m-trophy-xp {
+    margin-top:4px;
+    background:var(--gold-light); color:#d4a800;
+    padding:1px 6px; border-radius:5px;
+    font-size:9px; font-weight:900;
+  }
+
+  /* ---- Challenge tip (mobile) ---- */
+  .m-tip {
+    margin:0 14px 14px;
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; border-radius:12px;
+    background:var(--orange-light);
+    border:1px solid rgba(255,150,0,0.2);
+  }
+  .m-tip .tip-emoji { font-size:22px; flex-shrink:0; }
+  .m-tip p { font-size:12px; font-weight:700; color:#8a5500; line-height:1.4; }
+
+  /* ---- Round progress (mobile) ---- */
+  .m-round-bar {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 14px; border-radius:10px;
+    background:linear-gradient(135deg, #f8f8f8, #fff);
+    border:1px solid #eee;
+    margin-bottom:12px;
+  }
+  .m-round-bar .rb-ic { font-size:18px; flex-shrink:0; }
+  .m-round-bar .rb-label { font-size:11px; font-weight:800; color:var(--text-dim); flex:1; }
+  .m-round-bar .rb-label b { color:var(--text); }
+  .m-round-bar .rb-segs { display:flex; gap:3px; }
+  .m-round-bar .rb-seg {
+    width:24px; height:6px; border-radius:3px; background:#e5e5e5;
+  }
+  .m-round-bar .rb-seg.done { background:var(--green); }
+  .m-round-bar .rb-seg.current { background:var(--orange); box-shadow:0 0 4px rgba(255,150,0,0.4); }
+</style>
+</head>
+<body>
+<div class="container-mobile">
+  <div class="phone-frame">
+
+    <!-- ===== Topbar ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div class="topbar-stats">
+        <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+        <div class="stat-item xp"><span class="icon">⚡</span> 2,480</div>
+      </div>
+    </div>
+
+    <!-- ===== Boss Hero (mobile) ===== -->
+    <div class="m-boss-hero">
+      <div class="m-boss-row">
+
+        <div class="m-boss-avatar-wrap">
+          <div class="m-boss-avatar-ring">
+            <div class="m-boss-avatar-inner">🐉</div>
+          </div>
+          <div class="m-boss-diff">HARD</div>
+        </div>
+
+        <div class="m-boss-info">
+          <div class="m-bh-name">拼写巨龙</div>
+          <div class="m-bh-title">5 连对可击杀 · Boss 战</div>
+
+          <div class="m-hp-wrap">
+            <div class="m-hp-label">
+              <span class="lft">⚔️ HP</span>
+              <span class="rgt">60<small>/100</small></span>
+            </div>
+            <div class="m-hp-bar">
+              <div class="m-hp-fill" style="width:60%;"></div>
+            </div>
+          </div>
+
+          <div class="m-bh-meta">
+            <span class="m-bh-meta-item"><span class="mi-ic">🗡️</span> 已命中40</span>
+            <span class="m-bh-meta-item"><span class="mi-ic">⚡</span> +80XP</span>
+            <span class="m-bh-meta-item"><span class="mi-ic">🎯</span> ×1.5</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="m-combat-cta">
+        <a href="#" class="m-combat-btn">
+          <span class="cb-ic">⚔️</span> 开始战斗！
+        </a>
+        <div class="m-combat-timer">
+          <span class="ct-ic">⏱️</span> 挑战限时 10 分钟
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Stats (mobile) ===== -->
+    <div class="m-stats">
+      <div class="m-ss">
+        <div class="ss-ic">⚔️</div>
+        <div class="ss-v red">12</div>
+        <div class="ss-l">总击杀</div>
+      </div>
+      <div class="m-ss">
+        <div class="ss-ic">🔥</div>
+        <div class="ss-v orange">7</div>
+        <div class="ss-l">最长连击</div>
+      </div>
+      <div class="m-ss">
+        <div class="ss-ic">🎯</div>
+        <div class="ss-v green">89%</div>
+        <div class="ss-l">命中率</div>
+      </div>
+    </div>
+
+    <!-- ===== Round progress (mobile) ===== -->
+    <div class="m-round-bar">
+      <span class="rb-ic">⚔️</span>
+      <span class="rb-label">第 <b>3</b> / 5 回合</span>
+      <div class="rb-segs">
+        <div class="rb-seg done"></div>
+        <div class="rb-seg done"></div>
+        <div class="rb-seg current"></div>
+        <div class="rb-seg"></div>
+        <div class="rb-seg"></div>
+      </div>
+    </div>
+
+    <!-- ===== Battle Arena (mobile) ===== -->
+    <div class="m-arena">
+      <div class="m-arena-top"></div>
+      <div class="m-arena-body">
+
+        <!-- Word challenge -->
+        <div class="m-wc">
+          <div class="m-wc-label">📖 当前目标 · 听音拼写</div>
+          <div class="m-wc-word">extraordinary</div>
+          <div class="m-wc-hint">🎧 播放发音 · 拼出正确单词</div>
+        </div>
+
+        <!-- Answer input -->
+        <div class="m-answer-label">
+          <span class="al-text">✏️ 你的答案</span>
+          <span class="al-count">11 / 12 字母</span>
+        </div>
+        <div class="m-answer-wrap">
+          <input type="text" class="m-answer-input wrong" value="extraordinary">
+          <button class="m-answer-submit">确认 ✕</button>
+        </div>
+        <div class="m-answer-feedback">
+          <span class="m-dmg">💥 -25</span>
+          <span class="m-feedback-text">拼写错误！少了 'n'</span>
+        </div>
+
+        <!-- Combo meter -->
+        <div class="m-combo">
+          <span class="m-combo-fire">🔥</span>
+          <div class="m-combo-body">
+            <div class="m-combo-label">COMBO · 连击奖励</div>
+            <div class="m-combo-row">
+              <span class="m-combo-num">2</span>
+              <span class="m-combo-unit">连对</span>
+              <div class="m-combo-bar">
+                <div class="m-combo-fill" style="width:40%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="m-combo-xp">⚡×1.5</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===== Boss List (mobile) ===== -->
+    <div class="m-boss-list-card">
+      <div class="m-boss-list-head">
+        <div class="h-left">
+          <span style="font-size:18px;">🏰</span>
+          <b>Boss 名录</b>
+        </div>
+        <span class="h-count">3/5 剩余</span>
+      </div>
+
+      <div class="m-boss-item active">
+        <div class="mbi-avatar" style="background:linear-gradient(135deg,#ff4b4b,#ff7a7a);">🐉</div>
+        <div class="mbi-info">
+          <div class="mbi-name">
+            拼写巨龙 <span class="mbi-diff hard">HARD</span>
+          </div>
+          <div class="mbi-hp">
+            <div class="mbi-hp-bar"><div class="mbi-hp-fill red" style="width:60%;"></div></div>
+            <span class="mbi-hp-num">60/100</span>
+          </div>
+        </div>
+        <span class="mbi-xp">+80</span>
+      </div>
+
+      <div class="m-boss-item">
+        <div class="mbi-avatar" style="background:linear-gradient(135deg,#ce82ff,#e0aaff);">🦇</div>
+        <div class="mbi-info">
+          <div class="mbi-name">
+            语法蝙蝠 <span class="mbi-diff normal">NORMAL</span>
+          </div>
+          <div class="mbi-hp">
+            <div class="mbi-hp-bar"><div class="mbi-hp-fill purple" style="width:100%;"></div></div>
+            <span class="mbi-hp-num">100/100</span>
+          </div>
+        </div>
+        <span class="mbi-xp">+50</span>
+      </div>
+
+      <div class="m-boss-item">
+        <div class="mbi-avatar" style="background:linear-gradient(135deg,#1cb0f6,#4dd0ff);">🐙</div>
+        <div class="mbi-info">
+          <div class="mbi-name">
+            发音章鱼 <span class="mbi-diff normal">NORMAL</span>
+          </div>
+          <div class="mbi-hp">
+            <div class="mbi-hp-bar"><div class="mbi-hp-fill orange" style="width:100%;"></div></div>
+            <span class="mbi-hp-num">100/100</span>
+          </div>
+        </div>
+        <span class="mbi-xp">+50</span>
+      </div>
+
+      <div class="m-boss-item defeated">
+        <div class="mbi-avatar" style="background:linear-gradient(135deg,#58cc02,#7ae002);">🦊</div>
+        <div class="mbi-info">
+          <div class="mbi-name">
+            语法狐狸 <span class="mbi-diff easy">EASY</span>
+          </div>
+          <div class="mbi-hp">
+            <div class="mbi-hp-bar"><div class="mbi-hp-fill green" style="width:0%;"></div></div>
+            <span class="mbi-hp-num">0/60</span>
+          </div>
+        </div>
+        <span class="mbi-defeated">✅</span>
+      </div>
+
+      <div class="m-boss-item defeated">
+        <div class="mbi-avatar" style="background:linear-gradient(135deg,#ffc800,#ffd933);">🐝</div>
+        <div class="mbi-info">
+          <div class="mbi-name">
+            词根蜜蜂 <span class="mbi-diff easy">EASY</span>
+          </div>
+          <div class="mbi-hp">
+            <div class="mbi-hp-bar"><div class="mbi-hp-fill green" style="width:0%;"></div></div>
+            <span class="mbi-hp-num">0/60</span>
+          </div>
+        </div>
+        <span class="mbi-defeated">✅</span>
+      </div>
+    </div>
+
+    <!-- ===== Combat Log (mobile) ===== -->
+    <div class="m-log-card">
+      <div class="m-log-head">📜 战斗记录</div>
+      <div class="m-log-list">
+        <div class="m-log-item">
+          <div class="m-log-dot kill"></div>
+          <span class="m-log-text">🏆 击杀了词根蜜蜂！</span>
+          <span class="m-log-time">2:34</span>
+          <span class="m-log-dmg xp">+50</span>
+        </div>
+        <div class="m-log-item">
+          <div class="m-log-dot hit"></div>
+          <span class="m-log-text">命中语法狐狸 -15</span>
+          <span class="m-log-time">2:12</span>
+          <span class="m-log-dmg">-15</span>
+        </div>
+        <div class="m-log-item">
+          <div class="m-log-dot miss"></div>
+          <span class="m-log-text">未命中 extraordinary</span>
+          <span class="m-log-time">1:48</span>
+          <span class="m-log-dmg" style="color:var(--text-faint);">0</span>
+        </div>
+        <div class="m-log-item">
+          <div class="m-log-dot hit"></div>
+          <span class="m-log-text">暴击语法狐狸 -30！</span>
+          <span class="m-log-time">1:20</span>
+          <span class="m-log-dmg crit">-30</span>
+        </div>
+        <div class="m-log-item">
+          <div class="m-log-dot kill"></div>
+          <span class="m-log-text">🏆 击杀了语法狐狸！</span>
+          <span class="m-log-time">0:56</span>
+          <span class="m-log-dmg xp">+60</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Defeated Gallery (mobile) ===== -->
+    <div class="m-gallery">
+      <div class="m-gallery-head">
+        <div class="gh-left">
+          <span style="font-size:18px;">🏆</span>
+          <b>已击杀 Boss</b>
+        </div>
+        <span class="gh-sub">累计12个 · 960XP</span>
+      </div>
+      <div class="m-gallery-grid">
+        <div class="m-trophy">
+          <div class="m-trophy-avatar">🦊</div>
+          <div class="m-trophy-name">语法狐狸</div>
+          <div class="m-trophy-meta">⏱️ 38秒</div>
+          <div class="m-trophy-xp">+60 XP</div>
+        </div>
+        <div class="m-trophy">
+          <div class="m-trophy-avatar">🐝</div>
+          <div class="m-trophy-name">词根蜜蜂</div>
+          <div class="m-trophy-meta">⏱️ 52秒</div>
+          <div class="m-trophy-xp">+50 XP</div>
+        </div>
+        <div class="m-trophy">
+          <div class="m-trophy-avatar">🦇</div>
+          <div class="m-trophy-name">语法蝙蝠</div>
+          <div class="m-trophy-meta">⏱️ 1:12</div>
+          <div class="m-trophy-xp">+50 XP</div>
+        </div>
+        <div class="m-trophy">
+          <div class="m-trophy-avatar">🐙</div>
+          <div class="m-trophy-name">发音章鱼</div>
+          <div class="m-trophy-meta">⏱️ 1:05</div>
+          <div class="m-trophy-xp">+50 XP</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Challenge tip (mobile) ===== -->
+    <div class="m-tip">
+      <span class="tip-emoji">💡</span>
+      <p>连对 5 次可击杀 Boss！连续答对越多，XP 加成越高。击杀奖励最高 +80 XP！</p>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

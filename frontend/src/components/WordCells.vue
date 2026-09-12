@@ -57,7 +57,25 @@ function typeLetter(ch) {
   return props.practiceMode !== "pure" && wrong;
 }
 function isFull() {
-  return wcur.value >= letterIdxs().length;
+  // 全字母格填满才算满（光标定位后 wcur 不再单调，不能再按 wcur>=N 判断）
+  return letterIdxs().every((i) => !!input.value[i]);
+}
+// 已输入前缀长度：光标点击/移动都不得越过第一个空格，避免点出中间空洞
+function filledPrefix() {
+  const ids = letterIdxs();
+  for (let k = 0; k < ids.length; k++) if (!input.value[ids[k]]) return k;
+  return ids.length;
+}
+function focusLetter(i) {
+  if (props.submitted || props.feedback) return;
+  const ord = ordOf.value[i];
+  if (ord < 0) return;   // 标点格不可点
+  wcur.value = Math.min(ord, filledPrefix());
+  lastHit.value = -1;
+}
+function moveCursor(d) {
+  if (props.submitted || props.feedback) return;
+  wcur.value = Math.min(Math.max(wcur.value + d, 0), filledPrefix());
 }
 function isCurrent(i) {
   return !props.submitted && !props.feedback && letterIdxs()[wcur.value] === i;
@@ -119,7 +137,7 @@ function isCorrect() {
   return !extraInput.value && refTokens.value.every((t, i) => t.type === "punct" ||
     (input.value[i] || "").toLowerCase() === t.text.toLowerCase());
 }
-defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull, serialize, restore, answerText });
+defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull, serialize, restore, answerText, focusLetter, moveCursor });
 </script>
 
 <template>
@@ -129,8 +147,9 @@ defineExpose({ typeLetter, backspace, paint, markWrong, reset, isCorrect, isFull
     <template v-for="(t, i) in refTokens" :key="i">
       <span v-if="showSequence && t.type === 'punct'" class="punct">{{ t.text }}</span>
       <span v-else-if="showSequence" class="cell letter-line"
-            :class="[mark[i] || '', isCurrent(i) ? 'current' : '', lastHit === i ? 'hit' : '']"
-            :style="{ '--wi': ordOf[i] }">{{ input[i] }}</span>
+            :class="[mark[i] || '', isCurrent(i) ? 'current' : '', lastHit === i ? 'hit' : '', input[i] ? 'filled' : '']"
+            :style="{ '--wi': ordOf[i], cursor: submitted || feedback ? 'default' : 'text' }"
+            @click="focusLetter(i)">{{ input[i] }}</span>
     </template>
     <span v-for="(c, i) in extraInput" v-if="showSequence" :key="'extra-' + i" class="cell letter-line wrong">{{ c }}</span>
     <span v-if="ignoredHint" class="ignored-hint" role="status">{{ ignoredHint }}</span>

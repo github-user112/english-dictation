@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听音选词 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Top progress strip ---- */
+  .quiz-strip {
+    display:flex; align-items:center; gap:16px;
+    padding:14px 24px; margin-bottom:22px;
+    background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .qs-qcount {
+    display:flex; align-items:center; gap:6px;
+    font-weight:900; font-size:18px; color:var(--green-dark); flex-shrink:0;
+  }
+  .qs-qcount .num {
+    background:var(--green); color:#fff; padding:4px 12px; border-radius:10px;
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+  .qs-progress { flex:1; height:12px; display:flex; gap:4px; }
+  .qs-seg { flex:1; height:12px; border-radius:6px; background:#e5e5e5; transition:all 0.3s; }
+  .qs-seg.done { background:var(--green); box-shadow:0 0 6px rgba(88,204,2,0.3); }
+  .qs-seg.current { background:linear-gradient(90deg, var(--green), #7ae002); box-shadow:0 0 8px rgba(88,204,2,0.5); animation:seg-pulse 1.5s ease infinite; }
+  .qs-seg.wrong { background:var(--red); }
+  @keyframes seg-pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+  .qs-xp {
+    display:flex; align-items:center; gap:6px;
+    font-weight:900; font-size:16px; color:var(--gold); flex-shrink:0;
+  }
+  .qs-xp .badge-xp {
+    background:var(--gold); color:#fff; padding:3px 10px; border-radius:10px;
+    box-shadow:0 2px 0 #d4a800;
+  }
+
+  /* ---- Main grid ---- */
+  .quiz-grid {
+    display:grid; grid-template-columns:1fr 340px; gap:20px;
+    align-items:start;
+  }
+
+  /* ---- Type badge ---- */
+  .type-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .type-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg, var(--blue), #4dd0ff);
+    color:#fff; padding:10px 20px; border-radius:14px;
+    font-weight:900; font-size:16px;
+    box-shadow:0 4px 0 var(--blue-dark);
+    letter-spacing:0.5px;
+  }
+  .type-badge .ic { font-size:22px; }
+  .type-badge.t-sound-spell { background:linear-gradient(135deg, var(--green), #7ae002); box-shadow:0 4px 0 var(--green-dark); }
+  .type-badge.t-sound-mean { background:linear-gradient(135deg, var(--blue), #4dd0ff); box-shadow:0 4px 0 var(--blue-dark); }
+  .type-badge.t-mean-spell { background:linear-gradient(135deg, var(--purple), #e0aaff); box-shadow:0 4px 0 var(--purple-dark); }
+  .type-label { font-size:13px; font-weight:800; color:var(--text-dim); }
+  .type-label b { color:var(--text); }
+
+  /* ---- Question card ---- */
+  .question-card {
+    background:#fff; border-radius:20px; padding:28px 30px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    margin-bottom:18px; position:relative; overflow:hidden;
+  }
+  .question-card::before {
+    content:''; position:absolute; top:-60px; right:-40px;
+    width:180px; height:180px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.06), transparent 70%);
+  }
+
+  /* Audio player */
+  .audio-player {
+    display:flex; align-items:center; gap:18px;
+    background:linear-gradient(135deg, var(--blue-bg), #f0f9ff);
+    border-radius:16px; padding:18px 22px;
+    margin-bottom:22px; border:2px solid rgba(28,176,246,0.2);
+    position:relative;
+  }
+  .audio-play {
+    width:56px; height:56px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:24px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 var(--blue-dark); cursor:pointer;
+    transition:transform 0.1s; flex-shrink:0;
+  }
+  .audio-play:active { transform:translateY(3px); box-shadow:0 1px 0 var(--blue-dark); }
+  .audio-body { flex:1; min-width:0; }
+  .audio-title { font-weight:900; font-size:18px; margin-bottom:2px; }
+  .audio-title .word { color:var(--blue-dark); }
+  .audio-meta { font-size:12px; color:var(--text-dim); font-weight:700; display:flex; gap:10px; align-items:center; }
+  .audio-wave { display:flex; align-items:center; gap:3px; height:36px; margin-left:auto; flex-shrink:0; }
+  .audio-wave .bar {
+    width:4px; border-radius:4px; background:var(--blue);
+    animation:wave 1.2s ease-in-out infinite;
+  }
+  @keyframes wave { 0%,100%{height:8px} 50%{height:32px} }
+  .audio-wave .bar:nth-child(1){animation-delay:0s}
+  .audio-wave .bar:nth-child(2){animation-delay:0.1s}
+  .audio-wave .bar:nth-child(3){animation-delay:0.2s}
+  .audio-wave .bar:nth-child(4){animation-delay:0.3s}
+  .audio-wave .bar:nth-child(5){animation-delay:0.4s}
+  .audio-wave .bar:nth-child(6){animation-delay:0.5s}
+  .audio-wave .bar:nth-child(7){animation-delay:0.6s}
+  .audio-speed {
+    background:rgba(28,176,246,0.1); color:var(--blue-dark);
+    padding:6px 14px; border-radius:10px; font-weight:900; font-size:13px;
+    border:none; cursor:pointer; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(28,176,246,0.2);
+  }
+
+  /* Question text */
+  .q-prompt {
+    text-align:center; margin-bottom:26px;
+  }
+  .q-prompt .instruction {
+    font-size:14px; font-weight:800; color:var(--text-dim); margin-bottom:8px;
+  }
+  .q-prompt .word-display {
+    font-size:36px; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg, var(--blue-dark), var(--purple));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+
+  /* Options grid */
+  .options-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+    position:relative;
+  }
+  .opt {
+    display:flex; align-items:center; gap:14px;
+    padding:18px 20px; border-radius:14px;
+    background:#f7f7f7; border:2px solid #e5e5e5;
+    font-size:16px; font-weight:800; cursor:pointer;
+    transition:all 0.2s; position:relative;
+  }
+  .opt:hover { border-color:var(--blue); background:var(--blue-bg); }
+  .opt .opt-letter {
+    width:32px; height:32px; border-radius:8px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:14px; color:var(--text-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08); flex-shrink:0;
+  }
+  .opt .opt-text { flex:1; min-width:0; }
+  .opt .opt-icon { font-size:20px; flex-shrink:0; }
+
+  /* Option states */
+  .opt.correct {
+    background:var(--green-bg); border-color:var(--green);
+    box-shadow:0 4px 0 rgba(88,204,2,0.2);
+  }
+  .opt.correct .opt-letter { background:var(--green); color:#fff; }
+  .opt.correct .opt-text { color:var(--green-dark); }
+  .opt.correct::after {
+    content:'✓'; position:absolute; right:16px; top:50%;
+    transform:translateY(-50%); font-size:24px; font-weight:900;
+    color:var(--green);
+  }
+  .opt.wrong {
+    background:var(--red-light); border-color:var(--red);
+  }
+  .opt.wrong .opt-letter { background:var(--red); color:#fff; }
+  .opt.wrong .opt-text { color:var(--red-dark); text-decoration:line-through; }
+  .opt.wrong::after {
+    content:'✕'; position:absolute; right:16px; top:50%;
+    transform:translateY(-50%); font-size:24px; font-weight:900;
+    color:var(--red);
+  }
+  .opt.selected {
+    border-color:var(--blue); background:var(--blue-bg);
+    box-shadow:0 4px 0 rgba(28,176,246,0.2);
+  }
+  .opt.selected .opt-letter { background:var(--blue); color:#fff; }
+
+  /* ---- Feedback banner ---- */
+  .feedback-banner {
+    display:flex; align-items:center; gap:14px;
+    padding:18px 22px; border-radius:14px; margin-top:18px;
+    animation:feedback-in 0.4s ease;
+  }
+  @keyframes feedback-in {
+    0%{transform:translateY(10px); opacity:0}
+    100%{transform:translateY(0); opacity:1}
+  }
+  .feedback-banner.correct {
+    background:linear-gradient(135deg, #e8f9d6, #f0fdf4);
+    border:2px solid rgba(88,204,2,0.3);
+  }
+  .feedback-banner.wrong {
+    background:linear-gradient(135deg, #ffe0e0, #fff5f5);
+    border:2px solid rgba(255,75,75,0.3);
+  }
+  .fb-icon { font-size:36px; flex-shrink:0; }
+  .fb-body { flex:1; }
+  .fb-body b { font-size:18px; font-weight:900; display:block; margin-bottom:2px; }
+  .fb-body b.green { color:var(--green-dark); }
+  .fb-body b.red { color:var(--red-dark); }
+  .fb-body p { font-size:13px; font-weight:700; color:var(--text-dim); line-height:1.4; }
+  .fb-xp {
+    display:flex; align-items:center; gap:4px;
+    background:var(--gold); color:#fff; padding:6px 14px;
+    border-radius:10px; font-weight:900; font-size:15px;
+    box-shadow:0 3px 0 #d4a800; flex-shrink:0;
+  }
+
+  /* ---- Action bar ---- */
+  .action-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px; background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:20px;
+  }
+  .action-left { display:flex; gap:10px; }
+  .action-right { display:flex; gap:10px; }
+
+  /* ============ Right sidebar ============ */
+  .sidebar { display:flex; flex-direction:column; gap:16px; }
+
+  /* Score card */
+  .score-card {
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    border-radius:20px; padding:24px; color:#fff;
+    box-shadow:0 6px 0 var(--green-dark), 0 10px 28px rgba(88,204,2,0.2);
+    text-align:center; position:relative; overflow:hidden;
+  }
+  .score-card::after {
+    content:''; position:absolute; top:-40px; right:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .score-card .sc-label { font-size:13px; font-weight:800; opacity:0.9; margin-bottom:6px; }
+  .score-card .sc-val { font-size:44px; font-weight:900; letter-spacing:-1px; position:relative; z-index:1; }
+  .score-card .sc-sub { font-size:13px; font-weight:700; opacity:0.85; margin-top:4px; }
+  .score-card .sc-bar-wrap { display:flex; gap:6px; margin-top:16px; position:relative; z-index:1; }
+  .score-card .sc-seg { flex:1; height:8px; border-radius:4px; background:rgba(255,255,255,0.2); }
+  .score-card .sc-seg.filled { background:#fff; }
+
+  /* Stats mini grid */
+  .stats-mini {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .stats-mini .sm {
+    text-align:center; padding:14px 10px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+  }
+  .stats-mini .sm .v { font-size:24px; font-weight:900; }
+  .stats-mini .sm .v.green { color:var(--green); }
+  .stats-mini .sm .v.blue { color:var(--blue); }
+  .stats-mini .sm .v.orange { color:var(--orange); }
+  .stats-mini .sm .v.red { color:var(--red); }
+  .stats-mini .sm .l { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* Recent answers list */
+  .recent-card { background:#fff; }
+  .recent-list { display:flex; flex-direction:column; gap:8px; }
+  .recent-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    background:#f7f7f7; font-size:13px; font-weight:700;
+  }
+  .recent-item .ri-status {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900;
+  }
+  .recent-item .ri-status.ok { background:var(--green); color:#fff; }
+  .recent-item .ri-status.no { background:var(--red); color:#fff; }
+  .recent-item .ri-type {
+    font-size:10px; font-weight:800; padding:2px 8px;
+    border-radius:6px; flex-shrink:0;
+  }
+  .recent-item .ri-type.s-s { background:var(--green-bg); color:var(--green-dark); }
+  .recent-item .ri-type.s-m { background:var(--blue-bg); color:var(--blue-dark); }
+  .recent-item .ri-type.m-s { background:var(--purple-light); color:var(--purple-dark); }
+  .recent-item .ri-word { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Type breakdown */
+  .type-breakdown { background:#fff; }
+  .tb-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .tb-row:last-child { border-bottom:none; }
+  .tb-emoji { font-size:24px; flex-shrink:0; }
+  .tb-info { flex:1; min-width:0; }
+  .tb-info b { font-size:13px; font-weight:800; display:block; }
+  .tb-info .tb-bar { height:6px; background:#e5e5e5; border-radius:6px; margin-top:4px; overflow:hidden; }
+  .tb-info .tb-fill { height:100%; border-radius:6px; }
+  .tb-count { font-weight:900; font-size:14px; color:var(--text-dim); flex-shrink:0; }
+
+  /* ---- Footer tips ---- */
+  .tip-strip {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 20px; margin-top:20px;
+    background:var(--orange-light); border-radius:14px;
+    border:1px solid rgba(255,150,0,0.2);
+  }
+  .tip-strip .tip-emoji { font-size:22px; flex-shrink:0; }
+  .tip-strip p { font-size:13px; font-weight:700; color:#8a5500; line-height:1.4; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Topbar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">听音选词</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Quiz progress strip ===== -->
+  <div class="quiz-strip">
+    <div class="qs-qcount"><span class="num">2</span>/10</div>
+    <div class="qs-progress">
+      <div class="qs-seg done"></div>
+      <div class="qs-seg current"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+      <div class="qs-seg"></div>
+    </div>
+    <div class="qs-xp">
+      <span class="badge-xp">+10 XP</span>
+      <span>累计 <b>5</b></span>
+    </div>
+  </div>
+
+  <!-- ===== Main grid ===== -->
+  <div class="quiz-grid">
+
+    <!-- ---- Left: Question ---- -->
+    <div>
+
+      <!-- Type badge row -->
+      <div class="type-row">
+        <div class="type-badge t-sound-spell">
+          <span class="ic">🎯</span> 音 → 形 · 听音拼词
+        </div>
+        <div class="type-label">题型 <b>1</b> / 3 · 第 <b>2</b> 题</div>
+      </div>
+
+      <!-- Question card -->
+      <div class="question-card">
+
+        <!-- Audio player -->
+        <div class="audio-player">
+          <button class="audio-play">▶</button>
+          <div class="audio-body">
+            <div class="audio-title">
+              <span style="font-size:20px;">🎧</span>
+              播放单词 <span class="word">/ 重听</span>
+            </div>
+            <div class="audio-meta">
+              <span>🔊 标准英音</span>
+              <span>•</span>
+              <span>已播放 2 次</span>
+            </div>
+          </div>
+          <button class="audio-speed">0.5x 慢速</button>
+          <div class="audio-wave">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+        </div>
+
+        <!-- Question prompt -->
+        <div class="q-prompt">
+          <div class="instruction">🎧 听音频，选择正确的拼写</div>
+        </div>
+
+        <!-- Options -->
+        <div class="options-grid">
+          <div class="opt correct">
+            <div class="opt-letter">A</div>
+            <div class="opt-text">dictionary</div>
+            <div class="opt-icon">📖</div>
+          </div>
+          <div class="opt">
+            <div class="opt-letter">B</div>
+            <div class="opt-text">dictionary</div>
+            <div class="opt-icon">📚</div>
+          </div>
+          <div class="opt wrong">
+            <div class="opt-letter">C</div>
+            <div class="opt-text">dictionare</div>
+            <div class="opt-icon">📖</div>
+          </div>
+          <div class="opt">
+            <div class="opt-letter">D</div>
+            <div class="opt-text">dicionary</div>
+            <div class="opt-icon">📖</div>
+          </div>
+        </div>
+
+        <!-- Feedback banner -->
+        <div class="feedback-banner correct">
+          <div class="fb-icon">🎉</div>
+          <div class="fb-body">
+            <b class="green">回答正确！</b>
+            <p>dictionary = 字典 / 词典 · 连续正确 2 题</p>
+          </div>
+          <div class="fb-xp">⚡ +5 XP</div>
+        </div>
+      </div>
+
+      <!-- Action bar -->
+      <div class="action-bar">
+        <div class="action-left">
+          <a href="#" class="btn btn-ghost">🚫 跳过此题</a>
+        </div>
+        <div class="action-right">
+          <a href="#" class="btn btn-primary btn-big">下一题 →</a>
+        </div>
+      </div>
+
+      <!-- Tip -->
+      <div class="tip-strip">
+        <span class="tip-emoji">💡</span>
+        <p>答对 3 次即可将该词标记为"已掌握"。连续答对越多，本局获得的 XP 加成越高！</p>
+      </div>
+
+    </div>
+
+    <!-- ---- Right: Sidebar ---- -->
+    <div class="sidebar">
+
+      <!-- Score card -->
+      <div class="score-card">
+        <div class="sc-label">🎯 本轮得分</div>
+        <div class="sc-val">80</div>
+        <div class="sc-sub">2 / 2 题正确</div>
+        <div class="sc-bar-wrap">
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg"></div>
+          <div class="sc-seg"></div>
+          <div class="sc-seg"></div>
+        </div>
+      </div>
+
+      <!-- Stats mini -->
+      <div class="stats-mini">
+        <div class="sm">
+          <div class="v green">✓ 2</div>
+          <div class="l">正确</div>
+        </div>
+        <div class="sm">
+          <div class="v red">✕ 0</div>
+          <div class="l">错误</div>
+        </div>
+        <div class="sm">
+          <div class="v orange">🔥 2</div>
+          <div class="l">连对</div>
+        </div>
+        <div class="sm">
+          <div class="v blue">⏱ 1.2m</div>
+          <div class="l">用时</div>
+        </div>
+      </div>
+
+      <!-- Type breakdown -->
+      <div class="card type-breakdown">
+        <div class="card-title"><span class="card-icon">📊</span> 题型分布</div>
+        <div class="tb-row">
+          <span class="tb-emoji">🎯</span>
+          <div class="tb-info">
+            <b>音→形 听音拼词</b>
+            <div class="tb-bar"><div class="tb-fill" style="width:40%; background:var(--green);"></div></div>
+          </div>
+          <span class="tb-count">4/10</span>
+        </div>
+        <div class="tb-row">
+          <span class="tb-emoji">🎧</span>
+          <div class="tb-info">
+            <b>音→义 听音释义</b>
+            <div class="tb-bar"><div class="tb-fill" style="width:30%; background:var(--blue);"></div></div>
+          </div>
+          <span class="tb-count">3/10</span>
+        </div>
+        <div class="tb-row">
+          <span class="tb-emoji">📝</span>
+          <div class="tb-info">
+            <b>义→形 释义拼词</b>
+            <div class="tb-bar"><div class="tb-fill" style="width:30%; background:var(--purple);"></div></div>
+          </div>
+          <span class="tb-count">3/10</span>
+        </div>
+      </div>
+
+      <!-- Recent answers -->
+      <div class="card recent-card">
+        <div class="card-title"><span class="card-icon">📜</span> 答题记录</div>
+        <div class="recent-list">
+          <div class="recent-item">
+            <div class="ri-status ok">✓</div>
+            <span class="ri-type s-s">音→形</span>
+            <span class="ri-word">dictionary</span>
+          </div>
+          <div class="recent-item">
+            <div class="ri-status ok">✓</div>
+            <span class="ri-type s-m">音→义</span>
+            <span class="ri-word">apple → 苹果</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

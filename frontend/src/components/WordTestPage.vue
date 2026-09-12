@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, playWord, playUrl, sndRight, sndWrong, stopAudio } from "../lib/core";
 import { Account } from "../lib/account";
 import { Profile, refreshProfile } from "../lib/profile";
@@ -30,6 +30,35 @@ const progressPct = () => Math.min(100, Math.round(answered.value / MAX_QUESTION
 const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const CEFR_TITLE = { A1: "入门", A2: "基础", B1: "中级", B2: "中高级", C1: "高级", C2: "精通" };
 const CEFR_COLOR = { A1: "var(--green)", A2: "var(--green)", B1: "var(--accent)", B2: "var(--accent-strong)", C1: "var(--red)", C2: "var(--red)" };
+const CEFR_TO_LIST = { A1: "nce1", A2: "nce1", B1: "nce2", B2: "nce3", C1: "nce4", C2: "nce4" };
+const LIST_TITLE = { nce1: "新概念1词汇", nce2: "新概念2词汇", nce3: "新概念3词汇", nce4: "新概念4词汇" };
+const DAYS_OPTIONS = [15, 30, 60, 90, 180, 365];
+
+/* 创建学习计划 */
+const goalModal = ref(false);
+const goalDays = ref(30);
+const creatingGoal = ref(false);
+const goalError = ref("");
+const recommendedList = computed(() => CEFR_TO_LIST[result.value?.cefr] || "nce1");
+
+async function createGoal() {
+  creatingGoal.value = true;
+  goalError.value = "";
+  try {
+    const listKey = recommendedList.value;
+    await api("/goal", {
+      method: "POST",
+      body: JSON.stringify({ list: listKey, target_days: goalDays.value }),
+    });
+    goalModal.value = false;
+    localStorage.setItem("dict_today_list", listKey);
+    location.hash = "#/";
+  } catch (err) {
+    goalError.value = err.message || "创建失败";
+  } finally {
+    creatingGoal.value = false;
+  }
+}
 
 onMounted(async () => {
   await loadHistory();
@@ -252,11 +281,45 @@ function goCatalog() {
 
     <div class="wt-result-actions">
       <div class="controls">
-        <button class="btn primary big" @click="start">🔄 再测一次</button>
+        <button class="btn primary big" @click="goalModal = true">📚 创建学习计划</button>
         <button class="btn ghost big" @click="shareOpen = true">📤 分享结果</button>
       </div>
       <div class="controls">
+        <button class="btn ghost" @click="start">🔄 再测一次</button>
         <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
+    </div>
+
+    <!-- 创建学习计划弹窗 -->
+    <div v-if="goalModal" class="wt-goal-overlay" @click.self="goalModal = false">
+      <div class="wt-goal-modal">
+        <div class="wtg-title">📚 创建学习计划</div>
+        <div class="wtg-desc">根据你的测试结果，推荐以下词库作为主线学习：</div>
+        <div class="wtg-rec">
+          <span class="wtg-rec-icon">📖</span>
+          <div>
+            <div class="wtg-rec-title">{{ LIST_TITLE[recommendedList] || recommendedList }}</div>
+            <div class="wtg-rec-sub">CEFR {{ result.cefr }} · ≈{{ result.word_count }} 词</div>
+          </div>
+        </div>
+        <div class="wtg-days">
+          <label class="wtg-days-label">计划天数</label>
+          <div class="wtg-days-row">
+            <button v-for="d in DAYS_OPTIONS" :key="d"
+              class="wtg-day-opt" :class="{ active: goalDays === d }"
+              @click="goalDays = d">
+              {{ d }}<small>天</small>
+            </button>
+          </div>
+          <p class="wtg-days-hint">每天约 {{ Math.ceil(result.word_count / goalDays) }} 个新词</p>
+        </div>
+        <p v-if="goalError" class="wtg-error">{{ goalError }}</p>
+        <div class="wtg-actions">
+          <button class="btn primary big" :disabled="creatingGoal" @click="createGoal">
+            {{ creatingGoal ? "创建中…" : "开始学习 →" }}
+          </button>
+          <button class="btn ghost" @click="goalModal = false">取消</button>
+        </div>
       </div>
     </div>
   </div>
@@ -300,4 +363,45 @@ function goCatalog() {
 .history-row:last-child { border-bottom: none; }
 .wt-cefr { font-weight: 700; min-width: 30px; }
 .hist-meta { margin-left: auto; color: var(--dim); font-size: 12px; }
+
+/* ===== 创建学习计划弹窗 ===== */
+.wt-goal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.wt-goal-modal {
+  background: #fff; border-radius: 20px;
+  padding: 28px 24px; max-width: 380px; width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.wtg-title { font-size: 20px; font-weight: 900; color: var(--text); text-align: center; }
+.wtg-desc { font-size: 13.5px; color: var(--text-dim); text-align: center; line-height: 1.5; }
+.wtg-rec {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border: 2px solid var(--green); border-radius: 14px;
+  padding: 14px 16px;
+}
+.wtg-rec-icon { font-size: 28px; flex-shrink: 0; }
+.wtg-rec-title { font-size: 15px; font-weight: 800; color: var(--green-dark); }
+.wtg-rec-sub { font-size: 12px; color: var(--text-dim); font-weight: 600; margin-top: 2px; }
+.wtg-days-label { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+.wtg-days-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.wtg-day-opt {
+  flex: 1; min-width: 56px; padding: 10px 6px;
+  border: 2px solid var(--border); border-radius: 10px;
+  background: #fff; font-size: 15px; font-weight: 800;
+  color: var(--text); cursor: pointer; transition: all .12s;
+}
+.wtg-day-opt small { font-size: 10px; font-weight: 600; color: var(--text-dim); }
+.wtg-day-opt:hover { border-color: var(--green); }
+.wtg-day-opt.active { background: var(--green); border-color: var(--green-dark); color: #fff; }
+.wtg-day-opt.active small { color: rgba(255,255,255,.8); }
+.wtg-days-hint { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; text-align: center; }
+.wtg-error { color: var(--red); font-size: 13px; font-weight: 700; text-align: center; }
+.wtg-actions { display: flex; gap: 10px; }
+.wtg-actions .btn { flex: 1; }
 </style>

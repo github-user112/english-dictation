@@ -223,6 +223,22 @@
 }
 .list-picker-lesson small { font-weight: 800; opacity: 0.8; }
 
+/* 课程选择器分隔线与总数 */
+.list-picker-sep {
+  flex: none;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-faint);
+  padding: 0 1px;
+}
+.list-picker-total {
+  flex: none;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 /* 五环旅程 */
 .journey { position: relative; padding-left: 8px; }
 .journey-line {
@@ -600,19 +616,19 @@
   white-space: nowrap;
 }
 
-/* ============ 下一步 Hero ============ */
+/* ============ 下一步 Hero（右栏顶部，纵向卡） ============ */
 .next-hero {
   background: linear-gradient(135deg, #58cc02 0%, #46a302 60%, #378a00 100%);
-  border-radius: 22px;
-  padding: 24px 30px;
+  border-radius: 18px;
+  padding: 20px;
   color: #fff;
-  box-shadow: 0 6px 0 #378a00, 0 12px 30px rgba(88, 204, 2, 0.30);
+  box-shadow: 0 5px 0 #378a00, 0 10px 26px rgba(88, 204, 2, 0.28);
   position: relative;
   overflow: hidden;
   display: flex;
-  align-items: center;
-  gap: 26px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 13px;
 }
 .next-hero::after {
   content: '';
@@ -639,15 +655,15 @@
 .next-node {
   position: relative;
   z-index: 1;
-  width: 74px;
-  height: 74px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: 28px;
   flex-shrink: 0;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
   font-family: var(--emoji);
@@ -667,7 +683,7 @@
   margin-bottom: 9px;
 }
 .next-tag .pulse-dot { width: 7px; height: 7px; }
-.next-title { font-size: 26px; font-weight: 900; letter-spacing: -0.4px; margin-bottom: 4px; }
+.next-title { font-size: 22px; font-weight: 900; letter-spacing: -0.4px; margin-bottom: 4px; }
 .next-desc { font-size: 14px; font-weight: 700; opacity: 0.94; margin-bottom: 13px; }
 .next-prog-row { display: flex; align-items: center; gap: 12px; }
 .next-prog { flex: 1; height: 10px; background: rgba(255, 255, 255, 0.26); border-radius: 10px; overflow: hidden; }
@@ -676,26 +692,48 @@
 .next-btn {
   position: relative;
   z-index: 1;
-  flex-shrink: 0;
+  width: 100%;
   background: #fff;
   color: var(--green-dark);
   border: none;
   cursor: pointer;
   font-family: inherit;
   font-weight: 900;
-  font-size: 17px;
+  font-size: 15px;
   letter-spacing: 0.4px;
-  padding: 16px 30px;
-  border-radius: 14px;
-  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22);
+  padding: 13px 18px;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
   transition: transform 0.1s var(--ease-out), box-shadow 0.1s;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   text-decoration: none;
 }
-.next-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 0 rgba(0, 0, 0, 0.22); }
+.next-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22); }
 .next-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22); }
+
+/* ============ 复习模式 banner ============ */
+.review-banner {
+  background: linear-gradient(135deg, #e8f0fe 0%, #d4e4f9 100%);
+  border: 2px solid var(--blue);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  box-shadow: 0 4px 0 rgba(28, 176, 246, 0.18);
+}
+.rb-icon {
+  font-size: 30px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.14));
+  font-family: var(--emoji);
+}
+.rb-body { flex: 1; min-width: 0; }
+.rb-title { font-size: 15px; font-weight: 900; color: var(--blue-dark); margin-bottom: 3px; }
+.rb-desc { font-size: 12px; font-weight: 700; color: var(--text-dim); line-height: 1.45; }
 
 /* ============ 庆祝卡 ============ */
 .today-celebrate {
@@ -755,10 +793,6 @@
   .hero-ring-center .hr-pct { font-size: 30px; }
   .hero-ring-center .hr-sub { font-size: 11px; }
   .hero-title { font-size: 24px; }
-  .next-hero { padding: 20px 22px; gap: 18px; }
-  .next-node { width: 64px; height: 64px; font-size: 30px; }
-  .next-title { font-size: 22px; }
-  .next-btn { padding: 14px 22px; font-size: 15px; }
 }
 
 @media (max-width: 760px) {
@@ -802,25 +836,18 @@
   .step-cta { font-size: 11px; padding: 5px 10px; }
   .step-foot.with-cta { flex-wrap: wrap; }
   .step-foot.with-cta .step-bar { flex: 1 1 100%; max-width: none; order: 3; }
-  .next-hero {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    padding: 18px;
-    border-radius: 18px;
-    gap: 14px;
-    margin-bottom: 14px;
-  }
-  .next-top { display: flex; align-items: center; gap: 14px; }
-  .next-node { width: 58px; height: 58px; font-size: 28px; }
-  .next-body { text-align: left; }
+  .next-hero { padding: 16px; gap: 12px; border-radius: 16px; }
+  .next-node { width: 52px; height: 52px; font-size: 25px; }
   .next-tag { font-size: 11px; padding: 4px 11px; }
-  .next-title { font-size: 20px; margin-bottom: 3px; }
-  .next-desc { font-size: 12.5px; margin-bottom: 0; }
-  .next-prog-row { margin-top: 12px; }
+  .next-title { font-size: 19px; margin-bottom: 3px; }
+  .next-desc { font-size: 12.5px; }
   .next-prog { height: 9px; }
   .next-prog-lbl { font-size: 11px; }
-  .next-btn { width: 100%; padding: 14px; font-size: 16px; justify-content: center; margin-top: 14px; }
+  .next-btn { padding: 12px; font-size: 14px; }
+  .review-banner { padding: 14px 16px; gap: 10px; border-radius: 16px; }
+  .rb-icon { font-size: 24px; }
+  .rb-title { font-size: 13px; }
+  .rb-desc { font-size: 11px; }
   .side-test { padding: 16px; border-radius: 16px; }
   .side-test .st-title { font-size: 16px; }
   .side-test .st-desc { font-size: 12px; }

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听音排句 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+    padding-bottom:32px;
+  }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-title { font-weight:900; font-size:15px; color:var(--text); margin-left:4px; }
+  .topbar-stats { display:flex; align-items:center; gap:10px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+  .stat-item .icon { font-size:15px; }
+
+  /* ---- Progress strip (mobile) ---- */
+  .m-progress-strip {
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px; margin:12px 14px 14px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .mp-count {
+    display:flex; align-items:center; gap:4px;
+    font-weight:900; font-size:16px; color:var(--green-dark); flex-shrink:0;
+  }
+  .mp-count .n {
+    background:var(--green); color:#fff; padding:3px 10px; border-radius:8px;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .mp-bar { flex:1; height:8px; display:flex; gap:3px; }
+  .mp-seg { flex:1; height:8px; border-radius:4px; background:#e5e5e5; }
+  .mp-seg.done { background:var(--green); }
+  .mp-seg.current { background:var(--green); box-shadow:0 0 6px rgba(88,204,2,0.5); animation:mp-pulse 1.5s ease infinite; }
+  .mp-seg.wrong { background:var(--red); }
+  @keyframes mp-pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .mp-xp {
+    display:flex; align-items:center; gap:3px;
+    font-weight:900; font-size:13px; color:var(--gold); flex-shrink:0;
+  }
+  .mp-xp .bx {
+    background:var(--gold); color:#fff; padding:2px 8px; border-radius:8px;
+    box-shadow:0 2px 0 #d4a800;
+  }
+
+  /* ---- Mode / type badge card ---- */
+  .m-mode-card {
+    margin:0 14px 12px;
+    display:flex; align-items:center; gap:12px;
+    padding:14px 18px; border-radius:14px;
+    background:linear-gradient(135deg, var(--blue), #4dd0ff);
+    color:#fff; box-shadow:0 4px 0 var(--blue-dark);
+  }
+  .m-mode-card .m-mic { font-size:28px; flex-shrink:0; }
+  .m-mode-card .m-mc-body { flex:1; }
+  .m-mode-card .m-mc-body b { font-size:16px; font-weight:900; display:block; }
+  .m-mode-card .m-mc-body small { font-size:11px; font-weight:700; opacity:0.9; }
+  .m-mode-card .m-mc-num {
+    background:rgba(255,255,255,0.2); padding:4px 10px;
+    border-radius:8px; font-size:12px; font-weight:900; flex-shrink:0;
+  }
+
+  /* ---- Timer + level row ---- */
+  .m-timer-row {
+    display:flex; align-items:center; gap:8px;
+    margin:0 14px 12px;
+  }
+  .m-timer-pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:6px 12px; border-radius:10px; background:#fff8e6;
+    border:1.5px solid rgba(255,150,0,0.3);
+    font-size:13px; font-weight:900; color:var(--orange);
+    font-variant-numeric:tabular-nums;
+  }
+  .m-level-pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:6px 12px; border-radius:10px; background:var(--gold-light);
+    font-size:12px; font-weight:900; color:#b58200;
+  }
+  .m-qnum-pill {
+    margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+    padding:6px 12px; border-radius:10px; background:#f7f7f7;
+    font-size:12px; font-weight:900; color:var(--text-dim);
+  }
+
+  /* ---- Arena card ---- */
+  .m-arena {
+    margin:0 14px 14px;
+    background:#fff; border-radius:18px; padding:18px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+  }
+  .m-arena::before {
+    content:''; position:absolute; top:-50px; right:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.06), transparent 70%);
+  }
+
+  /* ---- Audio player (mobile) ---- */
+  .m-audio {
+    display:flex; align-items:center; gap:12px;
+    background:linear-gradient(135deg, var(--blue-bg), #f0f9ff);
+    border-radius:14px; padding:14px 14px;
+    margin-bottom:16px; border:2px solid rgba(28,176,246,0.2);
+    position:relative; z-index:1;
+  }
+  .m-audio-play {
+    width:52px; height:52px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:22px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 0 var(--blue-dark); cursor:pointer;
+    transition:transform 0.1s; flex-shrink:0;
+  }
+  .m-audio-play:active { transform:translateY(3px); box-shadow:0 1px 0 var(--blue-dark); }
+  .m-audio-body { flex:1; min-width:0; }
+  .m-audio-body .m-at { font-weight:900; font-size:14px; margin-bottom:2px; display:flex; align-items:center; gap:4px; }
+  .m-audio-body .m-at .word { color:var(--blue-dark); }
+  .m-audio-body .m-am { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .m-audio-ctrl {
+    display:flex; gap:6px; flex-shrink:0;
+  }
+  .m-audio-speed {
+    background:rgba(28,176,246,0.1); color:var(--blue-dark);
+    padding:6px 9px; border-radius:8px; font-weight:900; font-size:11px;
+    border:none; cursor:pointer;
+    box-shadow:0 2px 0 rgba(28,176,246,0.2);
+  }
+  .m-audio-repeat {
+    background:rgba(28,176,246,0.1); color:var(--blue-dark);
+    padding:6px 9px; border-radius:8px; font-weight:900; font-size:11px;
+    border:none; cursor:pointer;
+    box-shadow:0 2px 0 rgba(28,176,246,0.2);
+    display:flex; align-items:center; gap:3px;
+  }
+
+  /* ---- Answer slots ---- */
+  .m-answer-zone {
+    margin-bottom:16px; position:relative; z-index:1;
+  }
+  .m-zone-label {
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:900; color:var(--green-dark);
+    margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .m-zone-label .hint {
+    margin-left:auto; font-size:10px; font-weight:700; color:var(--text-dim);
+    text-transform:none; letter-spacing:0;
+  }
+  .m-slot-row {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:14px; border-radius:14px;
+    background:linear-gradient(135deg, var(--green-bg) 0%, #e8ffd0 100%);
+    border:2px dashed rgba(88,204,2,0.35);
+    min-height:60px; position:relative;
+  }
+  .m-word-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 14px; border-radius:10px;
+    background:#fff; font-weight:800; font-size:15px; color:var(--text);
+    box-shadow:0 4px 0 rgba(0,0,0,0.1), 0 6px 14px rgba(0,0,0,0.04);
+    user-select:none; position:relative;
+    transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .m-word-chip::before {
+    content:'⋮⋮'; color:var(--text-faint); font-size:10px; font-weight:900;
+    letter-spacing:-2px;
+  }
+  .m-word-chip.placed.correct {
+    background:var(--green-bg); border:2px solid rgba(88,204,2,0.4);
+    box-shadow:0 4px 0 rgba(88,204,2,0.2);
+  }
+  .m-word-chip.placed.wrong {
+    background:var(--red-light); border:2px solid rgba(255,75,75,0.4);
+    box-shadow:0 4px 0 rgba(255,75,75,0.2);
+  }
+  .m-slot-num {
+    position:absolute; top:-9px; left:10px;
+    background:var(--green); color:#fff; font-size:10px; font-weight:900;
+    padding:2px 7px; border-radius:7px;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .m-slot-num.wrong { background:var(--red); box-shadow:0 2px 0 var(--red-dark); }
+  .m-slot-remove {
+    background:rgba(0,0,0,0.08); color:var(--text-dim);
+    border:none; width:20px; height:20px; border-radius:50%;
+    font-size:13px; cursor:pointer; margin-left:1px;
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 0 rgba(0,0,0,0.06);
+  }
+  .m-slot-remove:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.06); }
+  .m-word-chip.placed.correct .m-slot-remove { display:none; }
+  .m-drag-hint {
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:4px;
+  }
+
+  /* ---- Word bank ---- */
+  .m-bank-zone {
+    margin-bottom:18px; position:relative; z-index:1;
+  }
+  .m-bank-label {
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:900; color:var(--text-dim);
+    margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .m-bank-label .ic { font-size:14px; }
+  .m-bank-label .remaining {
+    margin-left:auto; font-size:11px; font-weight:800; color:var(--text-faint);
+    text-transform:none; letter-spacing:0;
+  }
+  .m-wordbank {
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:14px; border-radius:14px;
+    background:#f7f7f7; border:2px solid #e5e5e5;
+    min-height:60px;
+  }
+  .m-word-chip.bank {
+    box-shadow:0 4px 0 rgba(0,0,0,0.1), 0 6px 14px rgba(0,0,0,0.04);
+  }
+  .m-word-chip.bank:hover {
+    transform:translateY(-2px);
+    box-shadow:0 6px 0 rgba(0,0,0,0.12), 0 10px 20px rgba(0,0,0,0.06);
+  }
+  .m-word-chip.used {
+    opacity:0.35;
+  }
+
+  /* ---- Action buttons (mobile) ---- */
+  .m-action-row {
+    display:flex; flex-direction:column; gap:10px;
+    margin:0 14px 18px;
+  }
+  .m-action-top {
+    display:flex; gap:10px;
+  }
+  .m-btn {
+    flex:1; padding:12px; border:none; border-radius:12px;
+    font-family:inherit; font-weight:800; font-size:14px;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    gap:6px;
+    transition:transform 0.1s;
+  }
+  .m-btn:active { transform:translateY(3px); }
+  .m-btn-hint {
+    background:#fff; color:var(--gold); box-shadow:0 4px 0 rgba(255,200,0,0.5);
+  }
+  .m-btn-hint:active { box-shadow:0 1px 0 rgba(255,200,0,0.5); }
+  .m-btn-skip {
+    background:#fff; color:var(--text-dim); box-shadow:0 4px 0 rgba(0,0,0,0.08);
+  }
+  .m-btn-skip:active { box-shadow:0 1px 0 rgba(0,0,0,0.08); }
+  .m-btn-check {
+    background:var(--green); color:#fff;
+    padding:16px; font-size:17px; font-weight:900;
+    box-shadow:0 5px 0 var(--green-dark);
+    letter-spacing:0.5px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    border-radius:14px;
+  }
+  .m-btn-check:active { transform:translateY(4px); box-shadow:0 1px 0 var(--green-dark); }
+
+  /* ---- Right panel cards (mobile, stacked) ---- */
+  .m-side-cards {
+    display:flex; flex-direction:column; gap:12px;
+    margin:0 14px 14px;
+  }
+
+  /* Progress ring card (mobile) */
+  .m-ring-card {
+    background:#fff; border-radius:18px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    display:flex; align-items:center; gap:14px;
+  }
+  .m-ring-wrap { width:72px; height:72px; flex-shrink:0; position:relative; }
+  .m-ring-wrap svg { width:72px; height:72px; }
+  .m-ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .m-ring-center .pct { font-size:18px; font-weight:900; color:var(--green-dark); }
+  .m-ring-center .sub { font-size:9px; font-weight:700; color:var(--text-dim); }
+  .m-ring-info { flex:1; min-width:0; }
+  .m-ring-info .ri-title { font-size:13px; font-weight:900; margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+  .m-ring-info .ri-sub { font-size:11px; color:var(--text-dim); font-weight:700; line-height:1.5; }
+  .m-ring-info .ri-sub b { color:var(--text); }
+  .m-ring-stats { display:flex; gap:10px; margin-top:8px; }
+  .m-ring-stats .rs { text-align:center; }
+  .m-ring-stats .rs .v { font-size:16px; font-weight:900; }
+  .m-ring-stats .rs .v.green { color:var(--green-dark); }
+  .m-ring-stats .rs .v.red { color:var(--red); }
+  .m-ring-stats .rs .l { font-size:9px; font-weight:800; color:var(--text-dim); }
+
+  /* Recent results (mobile) */
+  .m-recent-card {
+    background:#fff; border-radius:18px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-rc-head {
+    display:flex; align-items:center; gap:6px;
+    font-size:14px; font-weight:900; margin-bottom:12px;
+  }
+  .m-rc-head .ic { font-size:18px; }
+  .m-rc-head .more { margin-left:auto; font-size:11px; font-weight:800; color:var(--text-dim); }
+  .m-recent-list { display:flex; flex-direction:column; gap:8px; }
+  .m-recent-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px;
+    background:#f7f7f7;
+  }
+  .m-recent-item .ri-ic {
+    width:30px; height:30px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .m-recent-item.correct .ri-ic { background:var(--green-bg); box-shadow:0 2px 0 rgba(88,204,2,0.2); }
+  .m-recent-item.wrong .ri-ic { background:var(--red-light); box-shadow:0 2px 0 rgba(255,75,75,0.2); }
+  .m-ri-body { flex:1; min-width:0; }
+  .m-ri-sent { font-size:12px; font-weight:800; line-height:1.3; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .m-ri-meta { font-size:10px; color:var(--text-dim); font-weight:700; display:flex; align-items:center; gap:5px; }
+  .m-ri-meta .dot { width:3px; height:3px; border-radius:50%; background:var(--text-faint); }
+  .m-ri-status {
+    font-size:10px; font-weight:900; padding:3px 7px; border-radius:7px;
+    flex-shrink:0;
+  }
+  .m-ri-status.correct { background:var(--green-bg); color:var(--green-dark); }
+  .m-ri-status.wrong { background:var(--red-light); color:var(--red-dark); }
+
+  /* Stats grid (mobile) */
+  .m-stats-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  }
+  .m-stat-mini {
+    background:#fff; border-radius:14px; padding:12px 10px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 14px rgba(0,0,0,0.03);
+    text-align:center;
+  }
+  .m-stat-mini .sm-emoji { font-size:20px; margin-bottom:3px; }
+  .m-stat-mini .sm-val { font-size:20px; font-weight:900; }
+  .m-stat-mini .sm-val.green { color:var(--green-dark); }
+  .m-stat-mini .sm-val.gold { color:var(--gold); }
+  .m-stat-mini .sm-val.orange { color:var(--orange); }
+  .m-stat-mini .sm-val.purple { color:var(--purple); }
+  .m-stat-mini .sm-lbl { font-size:10px; font-weight:800; color:var(--text-dim); margin-top:2px; }
+
+  /* Tip card (mobile) */
+  .m-tip-card {
+    background:linear-gradient(135deg, var(--orange-light) 0%, #ffe4a8 100%);
+    border-radius:18px; padding:16px 18px;
+    border:1px solid rgba(255,150,0,0.25);
+    box-shadow:0 4px 0 rgba(255,150,0,0.15);
+  }
+  .m-tip-card .tc-head {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:900; color:#8a5500; margin-bottom:6px;
+  }
+  .m-tip-card .tc-head .ic { font-size:18px; }
+  .m-tip-card p { font-size:12px; font-weight:700; color:#8a5500; line-height:1.6; }
+  .m-tip-card p b { color:#6a3d00; }
+
+  /* ---- Footer strip (mobile) ---- */
+  .m-footer-strip {
+    display:flex; align-items:center; gap:10px;
+    margin:0 14px; padding:12px 16px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.04);
+  }
+  .m-footer-strip .fs-emoji { font-size:20px; flex-shrink:0; }
+  .m-footer-strip .fs-body { flex:1; min-width:0; }
+  .m-footer-strip .fs-title { font-size:12px; font-weight:900; }
+  .m-footer-strip .fs-sub { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .m-footer-strip .fs-actions { display:flex; gap:6px; flex-shrink:0; }
+  .m-footer-strip .m-btn-sm {
+    padding:8px 12px; border-radius:10px; font-size:12px; font-weight:800;
+    border:none; cursor:pointer;
+    box-shadow:0 3px 0 rgba(0,0,0,0.08);
+    transition:transform 0.1s;
+  }
+  .m-footer-strip .m-btn-sm:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.08); }
+  .m-footer-strip .m-btn-sm.primary { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .m-footer-strip .m-btn-sm.primary:active { box-shadow:0 1px 0 var(--green-dark); }
+  .m-footer-strip .m-btn-sm.ghost { background:#fff; color:var(--green); }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- ===== Topbar (compact) ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <span style="color:var(--text-faint); font-size:13px; font-weight:700;">›</span>
+      <span class="topbar-title">听音排句</span>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2.5k</div>
+    </div>
+  </div>
+
+  <!-- ===== Progress strip ===== -->
+  <div class="m-progress-strip">
+    <div class="mp-count"><span class="n">3</span>/10</div>
+    <div class="mp-bar">
+      <div class="mp-seg done"></div>
+      <div class="mp-seg done"></div>
+      <div class="mp-seg current"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+      <div class="mp-seg"></div>
+    </div>
+    <div class="mp-xp">
+      <span class="bx">+15</span>
+    </div>
+  </div>
+
+  <!-- ===== Mode badge ===== -->
+  <div class="m-mode-card">
+    <span class="m-mic">🔀</span>
+    <div class="m-mc-body">
+      <b>听音排句</b>
+      <small>拖动词块排回正确语序</small>
+    </div>
+    <span class="m-mc-num">中级 ⭐</span>
+  </div>
+
+  <!-- ===== Timer / level / qnum ===== -->
+  <div class="m-timer-row">
+    <div class="m-timer-pill">⏱ 00:42</div>
+    <div class="m-level-pill">⭐ 中级</div>
+    <div class="m-qnum-pill">🎯 题 3/10</div>
+  </div>
+
+  <!-- ===== Arena card ===== -->
+  <div class="m-arena">
+
+    <!-- Audio player -->
+    <div class="m-audio">
+      <button class="m-audio-play">▶</button>
+      <div class="m-audio-body">
+        <div class="m-at">🎧 播放句子 <span class="word">/ 已播 2 次</span></div>
+        <div class="m-am">🔊 英音 · 语速 0.8x · 8 个词</div>
+      </div>
+      <div class="m-audio-ctrl">
+        <button class="m-audio-repeat">🔁</button>
+        <button class="m-audio-speed">0.8x</button>
+      </div>
+    </div>
+
+    <!-- Answer slots -->
+    <div class="m-answer-zone">
+      <div class="m-zone-label">
+        <span>📝</span> 你的答案
+        <span class="hint">拖动词块填充</span>
+      </div>
+      <div class="m-slot-row">
+        <div class="m-word-chip placed correct">
+          <span class="m-slot-num">1</span>
+          The
+          <button class="m-slot-remove">×</button>
+        </div>
+        <div class="m-word-chip placed correct">
+          <span class="m-slot-num">2</span>
+          cat
+          <button class="m-slot-remove">×</button>
+        </div>
+        <div class="m-word-chip placed correct">
+          <span class="m-slot-num">3</span>
+          sat
+          <button class="m-slot-remove">×</button>
+        </div>
+        <div class="m-drag-hint">👆 拖动到这里</div>
+      </div>
+    </div>
+
+    <!-- Word bank -->
+    <div class="m-bank-zone">
+      <div class="m-bank-label">
+        <span class="ic">🧩</span> 词块库
+        <span class="remaining">剩余 5/8</span>
+      </div>
+      <div class="m-wordbank">
+        <div class="m-word-chip bank">on</div>
+        <div class="m-word-chip bank">the</div>
+        <div class="m-word-chip bank">mat</div>
+        <div class="m-word-chip bank">under</div>
+        <div class="m-word-chip bank">tree</div>
+        <div class="m-word-chip bank used">The</div>
+        <div class="m-word-chip bank used">cat</div>
+        <div class="m-word-chip bank used">sat</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Action buttons ===== -->
+  <div class="m-action-row">
+    <div class="m-action-top">
+      <button class="m-btn m-btn-hint">💡 提示</button>
+      <button class="m-btn m-btn-skip">⏭ 跳过</button>
+    </div>
+    <button class="m-btn-check">✓ 检查答案</button>
+  </div>
+
+  <!-- ===== Side cards (mobile, stacked) ===== -->
+  <div class="m-side-cards">
+
+    <!-- Progress ring -->
+    <div class="m-ring-card">
+      <div class="m-ring-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="42" stroke-width="10"/>
+          <circle class="ring-fg" cx="50" cy="50" r="42" stroke-width="10"
+            stroke-dasharray="263.9" stroke-dashoffset="66"
+            style="stroke-dasharray:263.9; stroke-dashoffset:66;"/>
+        </svg>
+        <div class="m-ring-center">
+          <div class="pct">75%</div>
+          <div class="sub">正确率</div>
+        </div>
+      </div>
+      <div class="m-ring-info">
+        <div class="ri-title">📊 本轮表现</div>
+        <div class="ri-sub">
+          完成 <b>3</b> 题 · 剩余 <b>7</b><br>
+          平均 <b>38s</b> · 最佳 <b>22s</b>
+        </div>
+        <div class="m-ring-stats">
+          <div class="rs">
+            <div class="v green">2</div>
+            <div class="l">✓ 答对</div>
+          </div>
+          <div class="rs">
+            <div class="v red">1</div>
+            <div class="l">✗ 答错</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent results -->
+    <div class="m-recent-card">
+      <div class="m-rc-head">
+        <span class="ic">📜</span> 最近答题
+        <span class="more">全部 ›</span>
+      </div>
+      <div class="m-recent-list">
+        <div class="m-recent-item correct">
+          <div class="ri-ic">✓</div>
+          <div class="m-ri-body">
+            <div class="m-ri-sent">The sun is shining in the sky</div>
+            <div class="m-ri-meta">
+              <span>题1</span>
+              <span class="dot"></span>
+              <span>22s</span>
+              <span class="dot"></span>
+              <span>+15XP</span>
+            </div>
+          </div>
+          <div class="m-ri-status correct">答对</div>
+        </div>
+        <div class="m-recent-item wrong">
+          <div class="ri-ic">✗</div>
+          <div class="m-ri-body">
+            <div class="m-ri-sent">She drinks coffee every morning</div>
+            <div class="m-ri-meta">
+              <span>题2</span>
+              <span class="dot"></span>
+              <span>45s</span>
+              <span class="dot"></span>
+              <span>0XP</span>
+            </div>
+          </div>
+          <div class="m-ri-status wrong">答错</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="m-stats-grid">
+      <div class="m-stat-mini">
+        <div class="sm-emoji">🏆</div>
+        <div class="sm-val green">28</div>
+        <div class="sm-lbl">累计答对</div>
+      </div>
+      <div class="m-stat-mini">
+        <div class="sm-emoji">⚡</div>
+        <div class="sm-val gold">2,480</div>
+        <div class="sm-lbl">总 XP</div>
+      </div>
+      <div class="m-stat-mini">
+        <div class="sm-emoji">🔥</div>
+        <div class="sm-val orange">12</div>
+        <div class="sm-lbl">连续天数</div>
+      </div>
+      <div class="m-stat-mini">
+        <div class="sm-emoji">⏱</div>
+        <div class="sm-val purple">38s</div>
+        <div class="sm-lbl">平均用时</div>
+      </div>
+    </div>
+
+    <!-- Tip card -->
+    <div class="m-tip-card">
+      <div class="tc-head">
+        <span class="ic">💡</span> 解题小技巧
+      </div>
+      <p>
+        <b>先找主语和谓语</b>，再补宾语。注意<b>冠词 (the/a)</b>紧跟名词，<b>介词 (on/under)</b>多在末尾。多听几遍抓住<b>语调节奏</b>！
+      </p>
+    </div>
+
+  </div>
+
+  <!-- ===== Footer strip ===== -->
+  <div class="m-footer-strip">
+    <div class="fs-emoji">🎯</div>
+    <div class="fs-body">
+      <div class="fs-title">完成本轮 +60 XP</div>
+      <div class="fs-sub">答对5题解锁「排句高手」🏅</div>
+    </div>
+    <div class="fs-actions">
+      <button class="m-btn-sm primary">🚀 继续</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

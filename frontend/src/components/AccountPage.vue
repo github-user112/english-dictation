@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { Account, applyAccount, refreshAccount } from "../lib/account";
+import { Account, applyAccount, logout, refreshAccount } from "../lib/account";
 import { api } from "../lib/core";
 
 const props = defineProps({ params: { type: Object, default: null } });
@@ -74,6 +74,13 @@ async function changePassword() {
   } finally {
     busy.value = false;
   }
+}
+
+async function signOut() {
+  try {
+    await logout();
+    location.hash = "#/catalog";
+  } catch { /* 刷新后可重试 */ }
 }
 
 watch(() => Account.authenticated, (signedIn) => {
@@ -195,6 +202,7 @@ refreshAccount()
           <li><span class="b-ic">📱</span><span>换设备登录即可继续，不用重新开始</span></li>
           <li><span class="b-ic">🔒</span><span>错题本、词力等级与成就全部保留</span></li>
         </ul>
+        <button class="btn ghost full" @click="signOut">🚪 退出登录</button>
       </aside>
 
       <!-- 右：改密码 -->

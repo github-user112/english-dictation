@@ -12,6 +12,7 @@ from .friends import notify_level
 from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item, iter_material, load_material
 from .scheduler import review as fsrs_review, days_between
+from .misc import local_today
 
 bp = Blueprint("catalog", __name__)
 
@@ -129,8 +130,8 @@ def serialize_session(conn, row, resumed=False, quota=None):
         if not pending and row["state"] == "active":
             session_state = "completed"
             conn.execute(
-                "UPDATE study_session SET state='completed',updated_at=?,completed_at=? WHERE id=?",
-                (stamp, stamp, row["id"]),
+                "UPDATE study_session SET state='completed',updated_at=?,completed_at=?,assigned_day=? WHERE id=?",
+                (stamp, stamp, local_today().isoformat(), row["id"]),
             )
     items = [item for _, item in serialized if item]
     completed = sum(candidate["state"] == "completed" for candidate in all_rows)
@@ -152,7 +153,7 @@ def serialize_session(conn, row, resumed=False, quota=None):
 @bp.get("/api/lists")
 def api_lists():
     user = get_user()
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     with db() as conn:
         rows = conn.execute(
             "SELECT list, status, COUNT(*) c FROM word_state WHERE user=? GROUP BY list,status", (user,)
@@ -230,7 +231,7 @@ def api_session():
     user = get_user()
     list_key, mode, scope, lesson, strategy = session_context()
     new_quota = int_arg("new", CONFIG["new_per_day"], 0, 50)
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     stamp = now()
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
@@ -455,7 +456,7 @@ def api_result():
     raw_typed = data.get("typed")
     if isinstance(raw_typed, str):
         typed = raw_typed.strip()[:64] or None
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     stamp = now()
     # completed 缺任一作答结果时，缺口会落成 0：本题被记成答错进 daily_log，
     # 但 update_word_state 又被 None 挡下——同一作答在四处口径对不上（legacy 路径同此守卫）
@@ -527,9 +528,11 @@ def api_result():
             "SELECT COUNT(*) c FROM study_session_item WHERE session_id=? AND state='pending'", (session_id,)
         ).fetchone()["c"]
         if pending == 0:
+            # 之前某天创建、今天才打完的会话按完成日重挂到今天——
+            # 否则今日动线的「今天完成」判定永远等不到它（跨天续学场景）
             conn.execute(
-                "UPDATE study_session SET state='completed',updated_at=?,completed_at=? WHERE id=?",
-                (stamp, stamp, session_id))
+                "UPDATE study_session SET state='completed',updated_at=?,completed_at=?,assigned_day=? WHERE id=?",
+                (stamp, stamp, today, session_id))
         else:
             conn.execute("UPDATE study_session SET updated_at=? WHERE id=?", (stamp, session_id))
         return resp({"ok": True, "duplicate": False, "pending": pending})
@@ -571,7 +574,9 @@ def legacy_result(user, data, item_id, first_right, final_right, outcome, today)
     if list_key not in MATERIALS:
         return jsonify({"error": "未知素材"}), 404
     mode = data.get("mode", "assisted")
-    if not isinstance(mode, str) or mode not in PRACTICE_MODES:
+    # "wrong" 是今日错词回收的专用记账桶（daily_practice_log 分桶），不是界面练习模式，
+    # 故不并入 PRACTICE_MODES；word_state 更新与经验入账照常走（不在 update_word_state 豁免名单里）
+    if not isinstance(mode, str) or (mode != "wrong" and mode not in PRACTICE_MODES):
         return jsonify({"error": "练习模式无效"}), 400
     skipped = outcome == "skipped"
 

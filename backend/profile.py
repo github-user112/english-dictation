@@ -10,7 +10,7 @@ from flask import Blueprint
 
 from .auth import get_user, resp
 from .db import db
-from .misc import day_streak
+from .misc import local_today, day_streak
 
 bp = Blueprint("profile", __name__)
 
@@ -66,7 +66,7 @@ def xp_of(conn, user):
 
 def derive_profile(conn, user):
     """在调用方持有的连接上推导等级与树状态；本模块与 daily 共用。"""
-    today = date.today()
+    today = local_today()
 
     xp = xp_of(conn, user)
     daily_count = conn.execute(

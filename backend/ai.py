@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, request
 from .auth import get_user, resp
 from .catalog import now
 from .db import db
+from .misc import local_today
 
 bp = Blueprint("ai", __name__)
 
@@ -127,7 +128,7 @@ def api_ai_story():
 
         # 重生成限流：每日每用户 FRESH_PER_DAY 次（首次生成不占额度）
         if fresh:
-            today = date.today().isoformat()
+            today = local_today().isoformat()
             counter = f"ai_fresh|{user}|{today}"
             conn.execute("BEGIN IMMEDIATE")
             r = conn.execute("SELECT value FROM push_meta WHERE name=?", (counter,)).fetchone()

@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排行榜 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Mobile phone frame ============ */
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+  }
+
+  /* ============ Top Bar (compact) ============ */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-title { font-weight:900; font-size:15px; color:var(--text); }
+  .topbar-stats { display:flex; align-items:center; gap:12px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+
+  /* ============ Page head ============ */
+  .page-head { padding:14px 16px 4px; }
+  .page-head h1 {
+    font-size:24px; font-weight:900; letter-spacing:-0.4px; line-height:1.2;
+    display:flex; align-items:center; gap:8px;
+  }
+  .page-head h1 .emoji { font-size:26px; }
+  .page-head p { font-size:12px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+
+  /* ============ Avatars ============ */
+  .avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:21px; flex-shrink:0;
+    box-shadow:0 3px 0 rgba(0,0,0,0.13);
+  }
+  .avatar.green  { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .avatar.blue   { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .avatar.orange { background:linear-gradient(135deg, var(--orange), #ffb347); }
+  .avatar.gold   { background:linear-gradient(135deg, var(--gold), #ffdf6b); }
+  .avatar.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .avatar.red    { background:linear-gradient(135deg, var(--red), #ff7a7a); }
+  .avatar.xl { width:64px; height:64px; font-size:34px; }
+  .avatar.sm { width:34px; height:34px; font-size:18px; }
+
+  /* ============ My Rank Hero ============ */
+  .me-hero {
+    margin:14px 14px 14px;
+    background:linear-gradient(135deg, #ffc800 0%, #ffdf6b 45%, #ffe9a8 100%);
+    border-radius:18px; padding:20px; color:#5a3e00;
+    box-shadow:0 5px 0 rgba(200,152,0,0.55), 0 8px 22px rgba(255,200,0,0.28);
+    position:relative; overflow:hidden;
+  }
+  .me-hero::after {
+    content:''; position:absolute; top:-40px; right:-30px;
+    width:160px; height:160px; border-radius:50%;
+    background:rgba(255,255,255,0.22);
+  }
+  .me-hero::before {
+    content:''; position:absolute; bottom:-50px; left:-20px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+
+  .mh-top { display:flex; align-items:center; gap:14px; margin-bottom:16px; position:relative; z-index:1; }
+  .mh-avatar-wrap { position:relative; flex-shrink:0; }
+  .mh-crown {
+    position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+    font-size:26px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.22));
+    animation:crown-bob 2.6s ease-in-out infinite;
+  }
+  @keyframes crown-bob { 0%,100%{transform:translateX(-50%) rotate(-6deg)} 50%{transform:translateX(-50%) rotate(6deg)} }
+  .mh-id-body { flex:1; min-width:0; }
+  .mh-name { font-size:19px; font-weight:900; margin-bottom:3px; letter-spacing:-0.3px; }
+  .mh-sub { font-size:11px; font-weight:800; opacity:0.8; }
+
+  .mh-rank-box {
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    background:rgba(255,255,255,0.5); backdrop-filter:blur(4px);
+    border-radius:14px; padding:12px 14px; margin-bottom:14px; position:relative; z-index:1;
+  }
+  .mh-rank-num { font-size:42px; font-weight:900; line-height:0.9; letter-spacing:-1.5px; }
+  .mh-rank-meta { border-left:2px solid rgba(90,62,0,0.22); padding-left:14px; flex:1; }
+  .mh-rank-meta .lbl { font-size:10px; font-weight:900; opacity:0.7; margin-bottom:3px; }
+  .mh-rank-meta .rank-where { font-size:13px; font-weight:900; }
+  .mh-rank-meta .delta { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:900; color:#1f7a00; margin-top:2px; }
+
+  .mh-ring-row {
+    display:flex; align-items:center; gap:14px;
+    background:rgba(255,255,255,0.5); backdrop-filter:blur(4px);
+    border-radius:14px; padding:12px 14px; margin-bottom:14px; position:relative; z-index:1;
+  }
+  .mh-ring-wrap { position:relative; width:74px; height:74px; flex-shrink:0; }
+  .mh-ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+  }
+  .mh-ring-center .n { font-size:17px; font-weight:900; line-height:1; color:#5a3e00; }
+  .mh-ring-center .lbl { font-size:8px; font-weight:900; opacity:0.7; margin-top:2px; }
+  .mh-ring-info { flex:1; min-width:0; }
+  .mh-ring-info b { display:block; font-size:14px; font-weight:900; margin-bottom:3px; }
+  .mh-ring-info small { font-size:11px; font-weight:700; opacity:0.75; line-height:1.4; }
+
+  .mh-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; position:relative; z-index:1; margin-bottom:14px; }
+  .mh-stat {
+    background:rgba(255,255,255,0.6);
+    padding:10px 12px; border-radius:12px; text-align:center;
+    display:flex; align-items:center; gap:8px;
+  }
+  .mh-stat .ic { font-size:18px; flex-shrink:0; }
+  .mh-stat .txt { flex:1; min-width:0; }
+  .mh-stat .v { font-size:16px; font-weight:900; line-height:1; }
+  .mh-stat .k { font-size:10px; font-weight:800; opacity:0.72; margin-top:2px; }
+
+  .me-hero-cta {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%;
+    background:#5a3e00; color:#ffe9a8;
+    padding:14px 20px; border-radius:13px; font-weight:900; font-size:15px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.3); cursor:pointer; border:none; font-family:inherit;
+    position:relative; z-index:1;
+  }
+  .me-hero-cta:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.3); }
+
+  /* ============ Controls ============ */
+  .controls-wrap { padding:0 14px; margin-bottom:14px; }
+  .controls-card {
+    background:var(--panel); border-radius:16px; padding:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .ctl-group { margin-bottom:12px; }
+  .ctl-group:last-child { margin-bottom:0; }
+  .ctl-label {
+    display:block; font-size:10px; font-weight:900; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+  }
+  .seg {
+    display:flex; background:#f0f0f0; border-radius:13px; padding:4px; gap:2px;
+  }
+  .seg button {
+    flex:1; border:none; background:transparent; font-family:inherit;
+    padding:10px 6px; border-radius:10px; font-weight:900; font-size:13px;
+    color:var(--text-dim); cursor:pointer; transition:all 0.15s;
+    display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    white-space:nowrap;
+  }
+  .seg button.on { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .seg button.on.gold { background:var(--gold); color:#5a3e00; box-shadow:0 3px 0 rgba(200,152,0,0.6); }
+  .seg button.on.blue { background:var(--blue); color:#fff; box-shadow:0 3px 0 var(--blue-dark); }
+
+  .ctl-info {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    background:#f7f7f7; padding:8px 12px; border-radius:10px; margin-top:2px;
+  }
+  .ctl-info .live-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.2); animation:pulse 1.6s ease infinite;
+  }
+
+  /* ============ Action row ============ */
+  .action-row {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    padding:0 14px; margin-bottom:14px;
+  }
+  .act-btn {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:12px; border-radius:13px; font-weight:900; font-size:13px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.12); cursor:pointer; border:none; font-family:inherit;
+    text-decoration:none;
+  }
+  .act-btn.white { background:#fff; color:var(--green); box-shadow:0 4px 0 rgba(0,0,0,0.12); }
+  .act-btn.blue { background:var(--blue); color:#fff; box-shadow:0 4px 0 var(--blue-dark); }
+  .act-btn.primary { background:var(--green); color:#fff; box-shadow:0 4px 0 var(--green-dark); }
+  .act-btn:active { transform:translateY(3px); }
+
+  /* ============ Card base ============ */
+  .card-m {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin:0 14px 14px;
+  }
+  .card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .card-head .title { font-size:15px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .card-head .title .ic { font-size:19px; }
+  .card-head .sub { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .card-sub { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:12px; }
+  .card-sub b { color:var(--green-dark); }
+
+  /* ============ Podium (mobile: horizontal compact) ============ */
+  .podium-row { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
+  .podium-col { display:flex; flex-direction:column; align-items:center; position:relative; flex:1; }
+  .pc-medal { font-size:20px; margin-bottom:4px; }
+  .pc-avatar {
+    width:46px; height:46px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:23px; box-shadow:0 3px 0 rgba(0,0,0,0.13);
+    margin-bottom:8px; position:relative;
+  }
+  .pc-avatar.first { width:56px; height:56px; font-size:29px; box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 4px rgba(255,200,0,0.35); }
+  .pc-base {
+    background:#f7f7f7; border-radius:12px; padding:9px 6px;
+    text-align:center; width:100%; box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .pc-base.first { background:var(--gold-light); border:2px solid var(--gold); box-shadow:0 3px 0 rgba(255,200,0,0.32); }
+  .pc-name { font-size:12px; font-weight:900; margin-bottom:3px; }
+  .pc-xp { font-size:12px; font-weight:900; color:var(--green-dark); }
+  .pc-crown { position:absolute; top:-13px; left:50%; transform:translateX(-50%); font-size:20px; }
+
+  /* ============ Ranking list ============ */
+  .rank-row {
+    display:flex; align-items:center; gap:10px;
+    padding:11px 12px; border-radius:12px; background:#f7f7f7;
+    margin-bottom:8px; position:relative;
+  }
+  .rank-row:last-child { margin-bottom:0; }
+  .rank-row.me {
+    background:var(--green-bg); border:2px solid var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12), 0 3px 0 rgba(0,0,0,0.06);
+  }
+  .rr-rank {
+    width:28px; height:28px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:900; background:#e5e5e5; color:var(--text-dim);
+  }
+  .rr-rank.top1 { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; box-shadow:0 2px 0 rgba(200,152,0,0.5); }
+  .rr-rank.top2 { background:linear-gradient(135deg, #c0c0c0, #d9d9d9); color:#4a4a4a; }
+  .rr-rank.top3 { background:linear-gradient(135deg, #cd7f32, #e0a060); color:#fff; }
+  .rr-rank.me { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .rr-avatar { width:38px; height:38px; font-size:20px; flex-shrink:0; }
+  .rr-info { flex:1; min-width:0; }
+  .rr-name { font-size:13px; font-weight:900; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+  .rr-meta { font-size:11px; color:var(--text-dim); font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .rr-right { flex-shrink:0; text-align:right; min-width:62px; }
+  .rr-right .v { font-size:14px; font-weight:900; color:var(--green-dark); }
+  .rr-right .d { font-size:10px; font-weight:800; }
+  .rr-right .d.up { color:var(--green-dark); }
+  .rr-right .d.down { color:var(--red); }
+  .rr-right .d.flat { color:var(--text-faint); }
+  .me-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--green); color:#fff;
+    padding:1px 7px; border-radius:7px; font-size:9px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .collapse-hint {
+    text-align:center; padding:6px 0; font-size:11px; font-weight:800; color:var(--text-faint);
+  }
+  .level-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--purple-light); color:var(--purple-dark);
+    padding:1px 7px; border-radius:8px; font-size:9px; font-weight:900;
+  }
+
+  /* ============ Trend chart (mobile) ============ */
+  .chart-bars { display:flex; align-items:flex-end; gap:7px; height:120px; padding-bottom:2px; }
+  .chart-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%; justify-content:flex-end; }
+  .chart-bar {
+    width:100%; border-radius:8px 8px 3px 3px;
+    background:linear-gradient(180deg, var(--green), var(--green-dark));
+    box-shadow:0 3px 0 rgba(0,0,0,0.08); position:relative;
+  }
+  .chart-bar.dim { background:linear-gradient(180deg, #cfe9c2, #b3d9a0); box-shadow:0 3px 0 rgba(0,0,0,0.05); }
+  .chart-bar.today { background:linear-gradient(180deg, var(--orange), var(--orange-dark)); box-shadow:0 3px 0 rgba(224,134,0,0.4); }
+  .chart-bar .v {
+    position:absolute; top:-17px; left:50%; transform:translateX(-50%);
+    font-size:9px; font-weight:900; color:var(--text-dim); white-space:nowrap;
+  }
+  .chart-bar.today .v { color:var(--orange-dark); }
+  .chart-x { display:flex; gap:7px; padding-top:7px; border-top:2px solid var(--border); margin-top:7px; }
+  .chart-x span { flex:1; text-align:center; font-size:9px; font-weight:800; color:var(--text-dim); }
+  .chart-x span.today { color:var(--orange-dark); }
+  .trend-legend { display:flex; align-items:center; gap:12px; margin-top:12px; font-size:10px; font-weight:800; color:var(--text-dim); }
+  .tl-item { display:flex; align-items:center; gap:5px; }
+  .tl-swatch { width:10px; height:10px; border-radius:4px; }
+
+  /* ============ Week stats ============ */
+  .week-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .wk-stat { text-align:center; padding:12px 8px; border-radius:12px; background:#f7f7f7; }
+  .wk-stat .ic { font-size:20px; }
+  .wk-stat .v { font-size:22px; font-weight:900; line-height:1; margin-top:3px; }
+  .wk-stat .v.green { color:var(--green); }
+  .wk-stat .v.gold { color:#b88800; }
+  .wk-stat .v.blue { color:var(--blue); }
+  .wk-stat .v.orange { color:var(--orange); }
+  .wk-stat .k { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  .week-rows { display:flex; flex-direction:column; gap:8px; }
+  .wk-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .wk-row .ic { font-size:20px; flex-shrink:0; }
+  .wk-row .info { flex:1; min-width:0; }
+  .wk-row .info b { display:block; font-size:12px; font-weight:900; }
+  .wk-row .info small { font-size:11px; color:var(--text-dim); font-weight:700; line-height:1.4; }
+  .wk-row .val { flex-shrink:0; font-size:13px; font-weight:900; color:var(--green-dark); }
+
+  /* ============ Rewards ============ */
+  .reward-card {
+    background:linear-gradient(135deg, #fff8d1 0%, #fffdf3 100%);
+    box-shadow:0 4px 0 rgba(255,200,0,0.35), 0 8px 20px rgba(255,200,0,0.12);
+    border:2px solid rgba(255,200,0,0.4);
+  }
+  .reward-card .card-head .title { color:#7a5c00; }
+  .reward-card .card-head .sub { color:var(--orange-dark); }
+  .reward-tiers { display:flex; flex-direction:column; gap:8px; }
+  .rt-tier {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 11px; border-radius:12px; background:#fff;
+    border:1.5px solid rgba(255,200,0,0.25);
+  }
+  .rt-tier.claimed { background:var(--green-bg); border-color:rgba(88,204,2,0.3); }
+  .rt-tier.locked { opacity:0.72; }
+  .rt-icon {
+    width:36px; height:36px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .rt-icon.gold  { background:linear-gradient(135deg, var(--gold), #ffdf6b); box-shadow:0 2px 0 rgba(200,152,0,0.4); }
+  .rt-icon.green { background:linear-gradient(135deg, var(--green), #6fdd1a); box-shadow:0 2px 0 var(--green-dark); }
+  .rt-icon.blue  { background:linear-gradient(135deg, var(--blue), #4dd0ff); box-shadow:0 2px 0 var(--blue-dark); }
+  .rt-info { flex:1; min-width:0; }
+  .rt-info b { display:block; font-size:12px; font-weight:900; }
+  .rt-info small { font-size:10px; color:var(--text-dim); font-weight:700; line-height:1.4; }
+  .rt-status { flex-shrink:0; font-size:10px; font-weight:900; padding:4px 8px; border-radius:8px; }
+  .rt-status.done { background:var(--green); color:#fff; }
+  .rt-status.lock { background:#e5e5e5; color:var(--text-faint); }
+
+  /* ============ Group leaderboard ============ */
+  .group-bar-wrap { margin-bottom:14px; }
+  .gb-lbl { display:flex; justify-content:space-between; font-size:11px; font-weight:800; margin-bottom:6px; }
+  .gb-lbl b { color:var(--blue-dark); }
+  .gb-track { height:10px; background:#e5e5e5; border-radius:10px; overflow:hidden; }
+  .gb-fill { height:100%; border-radius:10px; background:linear-gradient(90deg, var(--blue), #4dd0ff); }
+
+  .group-top3 { display:flex; flex-direction:column; gap:8px; }
+  .gt-row { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:11px; background:#f7f7f7; }
+  .gt-row.me { background:var(--blue-bg); border:2px solid var(--blue); }
+  .gt-rank {
+    width:24px; height:24px; border-radius:7px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900; background:#e5e5e5; color:var(--text-dim);
+  }
+  .gt-rank.top1 { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; }
+  .gt-rank.top3 { background:linear-gradient(135deg, #cd7f32, #e0a060); color:#fff; }
+  .gt-rank.me { background:var(--blue); color:#fff; }
+  .gt-avatar { width:32px; height:32px; border-radius:50%; font-size:17px; flex-shrink:0; box-shadow:0 2px 0 rgba(0,0,0,0.1); }
+  .gt-info { flex:1; min-width:0; }
+  .gt-info b { display:block; font-size:12px; font-weight:900; }
+  .gt-info small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .gt-xp { flex-shrink:0; font-size:12px; font-weight:900; color:var(--blue-dark); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; padding:4px 16px 24px;
+    font-size:11px; color:var(--text-faint); font-weight:700;
+  }
+
+  /* ============ Animations ============ */
+  @keyframes glow-pulse { 0%,100%{box-shadow:0 3px 0 rgba(0,0,0,0.13), 0 0 0 0 rgba(88,204,2,0)} 50%{box-shadow:0 3px 0 rgba(0,0,0,0.13), 0 0 0 6px rgba(88,204,2,0.14)} }
+  .avatar.me-glow { animation:glow-pulse 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div class="topbar-title">排行榜</div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span>🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span>⚡</span>
+        <span>42,380</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <h1><span class="emoji">🏆</span> 排行榜</h1>
+    <p>全站 · 好友 · 小组三重比拼</p>
+  </div>
+
+  <!-- ============ MY RANK HERO ============ -->
+  <div class="me-hero">
+    <div class="mh-top">
+      <div class="mh-avatar-wrap">
+        <div class="avatar xl gold me-glow">🦉</div>
+        <span class="mh-crown">👑</span>
+      </div>
+      <div class="mh-id-body">
+        <div class="mh-name">你 <span class="level-badge">Lv.11</span></div>
+        <div class="mh-sub">词力等级 · 钢铁意志持有者</div>
+      </div>
+    </div>
+
+    <div class="mh-rank-box">
+      <div class="mh-rank-num">#17</div>
+      <div class="mh-rank-meta">
+        <div class="lbl">本周全站排名</div>
+        <div class="rank-where">第 17 / 326 名</div>
+        <div class="delta">▲ 上升 2 名</div>
+      </div>
+    </div>
+
+    <div class="mh-ring-row">
+      <div class="mh-ring-wrap">
+        <svg width="74" height="74" viewBox="0 0 74 74">
+          <circle cx="37" cy="37" r="30" fill="none" stroke="rgba(90,62,0,0.18)" stroke-width="8"/>
+          <circle cx="37" cy="37" r="30" fill="none" stroke="#5a3e00" stroke-width="8"
+                  stroke-linecap="round" stroke-dasharray="189" stroke-dashoffset="53"
+                  transform="rotate(-90 37 37)"
+                  filter="drop-shadow(0 0 4px rgba(90,62,0,0.3))"/>
+        </svg>
+        <div class="mh-ring-center">
+          <div class="n">72%</div>
+          <div class="lbl">距榜首</div>
+        </div>
+      </div>
+      <div class="mh-ring-info">
+        <b>距榜首还差 5,140 XP</b>
+        <small>再坚持练 3 天就能追上小明 🦊</small>
+      </div>
+    </div>
+
+    <div class="mh-stats">
+      <div class="mh-stat">
+        <div class="ic">⚡</div>
+        <div class="txt"><div class="v">3,280</div><div class="k">本周 XP</div></div>
+      </div>
+      <div class="mh-stat">
+        <div class="ic">📝</div>
+        <div class="txt"><div class="v">46</div><div class="k">练习次数</div></div>
+      </div>
+      <div class="mh-stat">
+        <div class="ic">🔥</div>
+        <div class="txt"><div class="v">27</div><div class="k">连胜天数</div></div>
+      </div>
+      <div class="mh-stat">
+        <div class="ic">👥</div>
+        <div class="txt"><div class="v">3/8</div><div class="k">好友排名</div></div>
+      </div>
+    </div>
+
+    <button class="me-hero-cta">🚀 再练 10 分钟提升排名</button>
+  </div>
+
+  <!-- ============ CONTROLS ============ -->
+  <div class="controls-wrap">
+    <div class="card controls-card">
+      <div class="ctl-group">
+        <span class="ctl-label">范围</span>
+        <div class="seg">
+          <button class="on gold">🌍 全站</button>
+          <button>👥 好友</button>
+          <button>🏳️ 小组</button>
+        </div>
+      </div>
+      <div class="ctl-group">
+        <span class="ctl-label">周期</span>
+        <div class="seg">
+          <button class="on">📅 本周</button>
+          <button>🗓️ 本月</button>
+          <button>♾️ 全部</button>
+        </div>
+      </div>
+      <div class="ctl-info"><span class="live-dot"></span> 数据实时更新中 · 每 5 分钟同步</div>
+    </div>
+  </div>
+
+  <!-- ============ ACTION ROW ============ -->
+  <div class="action-row">
+    <a href="#" class="act-btn white">📤 分享</a>
+    <a href="#" class="act-btn primary">🎯 提升排名</a>
+  </div>
+
+  <!-- ============ PODIUM ============ -->
+  <div class="card card-m">
+    <div class="card-head">
+      <div class="title"><span class="ic">👑</span> 本周巅峰榜 TOP 3</div>
+      <div class="sub">按本周 XP</div>
+    </div>
+    <div class="card-sub">每周一 00:00 结算 · 冠军获得专属皇冠头像框</div>
+
+    <div class="podium-row">
+      <!-- 2nd -->
+      <div class="podium-col">
+        <div class="pc-medal">🥈</div>
+        <div class="pc-avatar gold">🦄</div>
+        <div class="pc-base">
+          <div class="pc-name">莉莉</div>
+          <div class="pc-xp">7,150</div>
+        </div>
+      </div>
+      <!-- 1st -->
+      <div class="podium-col">
+        <div class="pc-medal">🥇</div>
+        <div class="pc-avatar green first">🦊<span class="pc-crown">👑</span></div>
+        <div class="pc-base first">
+          <div class="pc-name">小明</div>
+          <div class="pc-xp" style="color:#b88800;">8,420</div>
+        </div>
+      </div>
+      <!-- 3rd -->
+      <div class="podium-col">
+        <div class="pc-medal">🥉</div>
+        <div class="pc-avatar orange">🐯</div>
+        <div class="pc-base">
+          <div class="pc-name">阿杰</div>
+          <div class="pc-xp">6,800</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RANKING LIST ============ -->
+  <div class="card card-m">
+    <div class="card-head">
+      <div class="title"><span class="ic">📋</span> 全站周榜</div>
+      <div class="sub">326 人上榜</div>
+    </div>
+    <div class="card-sub">再拿 <b>1,620 XP</b> 就能进入 TOP 10 🔥</div>
+
+    <div class="rank-row">
+      <div class="rr-rank top1">1</div>
+      <div class="avatar green rr-avatar">🦊</div>
+      <div class="rr-info">
+        <div class="rr-name">小明 <span class="level-badge">Lv.12</span></div>
+        <div class="rr-meta"><span>🔥 45天</span><span>📝 68次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">8,420</div><div class="d up">▲ 1</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank top2">2</div>
+      <div class="avatar gold rr-avatar">🦄</div>
+      <div class="rr-info">
+        <div class="rr-name">莉莉 <span class="level-badge">Lv.11</span></div>
+        <div class="rr-meta"><span>🔥 53天</span><span>📝 61次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">7,150</div><div class="d up">▲ 2</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank top3">3</div>
+      <div class="avatar orange rr-avatar">🐯</div>
+      <div class="rr-info">
+        <div class="rr-name">阿杰 <span class="level-badge">Lv.10</span></div>
+        <div class="rr-meta"><span>🔥 32天</span><span>📝 58次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">6,800</div><div class="d down">▼ 1</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank">4</div>
+      <div class="avatar green rr-avatar">🦁</div>
+      <div class="rr-info">
+        <div class="rr-name">王同学 <span class="level-badge">Lv.10</span></div>
+        <div class="rr-meta"><span>🔥 29天</span><span>📝 52次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">5,940</div><div class="d up">▲ 3</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank">5</div>
+      <div class="avatar blue rr-avatar">🐰</div>
+      <div class="rr-info">
+        <div class="rr-name">小雪 <span class="level-badge">Lv.9</span></div>
+        <div class="rr-meta"><span>🔥 19天</span><span>📝 49次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">5,310</div><div class="d flat">— 持平</div></div>
+    </div>
+
+    <div class="collapse-hint">⋯ 第 6–16 名 ⋯</div>
+
+    <div class="rank-row me">
+      <div class="rr-rank me">17</div>
+      <div class="avatar gold rr-avatar me-glow">🦉</div>
+      <div class="rr-info">
+        <div class="rr-name">你 <span class="me-tag">我</span> <span class="level-badge">Lv.11</span></div>
+        <div class="rr-meta"><span>🔥 27天</span><span>📝 46次</span><span style="color:var(--orange-dark);">⚡ 距 TOP 10 差 1,620 XP</span></div>
+      </div>
+      <div class="rr-right"><div class="v">3,280</div><div class="d up">▲ 2</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank">18</div>
+      <div class="avatar purple rr-avatar">🐼</div>
+      <div class="rr-info">
+        <div class="rr-name">阿敏 <span class="level-badge">Lv.9</span></div>
+        <div class="rr-meta"><span>🔥 21天</span><span>📝 44次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">3,040</div><div class="d flat">— 持平</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank">19</div>
+      <div class="avatar blue rr-avatar">🐨</div>
+      <div class="rr-info">
+        <div class="rr-name">张同学 <span class="level-badge">Lv.9</span></div>
+        <div class="rr-meta"><span>🔥 15天</span><span>📝 41次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">2,790</div><div class="d down">▼ 2</div></div>
+    </div>
+
+    <div class="rank-row">
+      <div class="rr-rank">20</div>
+      <div class="avatar red rr-avatar">🐻</div>
+      <div class="rr-info">
+        <div class="rr-name">老张 <span class="level-badge">Lv.8</span></div>
+        <div class="rr-meta"><span>🔥 8天</span><span>📝 38次</span></div>
+      </div>
+      <div class="rr-right"><div class="v">2,610</div><div class="d up">▲ 4</div></div>
+    </div>
+  </div>
+
+  <!-- ============ WEEK STATS ============ -->
+  <div class="card card-m">
+    <div class="card-head">
+      <div class="title"><span class="ic">📊</span> 我的本周战绩</div>
+      <div class="sub">第 37 周</div>
+    </div>
+    <div class="card-sub">本周共获得 <b>3,280 XP</b>，日均 469 XP</div>
+
+    <div class="week-stats">
+      <div class="wk-stat">
+        <div class="ic">⚡</div>
+        <div class="v gold">3,280</div>
+        <div class="k">本周 XP</div>
+      </div>
+      <div class="wk-stat">
+        <div class="ic">📝</div>
+        <div class="v green">46</div>
+        <div class="k">练习次数</div>
+      </div>
+      <div class="wk-stat">
+        <div class="ic">🔥</div>
+        <div class="v orange">27</div>
+        <div class="k">连胜天数</div>
+      </div>
+      <div class="wk-stat">
+        <div class="ic">🎯</div>
+        <div class="v blue">91%</div>
+        <div class="k">正确率</div>
+      </div>
+    </div>
+
+    <div class="week-rows">
+      <div class="wk-row">
+        <div class="ic">⚡</div>
+        <div class="info"><b>距 TOP 3 差距</b><small>再拿 3,520 XP 挤进巅峰榜</small></div>
+        <div class="val">3,520 XP</div>
+      </div>
+      <div class="wk-row">
+        <div class="ic">🎯</div>
+        <div class="info"><b>距 TOP 10 差距</b><small>再练 2 天进入 TOP 10</small></div>
+        <div class="val">1,620 XP</div>
+      </div>
+      <div class="wk-row">
+        <div class="ic">🏅</div>
+        <div class="info"><b>已解锁徽章</b><small>钢铁意志 · 七日不败 · 千词达人</small></div>
+        <div class="val">+3</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TREND CHART ============ -->
+  <div class="card card-m">
+    <div class="card-head">
+      <div class="title"><span class="ic">📈</span> 本周 XP 走势</div>
+      <div class="sub">日 XP 趋势</div>
+    </div>
+    <div class="card-sub">周三达到峰值 <b>680 XP</b>，今天已拿 470 XP</div>
+
+    <div class="chart-bars">
+      <div class="chart-bar-col">
+        <div class="chart-bar dim" style="height:38%"><span class="v">310</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar" style="height:52%"><span class="v">420</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar" style="height:86%"><span class="v">680</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar" style="height:64%"><span class="v">510</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar" style="height:74%"><span class="v">590</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar today" style="height:60%"><span class="v">470</span></div>
+      </div>
+      <div class="chart-bar-col">
+        <div class="chart-bar dim" style="height:26%"><span class="v">300</span></div>
+      </div>
+    </div>
+    <div class="chart-x">
+      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span class="today">六</span><span>日</span>
+    </div>
+    <div class="trend-legend">
+      <div class="tl-item"><span class="tl-swatch" style="background:var(--green);"></span> 已完成</div>
+      <div class="tl-item"><span class="tl-swatch" style="background:var(--orange);"></span> 今天</div>
+      <div class="tl-item"><span class="tl-swatch" style="background:#cfe9c2;"></span> 未开始</div>
+    </div>
+  </div>
+
+  <!-- ============ REWARDS ============ -->
+  <div class="card card-m reward-card">
+    <div class="card-head">
+      <div class="title"><span class="ic">🎁</span> 排行榜奖励</div>
+      <div class="sub">本周结算中</div>
+    </div>
+    <div class="card-sub">再拿 1,620 XP 就能解锁 TOP 10 荣誉勋章</div>
+
+    <div class="reward-tiers">
+      <div class="rt-tier locked">
+        <div class="rt-icon gold">👑</div>
+        <div class="rt-info">
+          <b>TOP 1 · 冠军</b>
+          <small>专属皇冠头像框 + 双倍 XP 卡 ×3</small>
+        </div>
+        <div class="rt-status lock">🔒 第 1 名</div>
+      </div>
+      <div class="rt-tier locked">
+        <div class="rt-icon green">🥇</div>
+        <div class="rt-info">
+          <b>TOP 3 · 巅峰</b>
+          <small>巅峰徽章 + 周冠军称号</small>
+        </div>
+        <div class="rt-status lock">🔒 第 3 名</div>
+      </div>
+      <div class="rt-tier claimed">
+        <div class="rt-icon blue">🏅</div>
+        <div class="rt-info">
+          <b>TOP 10 · 荣誉</b>
+          <small>荣誉勋章 + 头像边框</small>
+        </div>
+        <div class="rt-status done">差 7 名</div>
+      </div>
+      <div class="rt-tier claimed">
+        <div class="rt-icon green">🎖️</div>
+        <div class="rt-info">
+          <b>TOP 50 · 上榜</b>
+          <small>上榜纪念徽章</small>
+        </div>
+        <div class="rt-status done">✓ 已解锁</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GROUP LEADERBOARD ============ -->
+  <div class="card card-m">
+    <div class="card-head">
+      <div class="title"><span class="ic">🏳️</span> 我的小组榜</div>
+      <div class="sub">查看 →</div>
+    </div>
+    <div class="card-sub">「晨读英语小队」· 8 位成员 · 小组排名第 2</div>
+
+    <div class="group-bar-wrap">
+      <div class="gb-lbl"><span>小组周 XP 总量</span><b>31,200 / 42,000</b></div>
+      <div class="gb-track"><div class="gb-fill" style="width:74%"></div></div>
+    </div>
+
+    <div class="group-top3">
+      <div class="gt-row">
+        <div class="gt-rank top1">1</div>
+        <div class="avatar green gt-avatar">🦊</div>
+        <div class="gt-info"><b>小明</b><small>Lv.12 · 队长</small></div>
+        <div class="gt-xp">4,680</div>
+      </div>
+      <div class="gt-row me">
+        <div class="gt-rank me">2</div>
+        <div class="avatar gold gt-avatar">🦉</div>
+        <div class="gt-info"><b>你 <span class="me-tag">我</span></b><small>Lv.11 · 本周主力</small></div>
+        <div class="gt-xp">3,280</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-rank top3">3</div>
+        <div class="avatar orange gt-avatar">🐯</div>
+        <div class="gt-info"><b>阿杰</b><small>Lv.10 · 成员</small></div>
+        <div class="gt-xp">3,040</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-rank">4</div>
+        <div class="avatar blue gt-avatar">🐰</div>
+        <div class="gt-info"><b>小雪</b><small>Lv.9 · 成员</small></div>
+        <div class="gt-xp">2,910</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">🏆 排行榜 · 本周结算：周一 00:00</div>
+</div>
+
+</body>
+</html>

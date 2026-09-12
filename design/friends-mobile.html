@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>好友页 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Top bar simplified ============ */
+  .topbar { padding:10px 14px; }
+  .topbar-brand { font-size:17px; gap:8px; }
+  .topbar-brand .owl { font-size:22px; }
+  .topbar-stats { gap:14px; }
+  .stat-item { font-size:14px; }
+  .stat-item .icon { font-size:16px; }
+
+  /* ============ Page head ============ */
+  .page-head {
+    margin:14px 4px 12px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .page-head h1 {
+    font-size:22px; font-weight:900; letter-spacing:-0.5px;
+    display:flex; align-items:center; gap:7px; line-height:1.1;
+  }
+  .page-head h1 .emoji { font-size:24px; }
+  .page-head p { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+  .page-head-actions { display:flex; gap:6px; flex-shrink:0; }
+  .page-head-actions .btn-sm { padding:7px 12px; font-size:12px; border-radius:10px; }
+
+  /* ============ Tab bar ============ */
+  .mob-tab-bar {
+    display:flex; gap:4px; background:#ececec; padding:4px;
+    border-radius:14px; margin-bottom:14px;
+  }
+  .mob-tab {
+    flex:1; padding:10px 6px; border-radius:10px;
+    font-weight:800; font-size:13px; text-align:center;
+    background:transparent; color:var(--text-dim);
+    cursor:pointer; font-family:inherit; border:none;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .mob-tab .t-ic { font-size:18px; }
+  .mob-tab.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  /* ============ Avatars ============ */
+  .avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(0,0,0,0.13);
+  }
+  .avatar.green { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .avatar.blue  { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .avatar.orange{ background:linear-gradient(135deg, var(--orange), #ffb347); }
+  .avatar.gold  { background:linear-gradient(135deg, var(--gold), #ffdf6b); }
+  .avatar.purple{ background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .avatar.red   { background:linear-gradient(135deg, var(--red), #ff7a7a); }
+  .avatar.lg { width:52px; height:52px; font-size:28px; }
+  .avatar.xl { width:64px; height:64px; font-size:34px; }
+
+  /* ============ Social Hero ============ */
+  .social-hero {
+    background:linear-gradient(135deg, #1cb0f6 0%, #4dd0ff 100%);
+    border-radius:18px; padding:18px 16px; color:#fff;
+    box-shadow:0 5px 0 var(--blue-dark), 0 10px 24px rgba(28,176,246,0.24);
+    position:relative; overflow:hidden; margin-bottom:14px;
+  }
+  .social-hero::after {
+    content:''; position:absolute; top:-40px; right:-20px;
+    width:130px; height:130px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .social-hero::before {
+    content:''; position:absolute; bottom:-50px; left:25%;
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+
+  .sh-identity {
+    display:flex; align-items:center; gap:14px;
+    position:relative; z-index:1; margin-bottom:12px;
+  }
+  .sh-name { font-size:18px; font-weight:900; margin-bottom:3px; }
+  .sh-sub { font-size:11px; font-weight:700; opacity:0.9; line-height:1.4; }
+  .sh-rank-pill {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:5px 10px; border-radius:10px; margin-top:7px;
+    font-weight:900; font-size:12px;
+  }
+  .sh-rank-pill .rank-num { font-size:16px; }
+  .sh-rank-pill .rank-total { opacity:0.8; font-size:11px; }
+
+  .sh-stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
+    position:relative; z-index:1;
+  }
+  .sh-stat {
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    padding:9px 6px; border-radius:12px; text-align:center;
+  }
+  .sh-stat .ic { font-size:18px; }
+  .sh-stat .v { font-size:18px; font-weight:900; line-height:1; margin-top:2px; }
+  .sh-stat .k { font-size:10px; font-weight:700; opacity:0.85; margin-top:2px; }
+
+  /* ============ Podium ============ */
+  .podium-section {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .podium-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .podium-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .podium-head .title .ic { font-size:20px; }
+  .podium-head .sub { font-size:10px; font-weight:800; color:var(--text-dim); }
+
+  .podium-row { display:flex; align-items:flex-end; justify-content:center; gap:10px; }
+  .podium-col {
+    display:flex; flex-direction:column; align-items:center;
+    position:relative; flex:1;
+  }
+  .pc-medal { font-size:22px; margin-bottom:4px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.15)); }
+  .pc-avatar {
+    width:56px; height:56px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; box-shadow:0 3px 0 rgba(0,0,0,0.13);
+    margin-bottom:8px; position:relative;
+  }
+  .pc-avatar.first { width:64px; height:64px; font-size:34px; box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 3px rgba(255,200,0,0.35); }
+  .pc-base {
+    background:#f7f7f7; border-radius:14px; padding:10px 8px;
+    text-align:center; width:100%;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .pc-base.first { background:var(--gold-light); border:1.5px solid var(--gold); box-shadow:0 3px 0 rgba(255,200,0,0.25); }
+  .pc-name { font-size:14px; font-weight:900; margin-bottom:4px; }
+  .pc-stats { font-size:10px; font-weight:700; color:var(--text-dim); margin-bottom:3px; }
+  .pc-xp { font-size:11px; font-weight:900; color:var(--green-dark); }
+  .pc-crown { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:22px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+
+  /* ============ Friend list ============ */
+  .friend-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .friend-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .friend-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .friend-head .title .ic { font-size:20px; }
+  .friend-head .count { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .friend-head .count b { color:var(--green-dark); font-size:13px; }
+
+  .friend-row {
+    display:flex; align-items:center; gap:10px;
+    padding:11px 12px; border-radius:12px; background:#f7f7f7;
+    margin-bottom:8px;
+  }
+  .friend-row:last-child { margin-bottom:0; }
+  .friend-row.me { background:var(--green-bg); border:1.5px solid rgba(88,204,2,0.3); }
+
+  .fr-rank {
+    width:24px; height:24px; border-radius:7px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900; background:#e5e5e5; color:var(--text-dim);
+  }
+  .fr-rank.top1 { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; box-shadow:0 1px 0 rgba(255,200,0,0.3); }
+  .fr-rank.top2 { background:linear-gradient(135deg, #c0c0c0, #d4d4d4); color:#4a4a4a; }
+  .fr-rank.top3 { background:linear-gradient(135deg, #cd7f32, #e0a060); color:#fff; }
+  .fr-rank.me { background:var(--green); color:#fff; box-shadow:0 1px 0 var(--green-dark); }
+
+  .fr-info { flex:1; min-width:0; }
+  .fr-name { font-size:14px; font-weight:900; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+  .fr-name .badge { font-size:9px; padding:1px 6px; }
+  .fr-meta { font-size:11px; color:var(--text-dim); font-weight:700; }
+
+  .fr-bar-wrap { flex-shrink:0; width:64px; }
+  .fr-bar-lbl { font-size:9px; font-weight:800; color:var(--text-dim); margin-top:3px; text-align:center; }
+
+  .fr-action { flex-shrink:0; }
+  .fr-status {
+    flex-shrink:0; width:8px; height:8px; border-radius:50%;
+    background:var(--text-faint);
+  }
+  .fr-status.online { background:var(--green); box-shadow:0 0 0 2px rgba(88,204,2,0.2); }
+  .fr-status.away { background:var(--orange); box-shadow:0 0 0 2px rgba(255,150,0,0.2); }
+
+  .me-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--green); color:#fff;
+    padding:1px 6px; border-radius:6px; font-size:9px; font-weight:900;
+    box-shadow:0 1px 0 var(--green-dark);
+  }
+
+  /* ============ Battle record ============ */
+  .battle-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .battle-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .battle-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .battle-head .title .ic { font-size:20px; }
+  .battle-head .sub { font-size:10px; font-weight:800; color:var(--text-dim); }
+
+  .battle-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+  .battle-stat { text-align:center; padding:10px 6px; border-radius:12px; background:#f7f7f7; }
+  .battle-stat .v { font-size:20px; font-weight:900; }
+  .battle-stat .k { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .battle-stat .v.green { color:var(--green); }
+  .battle-stat .v.orange { color:var(--orange); }
+  .battle-stat .v.blue { color:var(--blue); }
+
+  .battle-log { display:flex; flex-direction:column; gap:8px; }
+  .battle-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .battle-item.win { background:var(--green-bg); border:1.5px solid rgba(88,204,2,0.25); }
+  .battle-item.lose { background:var(--red-light); }
+  .battle-result {
+    width:32px; height:32px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900;
+  }
+  .battle-result.win { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .battle-result.lose { background:var(--red); color:#fff; box-shadow:0 2px 0 var(--red-dark); }
+  .battle-info { flex:1; min-width:0; }
+  .battle-info b { display:block; font-size:12px; font-weight:900; }
+  .battle-info small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .battle-opp-avatar { width:26px; height:26px; font-size:15px; }
+
+  /* ============ Add Friend ============ */
+  .add-friend-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .af-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .af-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .af-head .title .ic { font-size:20px; }
+  .af-head .count { font-size:11px; font-weight:800; color:var(--text-dim); }
+
+  .af-search { position:relative; margin-bottom:14px; }
+  .af-search .form-input { padding-left:36px; font-size:13px; }
+  .af-search .search-ic {
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-size:16px; pointer-events:none;
+  }
+
+  .af-suggest-label { font-size:12px; font-weight:900; margin-bottom:8px; color:var(--text-dim); }
+  .af-suggest-list { display:flex; flex-direction:column; gap:8px; }
+  .af-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .af-info { flex:1; min-width:0; }
+  .af-info b { display:block; font-size:13px; font-weight:900; margin-bottom:1px; }
+  .af-info b .badge { font-size:9px; padding:1px 6px; }
+  .af-info small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .af-add-btn {
+    flex-shrink:0; background:var(--green); color:#fff;
+    padding:8px 16px; border-radius:10px; font-weight:800; font-size:12px;
+    box-shadow:0 3px 0 var(--green-dark); cursor:pointer; border:none; font-family:inherit;
+  }
+  .af-add-btn:active { transform:translateY(2px); box-shadow:0 1px 0 var(--green-dark); }
+
+  /* ============ Activity Feed ============ */
+  .activity-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .act-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  .act-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:7px; }
+  .act-head .title .ic { font-size:20px; }
+  .act-head .sub { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .act-sub { font-size:11px; color:var(--text-dim); font-weight:700; margin-bottom:10px; }
+
+  .act-feed { display:flex; flex-direction:column; }
+  .act-item {
+    display:flex; gap:10px; padding:10px 0;
+    border-bottom:1px solid #f0f0f0;
+  }
+  .act-item:last-child { border-bottom:none; padding-bottom:4px; }
+  .act-avatar {
+    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; box-shadow:0 2px 0 rgba(0,0,0,0.12);
+  }
+  .act-body { flex:1; min-width:0; }
+  .act-text { font-size:13px; font-weight:700; line-height:1.5; margin-bottom:4px; }
+  .act-text b { font-weight:900; }
+  .act-text .act-name { font-weight:900; color:var(--blue-dark); }
+  .act-text .hl { color:var(--green-dark); font-weight:900; }
+  .act-text .hl-orange { color:var(--orange-dark); font-weight:900; }
+  .act-text .hl-gold { color:#b88800; font-weight:900; }
+  .act-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .act-time { font-size:10px; color:var(--text-faint); font-weight:700; }
+  .act-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 8px; border-radius:9px; font-size:9px; font-weight:900;
+  }
+  .act-tag.green { background:var(--green); color:#fff; box-shadow:0 1px 0 var(--green-dark); }
+  .act-tag.blue { background:var(--blue); color:#fff; box-shadow:0 1px 0 var(--blue-dark); }
+  .act-tag.orange { background:var(--orange); color:#fff; box-shadow:0 1px 0 var(--orange-dark); }
+  .act-tag.gold { background:var(--gold); color:#5a3e00; box-shadow:0 1px 0 rgba(255,200,0,0.4); }
+  .act-tag.purple { background:var(--purple); color:#fff; box-shadow:0 1px 0 var(--purple-dark); }
+  .act-tag.gray { background:#e5e5e5; color:var(--text-dim); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:8px;
+    font-size:11px; color:var(--text-faint); font-weight:700;
+  }
+
+  /* ============ Animations ============ */
+  @keyframes crown-bob { 0%,100%{transform:translateX(-50%) rotate(-5deg)} 50%{transform:translateX(-50%) rotate(5deg)} }
+  .pc-crown { animation:crown-bob 2.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="container-mobile">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+      <div class="stat-item level">
+        <span class="icon">🎯</span>
+        <span>Lv.11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">👥</span> 好友</h1>
+      <p>8 位好友 · 一起进步</p>
+    </div>
+    <div class="page-head-actions">
+      <button class="btn btn-primary btn-sm">➕ 添加</button>
+    </div>
+  </div>
+
+  <!-- ============ TAB BAR ============ -->
+  <div class="mob-tab-bar">
+    <button class="mob-tab active"><span class="t-ic">📋</span>好友列表</button>
+    <button class="mob-tab"><span class="t-ic">⚔️</span>对战记录</button>
+    <button class="mob-tab"><span class="t-ic">📢</span>动态</button>
+  </div>
+
+  <!-- ============ SOCIAL HERO ============ -->
+  <div class="social-hero">
+    <div class="sh-identity">
+      <div class="avatar lg green">🦉</div>
+      <div style="flex:1; min-width:0;">
+        <div class="sh-name">你的社交圈</div>
+        <div class="sh-sub">一起练习，让学习不再孤单 💪</div>
+        <div class="sh-rank-pill">
+          <span>🏆</span>
+          <span>排名</span>
+          <span class="rank-num">第 3</span>
+          <span class="rank-total">/ 8</span>
+        </div>
+      </div>
+    </div>
+    <div class="sh-stats">
+      <div class="sh-stat">
+        <div class="ic">👥</div>
+        <div class="v">8</div>
+        <div class="k">好友</div>
+      </div>
+      <div class="sh-stat">
+        <div class="ic">⚔️</div>
+        <div class="v">12</div>
+        <div class="k">本周对战</div>
+      </div>
+      <div class="sh-stat">
+        <div class="ic">🔥</div>
+        <div class="v">209</div>
+        <div class="k">总连胜</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PODIUM ============ -->
+  <div class="podium-section">
+    <div class="podium-head">
+      <div class="title"><span class="ic">🏆</span> 好友 TOP 3</div>
+      <div class="sub">按总经验排名</div>
+    </div>
+
+    <div class="podium-row">
+      <!-- 2nd -->
+      <div class="podium-col">
+        <div class="pc-medal">🥈</div>
+        <div class="pc-avatar gold">🦄</div>
+        <div class="pc-base">
+          <div class="pc-name">莉莉</div>
+          <div class="pc-stats">🔥53天 · ⚡51,800</div>
+          <div class="pc-xp">第 2 名</div>
+        </div>
+      </div>
+
+      <!-- 1st -->
+      <div class="podium-col">
+        <div class="pc-medal">🥇</div>
+        <div class="pc-avatar green first">🦊<span class="pc-crown">👑</span></div>
+        <div class="pc-base first">
+          <div class="pc-name">小明</div>
+          <div class="pc-stats">🔥45天 · ⚡62,340</div>
+          <div class="pc-xp" style="color:#b88800;">第 1 名</div>
+        </div>
+      </div>
+
+      <!-- 3rd -->
+      <div class="podium-col">
+        <div class="pc-medal">🥉</div>
+        <div class="pc-avatar orange">🐯</div>
+        <div class="pc-base">
+          <div class="pc-name">阿杰</div>
+          <div class="pc-stats">🔥32天 · ⚡38,200</div>
+          <div class="pc-xp" style="color:var(--green-dark);">第 3 名</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FRIEND LIST ============ -->
+  <div class="friend-card">
+    <div class="friend-head">
+      <div class="title"><span class="ic">📋</span> 好友列表</div>
+      <div class="count">共 <b>8</b> · 在线 <b>3</b></div>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank top1">1</div>
+      <div class="avatar green">🦊</div>
+      <div class="fr-info">
+        <div class="fr-name">小明 <span class="badge badge-purple">Lv.12</span></div>
+        <div class="fr-meta">🔥45天 · ⚡62,340</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill green" style="width:85%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.13</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank top2">2</div>
+      <div class="avatar gold">🦄</div>
+      <div class="fr-info">
+        <div class="fr-name">莉莉 <span class="badge badge-purple">Lv.11</span></div>
+        <div class="fr-meta">🔥53天 · ⚡51,800</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill green" style="width:62%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.12</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row me">
+      <div class="fr-rank me">3</div>
+      <div class="avatar green">🦉</div>
+      <div class="fr-info">
+        <div class="fr-name">你 <span class="me-tag">我</span> <span class="badge badge-purple">Lv.11</span></div>
+        <div class="fr-meta">🔥27天 · ⚡42,380</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill green" style="width:48%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.12</div>
+      </div>
+      <button class="btn btn-ghost btn-sm fr-action" disabled style="opacity:0.4;">👀</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank top3">4</div>
+      <div class="avatar orange">🐯</div>
+      <div class="fr-info">
+        <div class="fr-name">阿杰 <span class="badge badge-purple">Lv.10</span></div>
+        <div class="fr-meta">🔥32天 · ⚡38,200</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill green" style="width:55%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.11</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank">5</div>
+      <div class="avatar blue">🐰</div>
+      <div class="fr-info">
+        <div class="fr-name">小雪 <span class="badge badge-purple">Lv.9</span></div>
+        <div class="fr-meta">🔥19天 · ⚡28,450</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill blue" style="width:42%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.10</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank">6</div>
+      <div class="avatar purple">🐼</div>
+      <div class="fr-info">
+        <div class="fr-name">阿敏 <span class="badge badge-purple">Lv.9</span></div>
+        <div class="fr-meta">🔥21天 · ⚡26,700</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill purple" style="width:38%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.10</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank">7</div>
+      <div class="avatar red">🐻</div>
+      <div class="fr-info">
+        <div class="fr-name">老张 <span class="badge badge-purple">Lv.8</span></div>
+        <div class="fr-meta">🔥8天 · ⚡18,920</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill red" style="width:30%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.9</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+
+    <div class="friend-row">
+      <div class="fr-rank">8</div>
+      <div class="avatar blue">🐶</div>
+      <div class="fr-info">
+        <div class="fr-name">大鹏 <span class="badge badge-purple">Lv.7</span></div>
+        <div class="fr-meta">🔥4天 · ⚡12,350</div>
+      </div>
+      <div class="fr-bar-wrap">
+        <div class="mini-bar"><div class="mini-bar-fill blue" style="width:22%"></div></div>
+        <div class="fr-bar-lbl">距 Lv.8</div>
+      </div>
+      <button class="btn btn-orange btn-sm fr-action">⚔️</button>
+    </div>
+  </div>
+
+  <!-- ============ BATTLE RECORD ============ -->
+  <div class="battle-card">
+    <div class="battle-head">
+      <div class="title"><span class="ic">⚔️</span> 本周对战战绩</div>
+      <div class="sub">实时 PK</div>
+    </div>
+    <div class="battle-stats">
+      <div class="battle-stat">
+        <div class="v green">9</div>
+        <div class="k">胜利</div>
+      </div>
+      <div class="battle-stat">
+        <div class="v orange">3</div>
+        <div class="k">失败</div>
+      </div>
+      <div class="battle-stat">
+        <div class="v blue">75%</div>
+        <div class="k">胜率</div>
+      </div>
+    </div>
+    <div class="battle-log">
+      <div class="battle-item win">
+        <div class="battle-result win">✓</div>
+        <div class="battle-info">
+          <b>击败 阿杰 · 听打 PK</b>
+          <small>96% vs 88% · 2分钟前</small>
+        </div>
+        <div class="avatar orange battle-opp-avatar">🐯</div>
+      </div>
+      <div class="battle-item lose">
+        <div class="battle-result lose">✗</div>
+        <div class="battle-info">
+          <b>输给 小明 · 每日挑战</b>
+          <small>80% vs 95% · 1小时前</small>
+        </div>
+        <div class="avatar green battle-opp-avatar">🦊</div>
+      </div>
+      <div class="battle-item win">
+        <div class="battle-result win">✓</div>
+        <div class="battle-info">
+          <b>击败 大鹏 · 排句 PK</b>
+          <small>全部正确 · 3小时前</small>
+        </div>
+        <div class="avatar blue battle-opp-avatar">🐶</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADD FRIEND ============ -->
+  <div class="add-friend-card">
+    <div class="af-head">
+      <div class="title"><span class="ic">➕</span> 添加好友</div>
+      <div class="count">推荐 <b style="color:var(--green-dark);">4</b></div>
+    </div>
+
+    <div class="af-search">
+      <span class="search-ic">🔍</span>
+      <input type="text" class="form-input" placeholder="搜索用户名、ID 或昵称">
+    </div>
+
+    <div class="af-suggest-label">🔥 为你推荐的好友</div>
+    <div class="af-suggest-list">
+      <div class="af-item">
+        <div class="avatar purple">🐱</div>
+        <div class="af-info">
+          <b>王同学 <span class="badge badge-purple">Lv.8</span></b>
+          <small>共同好友 3 人 · CET-6</small>
+        </div>
+        <button class="af-add-btn">添加</button>
+      </div>
+      <div class="af-item">
+        <div class="avatar green">🦁</div>
+        <div class="af-info">
+          <b>林同学 <span class="badge badge-purple">Lv.10</span></b>
+          <small>热门好友 · 活跃 26 天</small>
+        </div>
+        <button class="af-add-btn">添加</button>
+      </div>
+      <div class="af-item">
+        <div class="avatar blue">🐨</div>
+        <div class="af-info">
+          <b>张同学 <span class="badge badge-purple">Lv.9</span></b>
+          <small>同词库 · 考研词汇</small>
+        </div>
+        <button class="af-add-btn">添加</button>
+      </div>
+      <div class="af-item">
+        <div class="avatar orange">🐷</div>
+        <div class="af-info">
+          <b>陈同学 <span class="badge badge-purple">Lv.7</span></b>
+          <small>同班级 · 听打班级群</small>
+        </div>
+        <button class="af-add-btn">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ACTIVITY FEED ============ -->
+  <div class="activity-card">
+    <div class="act-head">
+      <div class="title"><span class="ic">📢</span> 好友动态</div>
+      <div class="sub">实时</div>
+    </div>
+    <div class="act-sub">好友们的最新学习动态</div>
+
+    <div class="act-feed">
+      <div class="act-item">
+        <div class="act-avatar green">🦊</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">小明</span> 完成 <span class="hl">每日挑战</span>，获得双倍 XP 奖励
+          </div>
+          <div class="act-meta">
+            <span class="act-tag green">🏆 成就</span>
+            <span class="act-time">2 分钟前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar gold">🦄</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">莉莉</span> 连胜达到 <span class="hl-orange">53 天</span>，解锁「钢铁意志」徽章 🏅
+          </div>
+          <div class="act-meta">
+            <span class="act-tag orange">🔥 连胜</span>
+            <span class="act-time">32 分钟前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar orange">🐯</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">阿杰</span> 在实时 PK 中击败了 <span class="hl">3 位好友</span>
+          </div>
+          <div class="act-meta">
+            <span class="act-tag blue">⚔️ 对战</span>
+            <span class="act-time">1 小时前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar blue">🐰</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">小雪</span> 累计学习 <span class="hl-gold">1,000 个单词</span>，突破里程碑 🎯
+          </div>
+          <div class="act-meta">
+            <span class="act-tag gold">🎯 里程碑</span>
+            <span class="act-time">2 小时前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar blue">🐰</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">小雪</span> 完成 <span class="hl">新概念第 2 册 第 15 课</span>
+          </div>
+          <div class="act-meta">
+            <span class="act-tag blue">📝 学习</span>
+            <span class="act-time">4 小时前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar red">🐻</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">老张</span> 分享了每日挑战的 <span class="hl-gold">学习卡片</span>
+          </div>
+          <div class="act-meta">
+            <span class="act-tag gold">📤 分享</span>
+            <span class="act-time">6 小时前</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar purple">🐼</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">阿敏</span> 完成句子听写 <span class="hl">3 课</span>，正确率 <span class="hl-orange">92%</span>
+          </div>
+          <div class="act-meta">
+            <span class="act-tag blue">📝 学习</span>
+            <span class="act-time">昨天 21:30</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="act-item">
+        <div class="act-avatar blue">🐶</div>
+        <div class="act-body">
+          <div class="act-text">
+            <span class="act-name">大鹏</span> 加入好友群，开始一起练习 🎉
+          </div>
+          <div class="act-meta">
+            <span class="act-tag gray">👋 新加入</span>
+            <span class="act-time">昨天 14:05</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">👥 好友页 · 实时同步学习数据</div>
+
+</div>
+
+</body>
+</html>

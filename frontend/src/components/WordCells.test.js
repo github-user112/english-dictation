@@ -143,4 +143,57 @@ describe("WordCells", () => {
     wrapper2.vm.typeLetter("o");
     expect(wrapper2.vm.isCorrect()).toBe(true);
   });
+
+  it("focusLetter should position cursor so typing overwrites that letter", () => {
+    const wrapper = mount(WordCells, {
+      props: { tokens: makeWord("hello"), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const c of "hxllo") vm.typeLetter(c);
+    expect(vm.isCorrect()).toBe(false);
+    vm.focusLetter(1);          // 光标定到第 2 个字母格
+    vm.typeLetter("e");         // 覆盖 x → hello
+    expect(vm.isCorrect()).toBe(true);
+    expect(vm.answerText()).toBe("hello");
+  });
+
+  it("focusLetter should clamp to the filled prefix (no holes by clicking ahead)", () => {
+    const wrapper = mount(WordCells, {
+      props: { tokens: makeWord("hello"), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    vm.typeLetter("h");
+    vm.focusLetter(4);          // 点第 5 格 → 收拢到已输入前缀末尾
+    vm.typeLetter("e");
+    expect(vm.answerText()).toBe("he");
+  });
+
+  it("backspace should delete the letter before the cursor", () => {
+    const wrapper = mount(WordCells, {
+      props: { tokens: makeWord("abc"), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const c of "abc") vm.typeLetter(c);
+    vm.focusLetter(2);          // 光标在 c 上
+    vm.backspace();             // 删光标前的 b
+    expect(vm.answerText()).toBe("ac");
+    expect(vm.isFull()).toBe(false);   // 有空洞不算满，不会误触发提交
+  });
+
+  it("moveCursor should move within filled prefix", () => {
+    const wrapper = mount(WordCells, {
+      props: { tokens: makeWord("cat"), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const c of "cat") vm.typeLetter(c);
+    vm.moveCursor(-1);
+    vm.moveCursor(-1);
+    vm.typeLetter("o");         // 覆盖 a → cot
+    expect(vm.answerText()).toBe("cot");
+    vm.moveCursor(1);
+    vm.moveCursor(1);           // 全填满时可右移到词尾
+    vm.moveCursor(1);           // 越界被夹住
+    vm.typeLetter("x");         // 已满忽略（辅助模式不允许溢出）
+    expect(vm.answerText()).toBe("cot");
+  });
 });

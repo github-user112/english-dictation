@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>背单词 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+    padding-bottom:40px;
+  }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:10px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+  .stat-item.level { color:var(--purple); }
+  .stat-item .icon { font-size:15px; }
+
+  /* ---- Session header with ring ---- */
+  .m-sess {
+    display:flex; align-items:center; gap:12px;
+    padding:14px 16px; margin:12px 14px 14px;
+    background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-sess-ring { position:relative; width:60px; height:60px; flex-shrink:0; }
+  .m-sess-ring svg { width:60px; height:60px; }
+  .m-sr-bg { fill:none; stroke:#e5e5e5; stroke-width:5; }
+  .m-sr-fg {
+    fill:none; stroke:var(--green); stroke-width:5; stroke-linecap:round;
+    transform:rotate(-90deg); transform-origin:center;
+    stroke-dasharray:100; stroke-dashoffset:50;
+    filter:drop-shadow(0 0 4px rgba(88,204,2,0.3));
+  }
+  .m-sr-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .m-sr-center .m-pct { font-weight:900; font-size:14px; color:var(--green-dark); }
+  .m-sr-center .m-sub { font-size:9px; font-weight:800; color:var(--text-dim); }
+  .m-sess-body { flex:1; min-width:0; }
+  .m-sess-eyebrow {
+    display:inline-flex; align-items:center; gap:4px;
+    background:var(--green); color:#fff; padding:2px 9px;
+    border-radius:12px; font-size:10px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark); margin-bottom:5px;
+  }
+  .m-sess-eyebrow .pulse { width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  .m-sess-body b { font-size:15px; font-weight:900; display:block; margin-bottom:2px; }
+  .m-sess-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .m-sess-meta { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .m-sess-meta span { font-size:11px; font-weight:800; display:flex; align-items:center; gap:3px; }
+  .m-sess-meta .sep { color:var(--text-faint); }
+
+  /* ---- Phase strip ---- */
+  .m-phase {
+    display:flex; align-items:center; gap:6px;
+    padding:10px 14px; margin:0 14px 14px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+  }
+  .m-phase-step {
+    display:flex; align-items:center; gap:6px; flex:1;
+    padding:8px 10px; border-radius:10px;
+    font-size:12px; font-weight:900;
+  }
+  .m-phase-step.active { background:var(--green-bg); }
+  .m-phase-step.locked { opacity:0.4; }
+  .m-phase-step.done { opacity:0.6; }
+  .m-phase-step .ic { font-size:18px; }
+  .m-phase-arrow { color:var(--text-faint); font-size:14px; font-weight:900; flex-shrink:0; }
+
+  /* ---- Flashcard ---- */
+  .m-fc {
+    margin:0 14px 14px;
+    background:#fff; border-radius:20px; padding:22px 20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+    border:2px solid rgba(88,204,2,0.2);
+  }
+  .m-fc::before {
+    content:''; position:absolute; top:-50px; right:-30px;
+    width:160px; height:160px; border-radius:50%;
+    background:radial-gradient(circle, rgba(88,204,2,0.06), transparent 70%);
+  }
+  .m-fc::after {
+    content:''; position:absolute; bottom:-30px; left:-20px;
+    width:100px; height:100px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.04), transparent 70%);
+  }
+  .m-fc-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px; position:relative; z-index:1;
+  }
+  .m-fc-badge {
+    display:flex; align-items:center; gap:6px;
+    font-weight:900; font-size:12px; color:var(--green-dark);
+  }
+  .m-fc-badge .b {
+    background:var(--green); color:#fff; padding:3px 10px;
+    border-radius:8px; font-size:12px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .m-fc-badge small { font-size:10px; color:var(--text-dim); }
+  .m-fc-audio {
+    width:42px; height:42px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 var(--blue-dark); cursor:pointer;
+    transition:transform 0.1s;
+  }
+  .m-fc-audio:active { transform:translateY(3px); box-shadow:0 1px 0 var(--blue-dark); }
+
+  .m-fc-word {
+    text-align:center; margin-bottom:20px; position:relative; z-index:1;
+  }
+  .m-fc-en {
+    font-size:38px; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg, var(--green-dark), var(--green));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:6px;
+  }
+  .m-fc-phonetic {
+    font-size:14px; font-weight:700; color:var(--text-dim);
+    display:inline-block; padding:3px 12px; background:#f7f7f7; border-radius:8px;
+  }
+
+  .m-fc-meaning {
+    background:linear-gradient(135deg, var(--blue-bg), #f0f9ff);
+    border-radius:14px; padding:16px;
+    border:2px solid rgba(28,176,246,0.2);
+    margin-bottom:16px; position:relative; z-index:1;
+  }
+  .m-fc-meaning-label {
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:900; color:var(--blue-dark);
+    margin-bottom:6px;
+  }
+  .m-fc-zh {
+    font-size:26px; font-weight:900; color:var(--text); margin-bottom:10px;
+  }
+  .m-fc-example {
+    font-size:12px; font-weight:700; color:var(--text-dim);
+    line-height:1.5; padding:8px 12px; background:#fff; border-radius:8px;
+    border:1px dashed rgba(28,176,246,0.3);
+  }
+  .m-fc-example .en { color:var(--blue-dark); font-weight:800; }
+  .m-fc-example .zh { color:var(--text-dim); }
+
+  .m-fc-actions {
+    display:flex; gap:10px; position:relative; z-index:1;
+  }
+  .m-fc-btn {
+    flex:1; padding:14px; border:none; border-radius:12px;
+    font-family:inherit; font-weight:900; font-size:15px; cursor:pointer;
+    transition:transform 0.1s; text-align:center;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .m-fc-btn:active { transform:translateY(3px); }
+  .m-fc-btn.dontknow {
+    background:#fff; color:var(--red-dark);
+    box-shadow:0 4px 0 var(--red); border:2px solid var(--red);
+  }
+  .m-fc-btn.dontknow:active { box-shadow:0 1px 0 var(--red); }
+  .m-fc-btn.know {
+    background:var(--green); color:#fff;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .m-fc-btn.know:active { box-shadow:0 1px 0 var(--green-dark); }
+
+  /* ---- Word queue ---- */
+  .m-wq {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+  }
+  .m-wq-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .m-wq-head h2 { font-size:14px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .m-wq-head small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .m-wq-list { display:flex; flex-direction:column; gap:6px; }
+  .m-wq-item {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px; border-radius:10px;
+    background:#f7f7f7; border:2px solid transparent;
+    font-size:13px; font-weight:800;
+  }
+  .m-wq-item.current {
+    background:var(--green-bg); border-color:var(--green);
+    box-shadow:0 0 0 2px rgba(88,204,2,0.1);
+  }
+  .m-wq-item.done { opacity:0.55; }
+  .m-wq-num {
+    width:24px; height:24px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900;
+    background:#fff; color:var(--text-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .m-wq-item.current .m-wq-num { background:var(--green); color:#fff; }
+  .m-wq-item.done .m-wq-num { background:var(--green); color:#fff; }
+  .m-wq-en { flex:1; min-width:0; }
+  .m-wq-zh { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .m-wq-status { font-size:16px; flex-shrink:0; width:20px; text-align:center; }
+
+  /* ---- Stats strip ---- */
+  .m-stats-strip {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:8px; margin:0 14px 14px;
+  }
+  .m-stat {
+    text-align:center; padding:12px 8px;
+    background:#fff; border-radius:12px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .m-stat .ms-v { font-size:20px; font-weight:900; }
+  .m-stat .ms-v.green { color:var(--green); }
+  .m-stat .ms-v.red { color:var(--red); }
+  .m-stat .ms-v.orange { color:var(--orange); }
+  .m-stat .ms-v.blue { color:var(--blue); }
+  .m-stat .ms-l { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  /* ---- Today goal card ---- */
+  .m-goal-card {
+    margin:0 14px 14px;
+    background:linear-gradient(135deg, #fff 0%, var(--orange-light) 100%);
+    border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    border:2px solid rgba(255,150,0,0.2);
+    position:relative; overflow:hidden;
+  }
+  .m-goal-card::after {
+    content:''; position:absolute; bottom:-30px; right:-20px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,150,0,0.1), transparent 70%);
+  }
+  .m-goal-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; position:relative; z-index:1; }
+  .m-goal-icon { font-size:30px; flex-shrink:0; }
+  .m-goal-body { flex:1; }
+  .m-goal-body b { font-size:14px; font-weight:900; display:block; }
+  .m-goal-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .m-goal-pct { font-size:22px; font-weight:900; color:var(--orange); flex-shrink:0; }
+  .m-goal-bar { height:10px; background:#fff; border-radius:10px; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.05); position:relative; z-index:1; }
+  .m-goal-fill { height:100%; background:linear-gradient(90deg, var(--orange), #ffb347); border-radius:10px; box-shadow:0 0 6px rgba(255,150,0,0.4); }
+  .m-goal-sub { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; font-weight:800; color:var(--text-dim); position:relative; z-index:1; }
+
+  /* ---- Accuracy mini chart ---- */
+  .m-acc { margin:0 14px 14px; }
+  .m-acc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .m-acc-head h2 { font-size:14px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .m-acc-head small { font-size:11px; font-weight:700; color:var(--green-dark); }
+  .m-acc-chart {
+    display:flex; align-items:flex-end; gap:4px; height:52px;
+    padding:6px 2px 0; border-bottom:2px solid #f0f0f0;
+  }
+  .m-acc-bar {
+    flex:1; border-radius:4px 4px 0 0;
+    background:linear-gradient(180deg, var(--green), var(--green-dark));
+    position:relative; min-width:0;
+  }
+  .m-acc-bar.dim { background:linear-gradient(180deg, #dcdcdc, #c5c5c5); }
+  .m-acc-bar .tip {
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    margin-bottom:2px; font-size:9px; font-weight:900; color:var(--text-dim);
+  }
+  .m-acc-labels { display:flex; gap:4px; padding:0 2px; }
+  .m-acc-labels span { flex:1; text-align:center; font-size:9px; font-weight:800; color:var(--text-faint); }
+
+  /* ---- Recent mastered ---- */
+  .m-recent { margin:0 14px 14px; }
+  .m-recent-list { display:flex; flex-direction:column; gap:6px; }
+  .m-recent-item {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:10px;
+    background:#f7f7f7; font-size:13px; font-weight:700;
+  }
+  .m-recent-item .rm-check {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .m-recent-item .rm-en { flex:1; min-width:0; }
+  .m-recent-item .rm-zh { font-size:11px; color:var(--text-dim); }
+  .m-recent-item .rm-xp {
+    font-size:10px; font-weight:900; color:var(--gold);
+    background:var(--gold-light); padding:2px 7px; border-radius:7px;
+    flex-shrink:0;
+  }
+
+  /* ---- Self-test preview ---- */
+  .m-st {
+    margin:0 14px 14px;
+    background:linear-gradient(135deg, #fff 0%, var(--purple-light) 100%);
+    border:2px solid rgba(206,130,255,0.2);
+    border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    position:relative; overflow:hidden;
+  }
+  .m-st::after {
+    content:''; position:absolute; bottom:-30px; right:-20px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(206,130,255,0.08), transparent 70%);
+  }
+  .m-st-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px; position:relative; z-index:1;
+  }
+  .m-st-title { display:flex; align-items:center; gap:10px; }
+  .m-st-icon {
+    font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    width:40px; height:40px; border-radius:10px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; box-shadow:0 3px 0 rgba(0,0,0,0.08);
+  }
+  .m-st-title b { font-size:13px; font-weight:900; display:block; }
+  .m-st-title small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .m-st-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:4px 9px; border-radius:8px;
+    background:var(--purple); color:#fff;
+    font-size:10px; font-weight:900;
+    box-shadow:0 2px 0 var(--purple-dark);
+  }
+  .m-st-preview {
+    display:flex; align-items:center; gap:10px;
+    padding:12px 14px; background:#fff;
+    border-radius:12px; border:1px solid rgba(206,130,255,0.2);
+    position:relative; z-index:1; flex-wrap:wrap;
+  }
+  .m-st-chinese {
+    text-align:center; flex-shrink:0;
+    padding:8px 16px;
+    background:var(--blue-bg); border-radius:10px;
+    border:2px solid rgba(28,176,246,0.2);
+  }
+  .m-st-zh-label { font-size:9px; font-weight:900; color:var(--blue-dark); margin-bottom:3px; }
+  .m-st-zh-word { font-size:22px; font-weight:900; color:var(--text); }
+  .m-st-arrow { font-size:24px; font-weight:900; color:var(--purple); flex-shrink:0; }
+  .m-st-input { flex:1; min-width:0; }
+  .m-st-en-label { font-size:9px; font-weight:900; color:var(--purple-dark); margin-bottom:6px; }
+  .m-st-letters { display:flex; gap:4px; flex-wrap:wrap; }
+  .m-sl {
+    width:26px; height:34px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; flex-shrink:0;
+  }
+  .m-sl.filled {
+    background:var(--green-bg); color:var(--green-dark);
+    border:2px solid rgba(88,204,2,0.3);
+  }
+  .m-sl.empty {
+    background:#f7f7f7; color:var(--text-faint);
+    border:2px dashed #ccc;
+  }
+
+  /* ---- Tip strip ---- */
+  .m-tip {
+    margin:0 14px 14px;
+    display:flex; align-items:center; gap:10px;
+    padding:14px 16px; border-radius:14px;
+    background:var(--orange-light); border:1px solid rgba(255,150,0,0.2);
+  }
+  .m-tip .tip-emoji { font-size:20px; flex-shrink:0; }
+  .m-tip p { font-size:12px; font-weight:700; color:#8a5500; line-height:1.4; }
+
+</style>
+</head>
+<body>
+<div class="container-mobile">
+  <div class="phone-frame">
+
+    <!-- ===== Topbar ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div class="topbar-stats">
+        <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+        <div class="stat-item xp"><span class="icon">⚡</span> 2,480</div>
+        <div class="stat-item level"><span class="icon">💎</span> 7</div>
+      </div>
+    </div>
+
+    <!-- ===== Session header ===== -->
+    <div class="m-sess">
+      <div class="m-sess-ring">
+        <svg viewBox="0 0 36 36" width="60" height="60">
+          <circle class="m-sr-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+          <circle class="m-sr-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/>
+        </svg>
+        <div class="m-sr-center">
+          <span class="m-pct">50%</span>
+          <span class="m-sub">6/12</span>
+        </div>
+      </div>
+      <div class="m-sess-body">
+        <div class="m-sess-eyebrow"><span class="pulse"></span> 第 8 课 · CET-4</div>
+        <b>📖 英→中 翻卡学习</b>
+        <div class="m-sess-meta">
+          <span style="color:var(--green-dark);"><span>📚</span> 12 词</span>
+          <span class="sep">·</span>
+          <span style="color:var(--blue-dark);"><span>🎯</span> 83%</span>
+          <span class="sep">·</span>
+          <span style="color:var(--orange);"><span>⏱</span> 6:42</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Phase strip ===== -->
+    <div class="m-phase">
+      <div class="m-phase-step active">
+        <span class="ic">📖</span> 学习
+      </div>
+      <span class="m-phase-arrow">›</span>
+      <div class="m-phase-step locked">
+        <span class="ic">📝</span> 自测
+      </div>
+      <span class="m-phase-arrow">›</span>
+      <div class="m-phase-step locked">
+        <span class="ic">🏆</span> 完成
+      </div>
+    </div>
+
+    <!-- ===== Flashcard ===== -->
+    <div class="m-fc">
+      <div class="m-fc-header">
+        <div class="m-fc-badge">
+          <span class="b">词 7 / 12</span>
+          <small>第 2 轮</small>
+        </div>
+        <button class="m-fc-audio">🔊</button>
+      </div>
+
+      <div class="m-fc-word">
+        <div class="m-fc-en">adventure</div>
+        <div class="m-fc-phonetic">/ədˈvɛntʃər/</div>
+      </div>
+
+      <div class="m-fc-meaning">
+        <div class="m-fc-meaning-label"><span>🇨🇳</span> 中文释义</div>
+        <div class="m-fc-zh">冒险 · 奇遇</div>
+        <div class="m-fc-example">
+          <span class="en">Life is a series of adventures.</span><br>
+          <span class="zh">生活是一连串的冒险。</span>
+        </div>
+      </div>
+
+      <div class="m-fc-actions">
+        <button class="m-fc-btn dontknow">😵 不认识</button>
+        <button class="m-fc-btn know">👍 知道</button>
+      </div>
+    </div>
+
+    <!-- ===== Word queue ===== -->
+    <div class="m-wq">
+      <div class="m-wq-head">
+        <h2><span>📚</span> 本课词表</h2>
+        <small>6 / 12</small>
+      </div>
+      <div class="m-wq-list">
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">dictionary</div>
+          <div class="m-wq-zh">字典/词典</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">beautiful</div>
+          <div class="m-wq-zh">美丽的</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">challenge</div>
+          <div class="m-wq-zh">挑战</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">courage</div>
+          <div class="m-wq-zh">勇气</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">discover</div>
+          <div class="m-wq-zh">发现</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item done">
+          <div class="m-wq-num">✓</div>
+          <div class="m-wq-en">elephant</div>
+          <div class="m-wq-zh">大象</div>
+          <div class="m-wq-status">✓</div>
+        </div>
+        <div class="m-wq-item current">
+          <div class="m-wq-num">7</div>
+          <div class="m-wq-en">adventure</div>
+          <div class="m-wq-zh">冒险/奇遇</div>
+          <div class="m-wq-status">▶</div>
+        </div>
+        <div class="m-wq-item">
+          <div class="m-wq-num">8</div>
+          <div class="m-wq-en">forest</div>
+          <div class="m-wq-zh">森林</div>
+          <div class="m-wq-status"></div>
+        </div>
+        <div class="m-wq-item">
+          <div class="m-wq-num">9</div>
+          <div class="m-wq-en">garden</div>
+          <div class="m-wq-zh">花园</div>
+          <div class="m-wq-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Stats strip ===== -->
+    <div class="m-stats-strip">
+      <div class="m-stat">
+        <div class="ms-v green">✓ 6</div>
+        <div class="ms-l">已学习</div>
+      </div>
+      <div class="m-stat">
+        <div class="ms-v blue">📖 6</div>
+        <div class="ms-l">剩余</div>
+      </div>
+      <div class="m-stat">
+        <div class="ms-v orange">🔥 12</div>
+        <div class="ms-l">连续</div>
+      </div>
+    </div>
+
+    <!-- ===== Today goal card ===== -->
+    <div class="m-goal-card">
+      <div class="m-goal-top">
+        <span class="m-goal-icon">🎯</span>
+        <div class="m-goal-body">
+          <b>今日目标</b>
+          <small>完成 12 个新词</small>
+        </div>
+        <div class="m-goal-pct">50%</div>
+      </div>
+      <div class="m-goal-bar">
+        <div class="m-goal-fill" style="width:50%;"></div>
+      </div>
+      <div class="m-goal-sub">
+        <span>已完成 6 词</span>
+        <span>剩余 6 词</span>
+      </div>
+    </div>
+
+    <!-- ===== Accuracy chart ===== -->
+    <div class="card m-acc">
+      <div class="m-acc-head">
+        <h2><span>📊</span> 近 7 天正确率</h2>
+        <small>83%</small>
+      </div>
+      <div class="m-acc-chart">
+        <div class="m-acc-bar dim" style="height:60%"><span class="tip">68%</span></div>
+        <div class="m-acc-bar" style="height:75%"><span class="tip">75%</span></div>
+        <div class="m-acc-bar dim" style="height:70%"><span class="tip">72%</span></div>
+        <div class="m-acc-bar" style="height:80%"><span class="tip">81%</span></div>
+        <div class="m-acc-bar" style="height:72%"><span class="tip">76%</span></div>
+        <div class="m-acc-bar" style="height:85%"><span class="tip">85%</span></div>
+        <div class="m-acc-bar" style="height:83%"><span class="tip">83%</span></div>
+      </div>
+      <div class="m-acc-labels">
+        <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>今</span>
+      </div>
+    </div>
+
+    <!-- ===== Recent mastered ===== -->
+    <div class="card m-recent">
+      <div class="card-title" style="font-size:15px;"><span class="card-icon" style="font-size:22px;">🏆</span> 已掌握</div>
+      <div class="m-recent-list">
+        <div class="m-recent-item">
+          <div class="rm-check">✓</div>
+          <span class="rm-en">dictionary</span>
+          <span class="rm-zh">字典</span>
+          <span class="rm-xp">+5 XP</span>
+        </div>
+        <div class="m-recent-item">
+          <div class="rm-check">✓</div>
+          <span class="rm-en">courage</span>
+          <span class="rm-zh">勇气</span>
+          <span class="rm-xp">+5 XP</span>
+        </div>
+        <div class="m-recent-item">
+          <div class="rm-check">✓</div>
+          <span class="rm-en">discover</span>
+          <span class="rm-zh">发现</span>
+          <span class="rm-xp">+5 XP</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Self-test preview ===== -->
+    <div class="m-st">
+      <div class="m-st-head">
+        <div class="m-st-title">
+          <span class="m-st-icon">📝</span>
+          <div>
+            <b>下一步: 中→英 拼写</b>
+            <small>完成学习后自动进入</small>
+          </div>
+        </div>
+        <span class="m-st-badge">🔒 即将解锁</span>
+      </div>
+      <div class="m-st-preview">
+        <div class="m-st-chinese">
+          <div class="m-st-zh-label">🇨🇳 中文</div>
+          <div class="m-st-zh-word">冒险</div>
+        </div>
+        <div class="m-st-arrow">→</div>
+        <div class="m-st-input">
+          <div class="m-st-en-label">🇬🇧 拼写英文</div>
+          <div class="m-st-letters">
+            <span class="m-sl filled">a</span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl filled">d</span>
+            <span class="m-sl filled">v</span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl filled">n</span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl filled">r</span>
+            <span class="m-sl empty"></span>
+            <span class="m-sl filled">e</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Tip ===== -->
+    <div class="m-tip">
+      <span class="tip-emoji">💡</span>
+      <p>连对 2 次即可标记为"已掌握"，7 天后会再次复习。答错的词自动进入错词本。</p>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

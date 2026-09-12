@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账号中心 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Top bar simplified ============ */
+  .topbar { padding:10px 14px; }
+  .topbar-brand { font-size:17px; gap:8px; }
+  .topbar-brand .owl { font-size:22px; }
+  .topbar-stats { gap:14px; }
+  .stat-item { font-size:14px; }
+  .stat-item .icon { font-size:16px; }
+
+  /* ============ Page head ============ */
+  .page-head {
+    margin:14px 4px 12px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .page-head h1 {
+    font-size:22px; font-weight:900; letter-spacing:-0.5px;
+    display:flex; align-items:center; gap:7px; line-height:1.1;
+  }
+  .page-head h1 .emoji { font-size:24px; }
+  .page-head p { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+  .page-head-actions { display:flex; gap:6px; flex-shrink:0; }
+  .page-head-actions .btn-sm { padding:7px 12px; font-size:12px; border-radius:10px; }
+
+  /* ============ Avatar styles ============ */
+  .avatar {
+    width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(0,0,0,0.13);
+  }
+  .avatar.green { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .avatar.blue  { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .avatar.orange{ background:linear-gradient(135deg, var(--orange), #ffb347); }
+  .avatar.gold  { background:linear-gradient(135deg, var(--gold), #ffdf6b); }
+  .avatar.purple{ background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .avatar.red   { background:linear-gradient(135deg, var(--red), #ff7a7a); }
+  .avatar.lg { width:52px; height:52px; font-size:28px; }
+  .avatar.xl { width:64px; height:64px; font-size:34px; }
+  .avatar.xxl { width:84px; height:84px; font-size:44px; }
+
+  /* ============ Profile Hero ============ */
+  .profile-hero {
+    background:linear-gradient(135deg, #1cb0f6 0%, #4dd0ff 45%, #ce82ff 100%);
+    border-radius:18px; padding:20px 18px; color:#fff;
+    box-shadow:0 5px 0 var(--blue-dark), 0 10px 24px rgba(28,176,246,0.24);
+    position:relative; overflow:hidden; margin-bottom:14px;
+  }
+  .profile-hero::after {
+    content:''; position:absolute; top:-40px; right:-20px;
+    width:130px; height:130px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .profile-hero::before {
+    content:''; position:absolute; bottom:-50px; left:25%;
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .ph-row {
+    display:flex; align-items:center; gap:14px;
+    position:relative; z-index:1; margin-bottom:14px;
+  }
+  .ph-id { flex:1; min-width:0; }
+  .ph-name-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .ph-name { font-size:20px; font-weight:900; }
+  .ph-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:3px 10px; border-radius:8px; font-weight:900; font-size:11px;
+  }
+  .ph-title {
+    font-size:11px; font-weight:900; letter-spacing:0.5px; text-transform:uppercase;
+    opacity:0.9; margin-bottom:3px;
+  }
+  .ph-sub {
+    font-size:12px; font-weight:700; opacity:0.95; line-height:1.5;
+    margin-bottom:12px;
+  }
+  .ph-stats {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    position:relative; z-index:1;
+  }
+  .ph-stat {
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    border-radius:12px; padding:10px 12px; text-align:center;
+  }
+  .ph-stat .ic { font-size:18px; display:block; margin-bottom:2px; }
+  .ph-stat .v { font-size:18px; font-weight:900; line-height:1.2; }
+  .ph-stat .k { font-size:10px; font-weight:800; opacity:0.9; margin-top:2px; }
+
+  /* ============ Level Card ============ */
+  .level-card {
+    background:var(--panel); border-radius:18px; padding:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .level-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .level-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .level-head .title .ic { font-size:22px; }
+  .level-head .cur { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .level-head .cur b { color:var(--purple); font-size:13px; }
+
+  .level-row { display:flex; align-items:center; gap:14px; }
+  .level-badge {
+    width:72px; height:72px; border-radius:18px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--purple), #e0aaff);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:#fff; box-shadow:0 3px 0 var(--purple-dark), 0 6px 14px rgba(206,130,255,0.3);
+    position:relative;
+  }
+  .level-badge .n { font-size:26px; font-weight:900; line-height:1; }
+  .level-badge .k { font-size:9px; font-weight:900; opacity:0.9; margin-top:2px; }
+  .level-badge .star {
+    position:absolute; top:-8px; right:-8px;
+    width:24px; height:24px; border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), #ffdf6b);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.12);
+  }
+
+  .level-info { flex:1; min-width:0; }
+  .level-info .name { font-size:16px; font-weight:900; color:var(--purple-dark); margin-bottom:3px; }
+  .level-info .desc { font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:8px; line-height:1.4; }
+  .level-bar-wrap { margin-bottom:4px; }
+  .level-bar-wrap .progress-bar { height:10px; }
+  .level-bar-wrap .progress-fill {
+    background:linear-gradient(90deg, var(--purple), #e0aaff);
+  }
+  .level-bar-wrap .progress-label { font-size:10px; }
+  .level-bar-wrap .progress-label b { color:var(--purple-dark); }
+
+  .level-next {
+    display:flex; align-items:center; gap:8px;
+    background:var(--purple-light); border-radius:10px; padding:8px 12px; margin-top:8px;
+  }
+  .level-next .ic { font-size:18px; }
+  .level-next .txt { flex:1; min-width:0; font-size:11px; font-weight:700; color:var(--text-dim); line-height:1.4; }
+  .level-next .txt b { color:var(--purple-dark); font-weight:900; }
+
+  /* ============ Tab Bar ============ */
+  .mob-tab-bar {
+    display:flex; gap:4px; background:#ececec; padding:4px;
+    border-radius:14px; margin-bottom:14px;
+  }
+  .mob-tab {
+    flex:1; padding:10px 4px; border-radius:10px;
+    font-weight:800; font-size:11px; text-align:center;
+    background:transparent; color:var(--text-dim);
+    cursor:pointer; font-family:inherit; border:none;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .mob-tab .t-ic { font-size:18px; }
+  .mob-tab.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  /* ============ Section Cards ============ */
+  .section-card {
+    background:var(--panel); border-radius:18px; padding:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:8px; }
+  .sc-head .title { font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .sc-head .title .ic { font-size:22px; }
+  .sc-head .sub { font-size:11px; font-weight:800; color:var(--text-dim); }
+
+  /* ============ Account Status Rows ============ */
+  .as-rows { display:flex; flex-direction:column; gap:10px; }
+  .as-row {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border-radius:14px; background:#f7f7f7;
+    cursor:pointer; transition:all 0.15s;
+  }
+  .as-row:active { background:#eee; transform:scale(0.99); }
+  .as-row .r-ic {
+    width:38px; height:38px; border-radius:11px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .as-row .r-ic.green { background:var(--green-light); }
+  .as-row .r-ic.blue { background:var(--blue-light); }
+  .as-row .r-ic.orange { background:var(--orange-light); }
+  .as-row .r-ic.purple { background:var(--purple-light); }
+  .as-row .r-ic.red { background:var(--red-light); }
+  .as-row .r-ic.gold { background:var(--gold-light); }
+  .as-row .r-body { flex:1; min-width:0; }
+  .as-row .r-body b { display:block; font-size:13px; font-weight:800; margin-bottom:1px; }
+  .as-row .r-body small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.3; }
+  .as-row .r-val {
+    flex-shrink:0; font-size:12px; font-weight:900;
+    display:flex; align-items:center; gap:4px;
+  }
+  .as-row .r-val.verified { color:var(--green-dark); }
+  .as-row .r-val.warning { color:var(--orange-dark); }
+  .as-row .r-val.normal { color:var(--text-dim); }
+  .as-row .r-go {
+    flex-shrink:0; width:26px; height:26px; border-radius:8px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; color:var(--green);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+
+  /* ============ Toggle switch ============ */
+  .toggle {
+    width:46px; height:26px; border-radius:13px; background:#ccc;
+    position:relative; cursor:pointer; flex-shrink:0; transition:background 0.2s;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle::after {
+    content:''; position:absolute; top:2px; left:2px;
+    width:22px; height:22px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:left 0.2s;
+  }
+  .toggle.on::after { left:22px; }
+
+  /* ============ Session List ============ */
+  .session-list { display:flex; flex-direction:column; gap:10px; }
+  .session-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border-radius:14px; background:#f7f7f7;
+    border:2px solid transparent;
+  }
+  .session-item.current { border-color:var(--green); background:var(--green-bg); }
+  .session-item .s-ic {
+    width:40px; height:40px; border-radius:11px; flex-shrink:0;
+    background:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .session-item .s-body { flex:1; min-width:0; }
+  .session-item .s-body b { display:block; font-size:13px; font-weight:800; margin-bottom:1px; }
+  .session-item .s-body small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.3; }
+  .session-item .s-loc { display:flex; align-items:center; gap:3px; font-size:10px; color:var(--text-dim); margin-top:2px; font-weight:700; }
+  .session-item .s-time {
+    flex-shrink:0; font-size:10px; font-weight:800; color:var(--text-dim);
+    background:#fff; padding:3px 8px; border-radius:7px;
+  }
+  .session-item .s-logout {
+    flex-shrink:0; padding:6px 10px; border-radius:9px;
+    background:var(--red-light); color:var(--red-dark); font-weight:800; font-size:11px;
+    cursor:pointer; border:none; font-family:inherit;
+  }
+
+  /* ============ Achievements ============ */
+  .ach-grid {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;
+  }
+  .ach-item {
+    background:#f7f7f7; border-radius:12px; padding:12px 8px;
+    text-align:center; position:relative;
+  }
+  .ach-item.unlocked { background:var(--gold-light); border:2px solid rgba(255,200,0,0.4); }
+  .ach-item.locked { opacity:0.5; }
+  .ach-item .ic {
+    font-size:26px; margin-bottom:4px; display:block;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }
+  .ach-item .name { font-size:10px; font-weight:900; margin-bottom:1px; }
+  .ach-item .date { font-size:9px; font-weight:700; color:var(--text-dim); }
+  .ach-item.unlocked::after {
+    content:'✓'; position:absolute; top:4px; right:6px;
+    font-size:9px; font-weight:900; color:var(--green-dark);
+  }
+
+  /* ============ Data Privacy Card ============ */
+  .data-card {
+    background:linear-gradient(135deg, var(--purple) 0%, #e0aaff 100%);
+    border-radius:18px; padding:18px; color:#fff;
+    box-shadow:0 5px 0 var(--purple-dark), 0 8px 20px rgba(206,130,255,0.28);
+    position:relative; overflow:hidden; margin-bottom:14px;
+  }
+  .data-card::after {
+    content:''; position:absolute; top:-30px; right:-15px;
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .data-card::before {
+    content:''; position:absolute; bottom:-40px; left:25%;
+    width:100px; height:100px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .dc-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; position:relative; z-index:1; }
+  .dc-head .ic { font-size:26px; }
+  .dc-head .title { font-size:16px; font-weight:900; }
+  .dc-desc { font-size:12px; font-weight:700; opacity:0.95; line-height:1.5; margin-bottom:12px; position:relative; z-index:1; }
+  .dc-btns { display:flex; flex-direction:column; gap:8px; position:relative; z-index:1; }
+  .dc-btns .btn {
+    background:rgba(255,255,255,0.22); color:#fff;
+    box-shadow:0 4px 0 rgba(0,0,0,0.12); backdrop-filter:blur(4px);
+    padding:10px 16px; font-size:13px;
+  }
+  .dc-btns .btn:active { box-shadow:0 1px 0 rgba(0,0,0,0.12); }
+  .dc-btns .btn.solid { background:#fff; color:var(--purple-dark); box-shadow:0 4px 0 rgba(0,0,0,0.15); }
+  .dc-btns .btn.solid:active { box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+
+  /* ============ Logout Section ============ */
+  .logout-section {
+    background:var(--panel); border-radius:18px; padding:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:14px;
+  }
+  .logout-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .logout-head .ic { font-size:22px; }
+  .logout-head .title { font-size:16px; font-weight:900; }
+  .logout-desc { font-size:12px; font-weight:700; color:var(--text-dim); line-height:1.5; margin-bottom:14px; }
+  .logout-desc b { color:var(--red-dark); }
+
+  .danger-zone {
+    background:var(--red-light); border-radius:14px; padding:14px;
+    border:2px solid rgba(255,75,75,0.25);
+  }
+  .danger-zone .dz-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .danger-zone .dz-head .ic { font-size:18px; }
+  .danger-zone .dz-head .title { font-size:13px; font-weight:900; color:var(--red-dark); }
+  .danger-zone .dz-desc { font-size:11px; font-weight:700; color:var(--text-dim); line-height:1.4; margin-bottom:12px; }
+  .danger-zone .btn-danger {
+    width:100%; padding:12px; border-radius:12px; border:none;
+    background:var(--red); color:#fff; font-weight:900; font-size:14px;
+    font-family:inherit; cursor:pointer;
+    box-shadow:0 4px 0 var(--red-dark);
+  }
+  .danger-zone .btn-danger:active { box-shadow:0 1px 0 var(--red-dark); transform:translateY(3px); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:14px; padding-bottom:8px;
+    font-size:11px; color:var(--text-faint); font-weight:700; line-height:1.6;
+  }
+  .foot .foot-link { display:inline-block; margin:0 6px; color:var(--text-dim); }
+  .foot .foot-link:hover { color:var(--green); }
+
+  /* ============ Bottom Nav (mobile) ============ */
+  .bottom-nav {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:400px;
+    background:#fff; border-top:1px solid var(--border);
+    display:flex; justify-content:space-around; align-items:center;
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index:50;
+    box-shadow:0 -4px 12px rgba(0,0,0,0.06);
+  }
+  .bn-item {
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-size:10px; font-weight:800; color:var(--text-dim);
+    text-decoration:none; padding:4px 8px; border-radius:10px;
+  }
+  .bn-item.active { color:var(--green-dark); background:var(--green-bg); }
+  .bn-item .bn-ic { font-size:20px; }
+
+  /* Prevent bottom nav from overlapping content */
+  .bottom-spacer { height:70px; }
+</style>
+</head>
+<body>
+
+<div class="container-mobile">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">👤</span> 账号中心</h1>
+      <p>管理你的账号、安全设置与数据隐私</p>
+    </div>
+    <div class="page-head-actions">
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">⚙️</a>
+    </div>
+  </div>
+
+  <!-- ============ PROFILE HERO ============ -->
+  <div class="profile-hero">
+    <div class="ph-row">
+      <div class="avatar xxl gold">🌟</div>
+      <div class="ph-id">
+        <div class="ph-name-row">
+          <span class="ph-name">李明远</span>
+          <span class="ph-badge">🎯 Lv.11</span>
+        </div>
+        <div class="ph-title">Vocabulary Master · 词力等级 11</div>
+        <div class="ph-sub">已坚持学习 <b>86 天</b> · 注册于 2025年7月</div>
+      </div>
+    </div>
+    <div class="ph-stats">
+      <div class="ph-stat">
+        <span class="ic">🔥</span>
+        <div class="v">27</div>
+        <div class="k">连续打卡</div>
+      </div>
+      <div class="ph-stat">
+        <span class="ic">📚</span>
+        <div class="v">3,847</div>
+        <div class="k">掌握单词</div>
+      </div>
+      <div class="ph-stat">
+        <span class="ic">⚡</span>
+        <div class="v">42,380</div>
+        <div class="k">总经验值</div>
+      </div>
+      <div class="ph-stat">
+        <span class="ic">🏆</span>
+        <div class="v">48</div>
+        <div class="k">获得成就</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEVEL CARD ============ -->
+  <div class="level-card">
+    <div class="level-head">
+      <div class="title"><span class="ic">🌟</span> 词力等级</div>
+      <div class="cur">当前 <b>Lv.11</b></div>
+    </div>
+    <div class="level-row">
+      <div class="level-badge">
+        <div class="n">11</div>
+        <div class="k">LV</div>
+        <span class="star">⭐</span>
+      </div>
+      <div class="level-info">
+        <div class="name">词汇大师</div>
+        <div class="desc">已掌握 3,000+ 词，向 5,000 词进军</div>
+        <div class="level-bar-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:72%;"></div>
+          </div>
+          <div class="progress-label">
+            <span><b>3,500</b> / 5,000 XP</span>
+            <span>72%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="level-next">
+      <span class="ic">📈</span>
+      <div class="txt">还需 <b>1,500 XP</b> 解锁 <b>Lv.12 词汇宗师</b></div>
+    </div>
+  </div>
+
+  <!-- ============ TAB BAR ============ -->
+  <div class="mob-tab-bar">
+    <button class="mob-tab active">
+      <span class="t-ic">👤</span>
+      <span>个人信息</span>
+    </button>
+    <button class="mob-tab">
+      <span class="t-ic">🔐</span>
+      <span>安全设置</span>
+    </button>
+    <button class="mob-tab">
+      <span class="t-ic">📱</span>
+      <span>登录设备</span>
+    </button>
+    <button class="mob-tab">
+      <span class="t-ic">📤</span>
+      <span>数据管理</span>
+    </button>
+  </div>
+
+  <!-- ============ PERSONAL INFO ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">👤</span> 个人信息</div>
+      <div class="sub">当前用户</div>
+    </div>
+    <div class="as-rows">
+      <div class="as-row">
+        <div class="r-ic green">🌟</div>
+        <div class="r-body">
+          <b>用户名</b>
+          <small>li_mingyuan_2025</small>
+        </div>
+        <div class="r-go">✏️</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic blue">📧</div>
+        <div class="r-body">
+          <b>邮箱</b>
+          <small>limingyuan@example.com</small>
+        </div>
+        <div class="r-val verified">✓ 已验证</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic orange">📱</div>
+        <div class="r-body">
+          <b>手机号</b>
+          <small>+86 138 **** 6688</small>
+        </div>
+        <div class="r-val verified">✓ 已验证</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic purple">📅</div>
+        <div class="r-body">
+          <b>注册日期</b>
+          <small>2025 年 7 月 6 日</small>
+        </div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic red">🎂</div>
+        <div class="r-body">
+          <b>生日</b>
+          <small>未设置</small>
+        </div>
+        <div class="r-go">✏️</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic blue">🌐</div>
+        <div class="r-body">
+          <b>个人简介</b>
+          <small>热爱英语，目标 CET-6 600+</small>
+        </div>
+        <div class="r-go">✏️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECURITY SETTINGS ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🔐</span> 安全设置</div>
+      <div class="sub">账号安全</div>
+    </div>
+    <div class="as-rows">
+      <div class="as-row">
+        <div class="r-ic green">🔑</div>
+        <div class="r-body">
+          <b>修改密码</b>
+          <small>上次修改：2026年8月12日</small>
+        </div>
+        <div class="r-go">→</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic orange">🛡️</div>
+        <div class="r-body">
+          <b>两步验证</b>
+          <small>通过短信验证码保护</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic blue">🔔</div>
+        <div class="r-body">
+          <b>登录提醒</b>
+          <small>新设备登录通知</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic purple">👁️</div>
+        <div class="r-body">
+          <b>隐私可见性</b>
+          <small>谁可以看到学习数据</small>
+        </div>
+        <div class="r-val normal">仅好友</div>
+        <div class="r-go">→</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN SESSIONS ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">📱</span> 登录设备</div>
+      <div class="sub">3 个活跃设备</div>
+    </div>
+    <div class="session-list">
+      <div class="session-item current">
+        <div class="s-ic">💻</div>
+        <div class="s-body">
+          <b>MacBook Pro · Chrome</b>
+          <small>当前设备</small>
+          <div class="s-loc">📍 上海 · 中国移动</div>
+        </div>
+        <div class="s-time">现在</div>
+      </div>
+      <div class="session-item">
+        <div class="s-ic">📱</div>
+        <div class="s-body">
+          <b>iPhone 15 Pro · Safari</b>
+          <small>iOS 18.1</small>
+          <div class="s-loc">📍 上海 · 中国电信</div>
+        </div>
+        <div class="s-time">1小时前</div>
+        <div class="s-logout">退出</div>
+      </div>
+      <div class="session-item">
+        <div class="s-ic">🖥️</div>
+        <div class="s-body">
+          <b>Windows 11 · Edge</b>
+          <small>学校机房</small>
+          <div class="s-loc">📍 上海 · 校园网</div>
+        </div>
+        <div class="s-time">3天前</div>
+        <div class="s-logout">退出</div>
+      </div>
+    </div>
+    <button class="btn btn-orange btn-full" style="margin-top:12px; width:100%;">🛡️ 退出所有其他设备</button>
+  </div>
+
+  <!-- ============ ACHIEVEMENTS ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">🏅</span> 成就徽章</div>
+      <div class="sub">已获得 <b style="color:var(--gold);">48</b> / 60</div>
+    </div>
+    <div class="ach-grid">
+      <div class="ach-item unlocked">
+        <span class="ic">🔥</span>
+        <div class="name">坚持之星</div>
+        <div class="date">连续 7 天</div>
+      </div>
+      <div class="ach-item unlocked">
+        <span class="ic">⚡</span>
+        <div class="name">闪电手</div>
+        <div class="date">100 题/小时</div>
+      </div>
+      <div class="ach-item unlocked">
+        <span class="ic">🎯</span>
+        <div class="name">百步穿杨</div>
+        <div class="date">正确率 100%</div>
+      </div>
+      <div class="ach-item unlocked">
+        <span class="ic">📚</span>
+        <div class="name">词汇百工</div>
+        <div class="date">掌握 100 词</div>
+      </div>
+      <div class="ach-item unlocked">
+        <span class="ic">🌟</span>
+        <div class="name">词力大师</div>
+        <div class="date">Lv.11</div>
+      </div>
+      <div class="ach-item unlocked">
+        <span class="ic">🏆</span>
+        <div class="name">挑战达人</div>
+        <div class="date">每日挑战 50 次</div>
+      </div>
+      <div class="ach-item locked">
+        <span class="ic">🌈</span>
+        <div class="name">全模式玩家</div>
+        <div class="date">未完成</div>
+      </div>
+      <div class="ach-item locked">
+        <span class="ic">🎓</span>
+        <div class="name">词汇博士</div>
+        <div class="date">5000 词</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DATA MANAGEMENT ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">📤</span> 数据管理</div>
+      <div class="sub">导出与备份</div>
+    </div>
+    <div class="as-rows">
+      <div class="as-row">
+        <div class="r-ic green">📦</div>
+        <div class="r-body">
+          <b>导出学习记录</b>
+          <small>单词列表、错题本 · CSV</small>
+        </div>
+        <div class="r-go">↓</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic blue">☁️</div>
+        <div class="r-body">
+          <b>云端备份</b>
+          <small>自动同步到云端</small>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic orange">🔗</div>
+        <div class="r-body">
+          <b>跨设备同步</b>
+          <small>自动同步学习进度</small>
+        </div>
+        <div class="r-val verified">✓ 已开启</div>
+      </div>
+      <div class="as-row">
+        <div class="r-ic purple">🗂️</div>
+        <div class="r-body">
+          <b>数据保留策略</b>
+          <small>记录保留 12 个月</small>
+        </div>
+        <div class="r-go">→</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DATA PRIVACY CARD ============ -->
+  <div class="data-card">
+    <div class="dc-head">
+      <span class="ic">🔒</span>
+      <div class="title">数据隐私</div>
+    </div>
+    <div class="dc-desc">
+      你的学习数据仅用于个性化推荐与进度追踪，<b>不会</b>与第三方共享。你可以随时导出或删除所有数据。
+    </div>
+    <div class="dc-btns">
+      <button class="btn solid btn-full">📋 查看隐私政策</button>
+      <button class="btn btn-full">🛡️ 安全最佳实践</button>
+    </div>
+  </div>
+
+  <!-- ============ LOGOUT ============ -->
+  <div class="logout-section">
+    <div class="logout-head">
+      <span class="ic">🚪</span>
+      <div class="title">退出登录</div>
+    </div>
+    <div class="logout-desc">
+      退出后将保留你的学习进度，下次登录<b>自动恢复</b>。
+    </div>
+    <button class="btn btn-blue btn-full" style="width:100%; padding:14px;">🚪 退出登录</button>
+  </div>
+
+  <!-- ============ DANGER ZONE ============ -->
+  <div class="section-card">
+    <div class="sc-head">
+      <div class="title"><span class="ic">⚠️</span> 危险区域</div>
+    </div>
+    <div class="danger-zone">
+      <div class="dz-head">
+        <span class="ic">🗑️</span>
+        <div class="title">删除账号</div>
+      </div>
+      <div class="dz-desc">
+        永久删除所有账号数据（包括学习记录、错题本、成就），30 天内可恢复。
+      </div>
+      <button class="btn-danger">🗑️ 删除我的账号</button>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">
+    <p>英语听打 · 账号中心 v1.0</p>
+    <p>
+      <a class="foot-link" href="#">服务条款</a> ·
+      <a class="foot-link" href="#">隐私政策</a> ·
+      <a class="foot-link" href="#">联系支持</a>
+    </p>
+  </div>
+
+  <div class="bottom-spacer"></div>
+</div>
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottom-nav">
+  <a class="bn-item" href="#">
+    <span class="bn-ic">🏠</span>
+    <span>今日</span>
+  </a>
+  <a class="bn-item" href="#">
+    <span class="bn-ic">📚</span>
+    <span>学习</span>
+  </a>
+  <a class="bn-item active" href="#">
+    <span class="bn-ic">👤</span>
+    <span>我的</span>
+  </a>
+  <a class="bn-item" href="#">
+    <span class="bn-ic">⚙️</span>
+    <span>设置</span>
+  </a>
+</nav>
+
+</body>
+</html>

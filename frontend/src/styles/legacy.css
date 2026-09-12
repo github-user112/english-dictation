@@ -246,6 +246,11 @@
   animation: caret-blink 1.1s var(--ease-inout) infinite;
 }
 .cell.letter-line.current::after { position: absolute; bottom: 8px; left: 50%; margin-left: -1px; }
+/* 点击定位后当前字母格可能已有字母：隐藏居中光标条，靠 current 绿框指示位置 */
+.cell.letter-line.current.filled::after { display: none; }
+/* 句子听写：当前词格内的字符级光标（点击定位/方向键移动），替换词尾的 ::after 光标 */
+.cell.word-line .midcaret { display: inline-block; width: 2px; height: 1em; background: var(--blue, #1cb0f6); border-radius: 1px; vertical-align: -0.12em; pointer-events: none; animation: caret-blink 1.1s var(--ease-inout) infinite; }
+.cell.word-line.has-midcaret::after { display: none; }
 @keyframes caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: .12; } }
 .pure-line { min-width: 8em; }
 .cell.right { color: var(--green); border-bottom-color: color-mix(in srgb, var(--green), transparent 25%); }

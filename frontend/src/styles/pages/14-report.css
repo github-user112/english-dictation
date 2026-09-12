@@ -197,11 +197,19 @@
 .hm-head .title .ic { font-size: 24px; font-family: var(--emoji); }
 .hm-sub { font-size: 13px; color: var(--text-dim); font-weight: 700; margin-bottom: 16px; }
 
-.hm-grid-wrap { overflow-x: auto; padding-bottom: 4px; }
+/* 热力图：60 格按行自动换行填满卡片宽度，不产生横向滚动条。
+   注意 .heat-grid 必须显式 width:100% —— 否则 grid 在 overflow 容器里
+   会用 max-content 宽度（单行 60 格 ≈ 1218px），撑出页面级横向滚动条。
+   另需 min-width:0 覆盖 06-stats.css 里同类的 min-width:520px ——
+   StatsPage 有 180+ 天热力图需横向滚动，ReportPage 只有 60 格必须自适应。 */
+.hm-grid-wrap { overflow-x: hidden; padding-bottom: 4px; min-width: 0; width: 100%; }
 .heat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 18px);
+  grid-auto-rows: 18px;
   gap: 3px;
+  width: 100%;
+  max-width: 100%;
   justify-content: start;
 }
 .heat-cell {
@@ -399,7 +407,8 @@
   .hm-head .title { font-size: 16px; }
   .hm-head .title .ic { font-size: 20px; }
   .hm-sub { font-size: 11px; margin-bottom: 12px; }
-  .heat-grid { gap: 2px; }
+  .hm-grid-wrap { min-width: 0; width: 100%; overflow-x: hidden; }
+  .heat-grid { grid-template-columns: repeat(auto-fill, 14px); grid-auto-rows: 14px; gap: 2px; width: 100%; }
   .heat-cell { width: 14px; height: 14px; border-radius: 2px; }
 
   .besttime-card { padding: 16px; }

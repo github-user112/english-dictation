@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学习统计 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Page title row (below sticky topbar) ---- */
+  .page-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin:18px 4px 18px; gap:16px; flex-wrap:wrap;
+  }
+  .page-head h1 {
+    font-size:32px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;
+    display:flex; align-items:center; gap:10px;
+  }
+  .page-head h1 .emoji { font-size:34px; }
+  .page-head p { font-size:14px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+  .range-tabs { display:flex; gap:6px; background:#ececec; padding:4px; border-radius:12px; }
+  .range-tab {
+    padding:8px 14px; border-radius:9px; font-weight:800; font-size:13px;
+    background:transparent; color:var(--text-dim); cursor:pointer;
+    font-family:inherit; border:none;
+  }
+  .range-tab.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  /* ============ Profile Hero ============ */
+  .profile-hero {
+    background:linear-gradient(135deg, #7b3ff2 0%, #9b5cff 45%, #ce82ff 100%);
+    border-radius:22px; padding:24px 28px; color:#fff;
+    box-shadow:0 6px 0 #6d32d6, 0 12px 32px rgba(155,92,255,0.28);
+    position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .profile-hero::after {
+    content:''; position:absolute; top:-70px; right:-40px;
+    width:240px; height:240px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .profile-hero::before {
+    content:''; position:absolute; bottom:-80px; left:-50px;
+    width:200px; height:200px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .hero-row { display:flex; align-items:center; gap:26px; position:relative; z-index:1; }
+
+  .avatar-wrap { flex-shrink:0; position:relative; }
+  .avatar-ring {
+    width:112px; height:112px; border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), #ffdf6b);
+    padding:4px;
+    box-shadow:0 0 0 4px rgba(255,200,0,0.25), 0 8px 24px rgba(255,200,0,0.35);
+  }
+  .avatar-inner {
+    width:100%; height:100%; border-radius:50%;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:60px; box-shadow:inset 0 -4px 8px rgba(0,0,0,0.06);
+  }
+  .lvl-badge {
+    position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(135deg, var(--gold), #ffdf6b);
+    color:#5a3e00; padding:3px 12px; border-radius:10px;
+    font-size:12px; font-weight:900; letter-spacing:0.3px;
+    box-shadow:0 3px 0 #d9a600; white-space:nowrap;
+    border:2px solid #fff;
+  }
+
+  .hero-title-block { flex:1; min-width:0; }
+  .hero-name {
+    font-size:26px; font-weight:900; letter-spacing:-0.5px; margin-bottom:2px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .hero-name .crown { font-size:22px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2)); }
+  .hero-rank {
+    font-size:13px; font-weight:800; opacity:0.9; margin-bottom:10px;
+  }
+  .hero-rank .tag {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:3px 10px; border-radius:8px; margin-right:8px;
+  }
+
+  .xp-bar-wrap { margin-top:12px; max-width:520px; }
+  .xp-bar-head { display:flex; justify-content:space-between; font-size:13px; font-weight:800; margin-bottom:6px; }
+  .xp-bar-head .cur { color:#fff; }
+  .xp-bar-head .tgt { opacity:0.85; }
+  .xp-bar {
+    height:14px; background:rgba(255,255,255,0.22); border-radius:10px; overflow:hidden;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .xp-fill {
+    height:100%; background:linear-gradient(90deg, var(--gold), #ffe066);
+    border-radius:10px; position:relative;
+    box-shadow:0 0 8px rgba(255,200,0,0.5);
+  }
+  .xp-fill::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    animation:xp-shine 2.5s linear infinite;
+  }
+  @keyframes xp-shine { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+
+  /* Level ring in hero */
+  .level-ring-wrap { flex-shrink:0; position:relative; width:140px; height:140px; }
+  .level-ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+  }
+  .level-ring-center .n { font-size:38px; font-weight:900; line-height:1; color:#fff; }
+  .level-ring-center .l { font-size:11px; font-weight:800; opacity:0.9; margin-top:2px; letter-spacing:0.5px; }
+  .level-ring-center .ttl { font-size:11px; font-weight:900; color:var(--gold); margin-top:4px; }
+
+  .quick-stats {
+    display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;
+  }
+  .q-stat {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    padding:8px 14px; border-radius:12px;
+  }
+  .q-stat .ic { font-size:20px; }
+  .q-stat .v { font-size:18px; font-weight:900; line-height:1; }
+  .q-stat .k { font-size:11px; font-weight:700; opacity:0.85; margin-top:2px; }
+
+  /* ============ Two-column grid ============ */
+  .row-2 { display:grid; grid-template-columns:1.35fr 1fr; gap:18px; margin-bottom:18px; }
+  .row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:18px; }
+
+  /* ============ Word Tree ============ */
+  .tree-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+  }
+  .tree-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .tree-card-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .tree-card-head .title .ic { font-size:26px; }
+  .tree-stage {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:10px; background:var(--green-light);
+    color:var(--green-dark); font-size:12px; font-weight:900;
+  }
+
+  .tree-scene {
+    position:relative; height:230px; margin:6px -10px 0;
+    background:linear-gradient(180deg, #e8f7ff 0%, #f7f7f7 70%);
+    border-radius:14px; overflow:hidden;
+  }
+  .tree-scene::before {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:60px;
+    background:linear-gradient(180deg, transparent, rgba(88,204,2,0.15));
+  }
+  .sun {
+    position:absolute; top:16px; right:24px; width:36px; height:36px;
+    border-radius:50%; background:radial-gradient(circle, var(--gold), #ffb300);
+    box-shadow:0 0 24px rgba(255,200,0,0.5);
+  }
+  .cloud {
+    position:absolute; background:#fff; border-radius:20px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.05);
+  }
+  .cloud.c1 { top:22px; left:40px; width:44px; height:18px; }
+  .cloud.c2 { top:38px; left:64px; width:32px; height:14px; }
+  .cloud.c3 { top:30px; left:200px; width:52px; height:20px; }
+  .ground {
+    position:absolute; bottom:0; left:0; right:0; height:32px;
+    background:linear-gradient(180deg, #a8d878, #7cb94a);
+    border-radius:50% 50% 0 0 / 40% 40% 0 0;
+  }
+  .ground::after {
+    content:''; position:absolute; bottom:6px; left:24%; width:8px; height:8px;
+    background:var(--gold); border-radius:50%;
+    box-shadow:
+      40px 0 var(--green), 120px -4px var(--red), 220px 2px var(--purple),
+      300px -2px var(--blue), 380px 0 var(--orange);
+  }
+
+  .tree-svg-wrap {
+    position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+  }
+  .tree-svg { display:block; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.12)); }
+
+  .drop {
+    position:absolute; width:8px; height:12px; background:var(--blue);
+    border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow:0 0 4px rgba(28,176,246,0.5);
+    animation:drop-fall 1.8s ease-in infinite;
+  }
+  @keyframes drop-fall {
+    0%{ transform:translateY(-40px); opacity:0; }
+    30%{ opacity:1; }
+    90%{ transform:translateY(220px); opacity:1; }
+    100%{ transform:translateY(240px); opacity:0; }
+  }
+
+  .tree-info {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 4px 0; gap:12px; flex-wrap:wrap;
+  }
+  .tree-info .stat-mini { display:flex; flex-direction:column; align-items:center; }
+  .tree-info .stat-mini .v { font-size:20px; font-weight:900; color:var(--green-dark); }
+  .tree-info .stat-mini .k { font-size:11px; font-weight:800; color:var(--text-dim); margin-top:2px; }
+
+  .water-bar-wrap { margin-top:12px; }
+  .water-head {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; font-weight:800; margin-bottom:6px;
+  }
+  .water-head .lbl { display:flex; align-items:center; gap:6px; color:var(--blue-dark); }
+  .water-bar {
+    height:12px; background:#e5e5e5; border-radius:8px; overflow:hidden; position:relative;
+  }
+  .water-fill {
+    height:100%; border-radius:8px;
+    background:linear-gradient(90deg, var(--blue), #4dd0ff);
+    position:relative;
+  }
+  .water-fill::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation:xp-shine 3s linear infinite;
+  }
+
+  /* Growth stage track */
+  .stage-track {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px; padding:0 4px;
+  }
+  .stage-node {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    flex:1; position:relative;
+  }
+  .stage-dot {
+    width:30px; height:30px; border-radius:50%;
+    background:#e5e5e5; display:flex; align-items:center; justify-content:center;
+    font-size:16px; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+    position:relative; z-index:2;
+  }
+  .stage-node.done .stage-dot { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .stage-node.current .stage-dot {
+    background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark),
+      0 0 0 4px rgba(88,204,2,0.25);
+    animation:node-pulse 2s ease-in-out infinite;
+  }
+  @keyframes node-pulse { 0%,100%{box-shadow:0 2px 0 var(--green-dark), 0 0 0 4px rgba(88,204,2,0.25)} 50%{box-shadow:0 2px 0 var(--green-dark), 0 0 0 8px rgba(88,204,2,0.08)} }
+  .stage-node.locked .stage-dot { background:#e5e5e5; color:var(--text-faint); }
+  .stage-name { font-size:10px; font-weight:800; color:var(--text-dim); text-align:center; }
+  .stage-node.current .stage-name { color:var(--green-dark); }
+  .stage-line {
+    position:absolute; top:15px; left:50%; right:-50%; height:3px;
+    background:#e5e5e5; z-index:1;
+  }
+  .stage-node.done .stage-line, .stage-node.current .stage-line { background:var(--green); }
+  .stage-node:last-child .stage-line { display:none; }
+
+  /* ============ Recent Achievements ============ */
+  .recent-card {
+    background:var(--panel); border-radius:18px; padding:20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .achv-list { display:flex; flex-direction:column; gap:10px; }
+  .achv-row {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .achv-row.new { background:var(--gold-light); border:1.5px solid rgba(255,200,0,0.3); }
+  .achv-icon {
+    width:44px; height:44px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .achv-icon.green { background:linear-gradient(135deg, var(--green), #6fdd1a); color:#fff; }
+  .achv-icon.orange { background:linear-gradient(135deg, var(--orange), #ffb347); color:#fff; }
+  .achv-icon.gold { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; }
+  .achv-icon.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); color:#fff; }
+  .achv-icon.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); color:#fff; }
+  .achv-body { flex:1; min-width:0; }
+  .achv-body b { display:block; font-size:14px; font-weight:900; }
+  .achv-body small { font-size:12px; color:var(--text-dim); font-weight:700; }
+  .achv-new-tag {
+    background:var(--gold); color:#5a3e00;
+    padding:2px 8px; border-radius:8px; font-size:10px; font-weight:900;
+    box-shadow:0 2px 0 #d9a600; flex-shrink:0;
+  }
+
+  /* ============ Heatmap ============ */
+  .heatmap-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .hm-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+  .hm-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .hm-head .title .ic { font-size:26px; }
+  .hm-stats { display:flex; gap:16px; align-items:center; }
+  .hm-stat { display:flex; flex-direction:column; align-items:flex-end; }
+  .hm-stat .v { font-size:18px; font-weight:900; }
+  .hm-stat .v.orange { color:var(--orange); }
+  .hm-stat .v.green { color:var(--green-dark); }
+  .hm-stat .k { font-size:11px; font-weight:700; color:var(--text-dim); }
+
+  .hm-body { display:grid; grid-template-columns:26px 1fr; gap:8px; }
+  .hm-days {
+    display:flex; flex-direction:column; justify-content:space-around;
+    font-size:9px; font-weight:800; color:var(--text-dim);
+    padding-top:12px; padding-bottom:6px;
+  }
+  .hm-days div { height:12px; line-height:12px; }
+  .hm-grid-wrap { overflow:hidden; }
+  .hm-months {
+    display:flex; font-size:10px; font-weight:800; color:var(--text-dim);
+    margin-bottom:3px; padding-left:2px;
+  }
+  .hm-months span { flex:0 0 calc(100%/52); }
+  .hm-grid {
+    display:grid; grid-template-columns:repeat(52, 1fr); gap:2px;
+  }
+  .hm-col { display:grid; grid-template-rows:repeat(7, 1fr); gap:2px; }
+  .hm-cell {
+    aspect-ratio:1; border-radius:2px; background:#e8e8e8;
+    transition:transform 0.15s;
+  }
+  .hm-cell:hover { transform:scale(1.4); box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+  .hm-cell.l1 { background:#d4ed9e; }
+  .hm-cell.l2 { background:#a5db3a; }
+  .hm-cell.l3 { background:#7cc31c; }
+  .hm-cell.l4 { background:var(--green); }
+  .hm-cell.today { box-shadow:0 0 0 1.5px var(--green); position:relative; }
+  .hm-legend {
+    display:flex; align-items:center; justify-content:flex-end; gap:6px;
+    margin-top:10px; font-size:11px; font-weight:800; color:var(--text-dim);
+  }
+  .hm-legend .cell { width:11px; height:11px; border-radius:2px; }
+
+  /* ============ Charts row ============ */
+  .chart-card {
+    background:var(--panel); border-radius:18px; padding:20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .chart-card .card-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .chart-card .card-title .ic { font-size:22px; }
+  .chart-card .sub { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+  .chart-card .sub b { color:var(--green-dark); }
+
+  /* Bar chart */
+  .bar-chart {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    height:130px; gap:8px; padding:0 4px; margin-top:8px;
+  }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+  .bar-val { font-size:11px; font-weight:900; color:var(--green-dark); }
+  .bar {
+    width:100%; max-width:36px; border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg, var(--green), #6fdd1a);
+    box-shadow:0 -2px 0 rgba(88,204,2,0.2) inset;
+    min-height:4px; position:relative;
+  }
+  .bar.today { background:linear-gradient(180deg, var(--orange), #ffb347); }
+  .bar-label { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .bar-label.today { color:var(--orange); }
+
+  /* Mode donut */
+  .mode-list { display:flex; flex-direction:column; gap:10px; }
+  .mode-row {
+    display:flex; align-items:center; gap:10px; font-size:13px; font-weight:700;
+  }
+  .mode-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .mode-name { flex:1; display:flex; align-items:center; gap:6px; }
+  .mode-name .em { font-size:15px; }
+  .mode-val { font-weight:900; color:var(--text); font-variant-numeric:tabular-nums; }
+  .mode-pct { font-size:11px; font-weight:800; color:var(--text-dim); width:38px; text-align:right; }
+  .donut-wrap { display:flex; align-items:center; gap:16px; margin-bottom:12px; }
+  .donut-svg { width:110px; height:110px; flex-shrink:0; transform:rotate(-90deg); }
+  .donut-info { flex:1; }
+  .donut-info .big { font-size:26px; font-weight:900; color:var(--green-dark); line-height:1; }
+  .donut-info .lbl { font-size:12px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+
+  /* ============ Full Achievements Grid ============ */
+  .all-achv-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .all-achv-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .all-achv-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .all-achv-head .title .ic { font-size:26px; }
+  .all-achv-head .count { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .all-achv-head .count b { color:var(--gold); font-size:16px; }
+
+  .achv-grid {
+    display:grid; grid-template-columns:repeat(10, 1fr); gap:10px;
+  }
+  .achv-tile {
+    background:#f7f7f7; border-radius:14px; padding:12px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    text-align:center; position:relative; transition:transform 0.15s;
+  }
+  .achv-tile:hover { transform:translateY(-2px); box-shadow:0 6px 14px rgba(0,0,0,0.08); }
+  .achv-tile .em {
+    font-size:28px; filter:grayscale(0.9) opacity(0.55);
+  }
+  .achv-tile.unlocked .em { filter:none; }
+  .achv-tile.unlocked { background:linear-gradient(135deg, var(--gold-light), #fff); border:1.5px solid rgba(255,200,0,0.3); }
+  .achv-tile .nm { font-size:10px; font-weight:800; color:var(--text-dim); line-height:1.2; }
+  .achv-tile.unlocked .nm { color:var(--text); }
+  .achv-tile .lvl {
+    position:absolute; top:4px; right:4px;
+    background:var(--gold); color:#5a3e00;
+    font-size:8px; font-weight:900; padding:1px 4px; border-radius:5px;
+    box-shadow:0 1px 0 #d9a600;
+  }
+  .achv-tile.locked .lock-ic {
+    position:absolute; top:6px; right:6px; font-size:10px;
+    opacity:0.5;
+  }
+
+  /* ============ Leaderboard ============ */
+  .lb-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .lb-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .lb-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .lb-head .title .ic { font-size:26px; }
+  .lb-head .period-tabs { display:flex; gap:4px; background:#ececec; padding:3px; border-radius:9px; }
+  .lb-head .p-tab {
+    padding:5px 10px; border-radius:7px; font-size:11px; font-weight:800;
+    background:transparent; color:var(--text-dim); cursor:pointer;
+    font-family:inherit; border:none;
+  }
+  .lb-head .p-tab.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  .lb-list { display:flex; flex-direction:column; gap:8px; }
+  .lb-row {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-radius:12px; background:#f7f7f7;
+  }
+  .lb-row.me { background:linear-gradient(90deg, var(--green-bg), #fff); border:2px solid var(--green); box-shadow:0 3px 0 rgba(88,204,2,0.15); }
+  .lb-rank {
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; background:#e5e5e5; color:var(--text-dim);
+  }
+  .lb-rank.r1 { background:linear-gradient(135deg, #ffd700, #ffb300); color:#5a3e00; box-shadow:0 2px 0 #d9a600; }
+  .lb-rank.r2 { background:linear-gradient(135deg, #e0e0e0, #bfbfbf); color:#5a5a5a; box-shadow:0 2px 0 #9a9a9a; }
+  .lb-rank.r3 { background:linear-gradient(135deg, #cd7f32, #a0522d); color:#fff; box-shadow:0 2px 0 #8b4513; }
+  .lb-avatar {
+    width:36px; height:36px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .lb-name { flex:1; min-width:0; }
+  .lb-name b { display:block; font-size:14px; font-weight:900; }
+  .lb-name small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .lb-xp { display:flex; flex-direction:column; align-items:flex-end; }
+  .lb-xp .v { font-size:16px; font-weight:900; color:var(--gold); }
+  .lb-xp .k { font-size:10px; font-weight:800; color:var(--text-dim); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:16px;
+    font-size:12px; color:var(--text-faint); font-weight:700;
+  }
+
+  /* ============ Animations ============ */
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+  .float { animation:float 3s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div style="font-weight:900; font-size:16px; color:var(--text);">学习统计</div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+      <div class="stat-item level">
+        <span class="icon">🎯</span>
+        <span>Lv.11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">📊</span> 学习统计</h1>
+      <p>看看你的学习进度、成就与成长轨迹</p>
+    </div>
+    <div class="range-tabs">
+      <button class="range-tab">今天</button>
+      <button class="range-tab">本周</button>
+      <button class="range-tab active">本月</button>
+      <button class="range-tab">全部</button>
+    </div>
+  </div>
+
+  <!-- ============ PROFILE HERO ============ -->
+  <div class="profile-hero">
+    <div class="hero-row">
+      <div class="avatar-wrap">
+        <div class="avatar-ring">
+          <div class="avatar-inner">🎓</div>
+        </div>
+        <div class="lvl-badge">Lv.11 · 词海冲浪手</div>
+      </div>
+
+      <div class="hero-title-block">
+        <div class="hero-name">
+          <span>李小明</span>
+          <span class="crown">👑</span>
+        </div>
+        <div class="hero-rank">
+          <span class="tag">🏆 全国排名 #17</span>
+          <span class="tag">🌟 1,284 词已掌握</span>
+        </div>
+        <div style="font-size:15px; font-weight:800; opacity:0.95; margin-bottom:2px;">
+          🌟 词海冲浪手 <small style="opacity:0.8;">— 已掌握 CET-6 词汇库，正在冲击词海精英</small>
+        </div>
+        <div class="xp-bar-wrap">
+          <div class="xp-bar-head">
+            <span class="cur">6,380 / 8,000 XP</span>
+            <span class="tgt">距离 Lv.12 还差 1,620 XP</span>
+          </div>
+          <div class="xp-bar">
+            <div class="xp-fill" style="width:79.75%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="level-ring-wrap">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="60" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="12"/>
+          <circle cx="70" cy="70" r="60" fill="none" stroke="var(--gold)" stroke-width="12"
+                  stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="76"
+                  transform="rotate(-90 70 70)"
+                  filter="drop-shadow(0 0 4px rgba(255,200,0,0.5))"/>
+        </svg>
+        <div class="level-ring-center">
+          <div class="n">11</div>
+          <div class="l">LEVEL</div>
+          <div class="ttl">词海冲浪手</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quick-stats">
+      <div class="q-stat">
+        <span class="ic">🔥</span>
+        <div>
+          <div class="v">27 天</div>
+          <div class="k">连续学习</div>
+        </div>
+      </div>
+      <div class="q-stat">
+        <span class="ic">⚡</span>
+        <div>
+          <div class="v">42,380</div>
+          <div class="k">总经验值</div>
+        </div>
+      </div>
+      <div class="q-stat">
+        <span class="ic">🎯</span>
+        <div>
+          <div class="v">91.2%</div>
+          <div class="k">总正确率</div>
+        </div>
+      </div>
+      <div class="q-stat">
+        <span class="ic">📚</span>
+        <div>
+          <div class="v">1,284</div>
+          <div class="k">已掌握单词</div>
+        </div>
+      </div>
+      <div class="q-stat">
+        <span class="ic">🏆</span>
+        <div>
+          <div class="v">18/32</div>
+          <div class="k">成就徽章</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ROW 1: TREE + RECENT ACHV ============ -->
+  <div class="row-2">
+    <!-- Word Tree -->
+    <div class="tree-card">
+      <div class="tree-card-head">
+        <div class="title"><span class="ic">🌳</span> 单词树</div>
+        <div class="tree-stage">🌿 阶段 3 · 幼苗期</div>
+      </div>
+      <div class="card-desc" style="margin-bottom:6px;">
+        连续学习保持浇水，你的词汇之树正在茁壮成长！27 天连续未断。
+      </div>
+
+      <div class="tree-scene">
+        <div class="sun"></div>
+        <div class="cloud c1"></div>
+        <div class="cloud c2"></div>
+        <div class="cloud c3"></div>
+        <div class="ground"></div>
+
+        <!-- Rain drops -->
+        <div class="drop" style="left:32%; animation-delay:0s;"></div>
+        <div class="drop" style="left:48%; animation-delay:0.4s;"></div>
+        <div class="drop" style="left:60%; animation-delay:0.9s;"></div>
+        <div class="drop" style="left:42%; animation-delay:1.3s;"></div>
+
+        <!-- Tree SVG -->
+        <div class="tree-svg-wrap">
+          <svg width="220" height="180" viewBox="0 0 220 180" class="tree-svg">
+            <!-- Trunk -->
+            <path d="M105 170 Q108 130 100 100 Q110 95 120 100 Q112 130 115 170 Z"
+                  fill="#8b5a2b"/>
+            <!-- Branches -->
+            <path d="M108 110 Q80 95 70 80" stroke="#8b5a2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M112 100 Q140 88 150 70" stroke="#8b5a2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M108 95 Q100 75 105 55" stroke="#8b5a2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <!-- Leaf clusters -->
+            <circle cx="68" cy="78" r="26" fill="#58cc02"/>
+            <circle cx="50" cy="68" r="18" fill="#6fdd1a"/>
+            <circle cx="85" cy="60" r="20" fill="#46a302"/>
+            <circle cx="150" cy="65" r="28" fill="#58cc02"/>
+            <circle cx="170" cy="78" r="18" fill="#6fdd1a"/>
+            <circle cx="135" cy="50" r="22" fill="#46a302"/>
+            <circle cx="105" cy="45" r="26" fill="#58cc02"/>
+            <circle cx="100" cy="30" r="20" fill="#6fdd1a"/>
+            <circle cx="120" cy="35" r="18" fill="#46a302"/>
+            <!-- Fruits (words mastered) -->
+            <circle cx="65" cy="70" r="6" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+            <circle cx="150" cy="72" r="6" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+            <circle cx="110" cy="35" r="6" fill="#ffc800" stroke="#fff" stroke-width="1.5"/>
+            <circle cx="140" cy="60" r="5" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+            <circle cx="75" cy="82" r="5" fill="#ffc800" stroke="#fff" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="tree-info">
+        <div class="stat-mini">
+          <div class="v">27</div>
+          <div class="k">连续天数</div>
+        </div>
+        <div class="stat-mini">
+          <div class="v">1,284</div>
+          <div class="k">树上果实</div>
+        </div>
+        <div class="stat-mini">
+          <div class="v">+15</div>
+          <div class="k">今日浇水</div>
+        </div>
+        <div class="stat-mini">
+          <div class="v" style="color:var(--gold);">3 / 6</div>
+          <div class="k">成长阶段</div>
+        </div>
+      </div>
+
+      <div class="water-bar-wrap">
+        <div class="water-head">
+          <span class="lbl">💧 成长进度</span>
+          <span style="color:var(--blue-dark); font-weight:900;">3,420 / 5,000 XP → 小树</span>
+        </div>
+        <div class="water-bar">
+          <div class="water-fill" style="width:68.4%"></div>
+        </div>
+      </div>
+
+      <div class="stage-track">
+        <div class="stage-node done">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🌱</div>
+          <div class="stage-name">种子</div>
+        </div>
+        <div class="stage-node done">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🌿</div>
+          <div class="stage-name">发芽</div>
+        </div>
+        <div class="stage-node current">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🌳</div>
+          <div class="stage-name">幼苗</div>
+        </div>
+        <div class="stage-node locked">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🌴</div>
+          <div class="stage-name">小树</div>
+        </div>
+        <div class="stage-node locked">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🌲</div>
+          <div class="stage-name">大树</div>
+        </div>
+        <div class="stage-node locked">
+          <div class="stage-line"></div>
+          <div class="stage-dot">🎄</div>
+          <div class="stage-name">参天</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:14px;">
+        <a href="#" class="btn btn-blue btn-big" style="text-decoration:none;">💧 继续浇水</a>
+      </div>
+    </div>
+
+    <!-- Recent Achievements -->
+    <div class="recent-card">
+      <div class="card-title"><span class="card-icon">🎖️</span> 最新成就</div>
+      <div class="card-desc">本周新解锁 3 枚徽章</div>
+
+      <div class="achv-list">
+        <div class="achv-row new">
+          <div class="achv-icon orange">🔥</div>
+          <div class="achv-body">
+            <b>连续 27 天</b>
+            <small>铁人意志 · 27 天未断</small>
+          </div>
+          <div class="achv-new-tag">NEW</div>
+        </div>
+
+        <div class="achv-row new">
+          <div class="achv-icon gold">🏆</div>
+          <div class="achv-body">
+            <b>排行榜前五</b>
+            <small>本周全国排名冲进 #17</small>
+          </div>
+          <div class="achv-new-tag">NEW</div>
+        </div>
+
+        <div class="achv-row new">
+          <div class="achv-icon purple">🎯</div>
+          <div class="achv-body">
+            <b>百发百中</b>
+            <small>听打连续 50 题全对</small>
+          </div>
+          <div class="achv-new-tag">NEW</div>
+        </div>
+
+        <div class="achv-row">
+          <div class="achv-icon green">📚</div>
+          <div class="achv-body">
+            <b>千词大师</b>
+            <small>累计掌握 1,000+ 单词</small>
+          </div>
+        </div>
+
+        <div class="achv-row">
+          <div class="achv-icon blue">⚡</div>
+          <div class="achv-body">
+            <b>闪电听打</b>
+            <small>单题平均耗时 &lt; 3 秒</small>
+          </div>
+        </div>
+
+        <div class="achv-row">
+          <div class="achv-icon gold">🎓</div>
+          <div class="achv-body">
+            <b>词海冲浪手</b>
+            <small>达成 Lv.11 称号</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HEATMAP ============ -->
+  <div class="heatmap-card">
+    <div class="hm-head">
+      <div class="title"><span class="ic">📅</span> 学习热力图</div>
+      <div class="hm-stats">
+        <div class="hm-stat">
+          <div class="v green">214</div>
+          <div class="k">天有记录</div>
+        </div>
+        <div class="hm-stat">
+          <div class="v orange">27</div>
+          <div class="k">最长连续</div>
+        </div>
+        <div class="hm-stat">
+          <div class="v" style="color:var(--purple);">38 天</div>
+          <div class="k">最高周</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hm-body">
+      <div class="hm-days">
+        <div>一</div>
+        <div>三</div>
+        <div>五</div>
+        <div>日</div>
+      </div>
+      <div class="hm-grid-wrap">
+        <div class="hm-months" id="hmMonths"></div>
+        <div class="hm-grid" id="hmGrid"></div>
+      </div>
+    </div>
+
+    <div class="hm-legend">
+      <span>少</span>
+      <div class="cell" style="background:#e8e8e8;"></div>
+      <div class="cell" style="background:#d4ed9e;"></div>
+      <div class="cell" style="background:#a5db3a;"></div>
+      <div class="cell" style="background:#7cc31c;"></div>
+      <div class="cell" style="background:var(--green);"></div>
+      <span>多</span>
+    </div>
+  </div>
+
+  <!-- ============ ROW: CHARTS ============ -->
+  <div class="row-3" style="grid-template-columns:1.4fr 1fr 1fr;">
+    <!-- Weekly XP Bar Chart -->
+    <div class="chart-card">
+      <div class="card-title"><span class="ic">📈</span> 本周经验分布</div>
+      <div class="sub">本周共 <b>+1,820 XP</b> · 日均 <b>260 XP</b></div>
+      <div class="bar-chart">
+        <div class="bar-col">
+          <div class="bar-val">280</div>
+          <div class="bar" style="height:56%"></div>
+          <div class="bar-label">周一</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">320</div>
+          <div class="bar" style="height:64%"></div>
+          <div class="bar-label">周二</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">240</div>
+          <div class="bar" style="height:48%"></div>
+          <div class="bar-label">周三</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">350</div>
+          <div class="bar" style="height:70%"></div>
+          <div class="bar-label">周四</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">180</div>
+          <div class="bar" style="height:36%"></div>
+          <div class="bar-label">周五</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val">260</div>
+          <div class="bar" style="height:52%"></div>
+          <div class="bar-label">周六</div>
+        </div>
+        <div class="bar-col">
+          <div class="bar-val" style="color:var(--orange);">190</div>
+          <div class="bar today" style="height:38%"></div>
+          <div class="bar-label today">周日</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode Distribution Donut -->
+    <div class="chart-card">
+      <div class="card-title"><span class="ic">🎯</span> 模式分布</div>
+      <div class="sub">听打是你的最爱 <b>38%</b></div>
+
+      <div class="donut-wrap">
+        <svg class="donut-svg" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#f0f0f0" stroke-width="16"/>
+          <!-- 38% green, 22% blue, 18% purple, 12% orange, 10% gold -->
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--green)" stroke-width="16"
+                  stroke-dasharray="107.6 282.7" stroke-dashoffset="0"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--blue)" stroke-width="16"
+                  stroke-dasharray="62.2 282.7" stroke-dashoffset="-107.6"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--purple)" stroke-width="16"
+                  stroke-dasharray="50.9 282.7" stroke-dashoffset="-169.8"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--orange)" stroke-width="16"
+                  stroke-dasharray="33.9 282.7" stroke-dashoffset="-220.7"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--gold)" stroke-width="16"
+                  stroke-dasharray="28.3 282.7" stroke-dashoffset="-254.6"/>
+        </svg>
+        <div class="donut-info">
+          <div class="big">4,820</div>
+          <div class="lbl">本周总题数</div>
+        </div>
+      </div>
+
+      <div class="mode-list">
+        <div class="mode-row">
+          <div class="mode-dot" style="background:var(--green);"></div>
+          <div class="mode-name"><span class="em">🎧</span> 单词听打</div>
+          <div class="mode-val">1,832</div>
+          <div class="mode-pct">38%</div>
+        </div>
+        <div class="mode-row">
+          <div class="mode-dot" style="background:var(--blue);"></div>
+          <div class="mode-name"><span class="em">📝</span> 句子听写</div>
+          <div class="mode-val">1,060</div>
+          <div class="mode-pct">22%</div>
+        </div>
+        <div class="mode-row">
+          <div class="mode-dot" style="background:var(--purple);"></div>
+          <div class="mode-name"><span class="em">🎤</span> 跟读</div>
+          <div class="mode-val">868</div>
+          <div class="mode-pct">18%</div>
+        </div>
+        <div class="mode-row">
+          <div class="mode-dot" style="background:var(--orange);"></div>
+          <div class="mode-name"><span class="em">✂️</span> 排句</div>
+          <div class="mode-val">578</div>
+          <div class="mode-pct">12%</div>
+        </div>
+        <div class="mode-row">
+          <div class="mode-dot" style="background:var(--gold);"></div>
+          <div class="mode-name"><span class="em">🎮</span> 其他</div>
+          <div class="mode-val">482</div>
+          <div class="mode-pct">10%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accuracy Trend -->
+    <div class="chart-card">
+      <div class="card-title"><span class="ic">🎯</span> 正确率趋势</div>
+      <div class="sub">30 天平均 <b>91.2%</b> · 最高 <b>97%</b></div>
+
+      <svg viewBox="0 0 300 160" style="width:100%; height:160px; margin-top:6px;">
+        <!-- Grid lines -->
+        <line x1="0" y1="20" x2="300" y2="20" stroke="#f0f0f0" stroke-width="1"/>
+        <line x1="0" y1="60" x2="300" y2="60" stroke="#f0f0f0" stroke-width="1"/>
+        <line x1="0" y1="100" x2="300" y2="100" stroke="#f0f0f0" stroke-width="1"/>
+        <line x1="0" y1="140" x2="300" y2="140" stroke="#f0f0f0" stroke-width="1"/>
+
+        <!-- Y axis labels -->
+        <text x="2" y="18" font-size="9" font-weight="800" fill="#afafaf">100%</text>
+        <text x="2" y="58" font-size="9" font-weight="800" fill="#afafaf">95%</text>
+        <text x="2" y="98" font-size="9" font-weight="800" fill="#afafaf">90%</text>
+        <text x="2" y="138" font-size="9" font-weight="800" fill="#afafaf">85%</text>
+
+        <!-- Area fill -->
+        <path d="M30 120 L60 105 L90 95 L120 88 L150 80 L180 68 L210 55 L240 48 L270 42 L295 38 L295 140 L30 140 Z"
+              fill="url(#gradAcc)" opacity="0.5"/>
+        <defs>
+          <linearGradient id="gradAcc" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#58cc02" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#58cc02" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Line -->
+        <path d="M30 120 L60 105 L90 95 L120 88 L150 80 L180 68 L210 55 L240 48 L270 42 L295 38"
+              fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+              filter="drop-shadow(0 2px 4px rgba(88,204,2,0.3))"/>
+
+        <!-- Data points -->
+        <circle cx="30" cy="120" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="60" cy="105" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="90" cy="95" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="120" cy="88" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="150" cy="80" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="180" cy="68" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="210" cy="55" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="240" cy="48" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="270" cy="42" r="4" fill="#fff" stroke="var(--green)" stroke-width="2.5"/>
+        <circle cx="295" cy="38" r="5" fill="var(--green)" stroke="#fff" stroke-width="2.5"/>
+      </svg>
+
+      <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:800; color:var(--text-faint); margin-top:4px;">
+        <span>30 天前</span>
+        <span>20 天前</span>
+        <span>10 天前</span>
+        <span style="color:var(--green-dark);">今天</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+        <div style="background:var(--green-bg); border-radius:10px; padding:8px 10px;">
+          <div style="font-size:16px; font-weight:900; color:var(--green-dark);">+6.2%</div>
+          <div style="font-size:10px; font-weight:700; color:var(--text-dim);">30 天提升</div>
+        </div>
+        <div style="background:var(--blue-bg); border-radius:10px; padding:8px 10px;">
+          <div style="font-size:16px; font-weight:900; color:var(--blue-dark);">97%</div>
+          <div style="font-size:10px; font-weight:700; color:var(--text-dim);">最佳单日</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ALL ACHIEVEMENTS ============ -->
+  <div class="all-achv-card">
+    <div class="all-achv-head">
+      <div class="title"><span class="ic">🏆</span> 全部成就徽章</div>
+      <div class="count">已解锁 <b>18</b> / 32 · 完成度 <b style="color:var(--green-dark);">56%</b></div>
+    </div>
+
+    <div class="achv-grid">
+      <div class="achv-tile unlocked"><span class="em">🔥</span><span class="nm">7日铁人</span></div>
+      <div class="achv-tile unlocked"><span class="em">🔥</span><span class="nm">30日铁人</span><span class="lvl">金</span></div>
+      <div class="achv-tile unlocked"><span class="em">⚡</span><span class="nm">闪电听打</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎯</span><span class="nm">百发百中</span></div>
+      <div class="achv-tile unlocked"><span class="em">🌟</span><span class="nm">千词大师</span><span class="lvl">金</span></div>
+      <div class="achv-tile unlocked"><span class="em">🏆</span><span class="nm">前五强</span></div>
+      <div class="achv-tile unlocked"><span class="em">💪</span><span class="nm">钢铁意志</span></div>
+      <div class="achv-tile unlocked"><span class="em">🧠</span><span class="nm">词汇大师</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎓</span><span class="nm">每日挑战</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎤</span><span class="nm">跟读达人</span></div>
+
+      <div class="achv-tile unlocked"><span class="em">✂️</span><span class="nm">排句高手</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎮</span><span class="nm">游戏高手</span></div>
+      <div class="achv-tile unlocked"><span class="em">🗡️</span><span class="nm">剑客</span></div>
+      <div class="achv-tile unlocked"><span class="em">📚</span><span class="nm">书虫</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎵</span><span class="nm">音乐达人</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎉</span><span class="nm">百日纪念</span><span class="lvl">金</span></div>
+      <div class="achv-tile unlocked"><span class="em">🥉</span><span class="nm">铜牌</span></div>
+      <div class="achv-tile unlocked"><span class="em">🎖️</span><span class="nm">词海行者</span></div>
+
+      <div class="achv-tile unlocked"><span class="em">🎯</span><span class="nm">靶心</span></div>
+      <div class="achv-tile unlocked"><span class="em">📈</span><span class="nm">成长曲线</span></div>
+      <div class="achv-tile locked"><span class="em">🥈</span><span class="nm">银牌</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🥇</span><span class="nm">金牌</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">👑</span><span class="nm">词海精英</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🌟</span><span class="nm">万词传奇</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">⚔️</span><span class="nm">Boss杀手</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🤝</span><span class="nm">组队达人</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🏅</span><span class="nm">百日挑战</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🎖️</span><span class="nm">勋章墙</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🌟</span><span class="nm">百日全勤</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🎯</span><span class="nm">神枪手</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🎓</span><span class="nm">学术大师</span><span class="lock-ic">🔒</span></div>
+      <div class="achv-tile locked"><span class="em">🏆</span><span class="nm">赛季冠军</span><span class="lock-ic">🔒</span></div>
+    </div>
+
+    <div style="margin-top:16px; text-align:center;">
+      <a href="#" class="btn btn-primary btn-big" style="text-decoration:none;">查看全部 32 枚徽章</a>
+    </div>
+  </div>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <div class="lb-card">
+    <div class="lb-head">
+      <div class="title"><span class="ic">👑</span> 全国排行榜</div>
+      <div class="period-tabs">
+        <button class="p-tab">今日</button>
+        <button class="p-tab active">本周</button>
+        <button class="p-tab">本月</button>
+        <button class="p-tab">全部</button>
+      </div>
+    </div>
+
+    <div class="lb-list">
+      <div class="lb-row">
+        <div class="lb-rank r1">1</div>
+        <div class="lb-avatar">🐉</div>
+        <div class="lb-name"><b>英语大师</b><small>Lv.14 · 词海宗师</small></div>
+        <div class="lb-xp"><div class="v">128,450</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-rank r2">2</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--blue), #4dd0ff);">🚀</div>
+        <div class="lb-name"><b>单词猎人</b><small>Lv.13 · 词海大师</small></div>
+        <div class="lb-xp"><div class="v">95,200</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-rank r3">3</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--orange), #ffb347);">🔥</div>
+        <div class="lb-name"><b>铁人意志</b><small>Lv.12 · 词海精英</small></div>
+        <div class="lb-xp"><div class="v">72,800</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-rank">4</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">🧙</div>
+        <div class="lb-name"><b>学神小王</b><small>Lv.12 · 词海精英</small></div>
+        <div class="lb-xp"><div class="v">65,120</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row me">
+        <div class="lb-rank" style="background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark);">17</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--gold), #ffdf6b);">🎓</div>
+        <div class="lb-name"><b>李小明（你）</b><small>Lv.11 · 词海冲浪手</small></div>
+        <div class="lb-xp"><div class="v">42,380</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-rank">18</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, #ff9600, #ffb347);">🦅</div>
+        <div class="lb-name"><b>词海行者</b><small>Lv.11 · 词海冲浪手</small></div>
+        <div class="lb-xp"><div class="v">38,900</div><div class="k">XP</div></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-rank">19</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--red), #ff7a7a);">⚔️</div>
+        <div class="lb-name"><b>Boss杀手</b><small>Lv.11 · 词海冲浪手</small></div>
+        <div class="lb-xp"><div class="v">36,200</div><div class="k">XP</div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:14px;">
+      <a href="#" class="btn btn-ghost btn-big" style="text-decoration:none;">查看全部排行榜 →</a>
+    </div>
+  </div>
+
+  <div class="foot">数据每日凌晨自动更新 · 派生数据实时计算 · 无伪造</div>
+</div>
+
+<script>
+  // ============ Generate Heatmap ============
+  (function() {
+    const grid = document.getElementById('hmGrid');
+    const months = document.getElementById('hmMonths');
+    const monthsList = ['7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月','6月'];
+
+    // Build 52 weeks
+    const weekCount = 52;
+    let seed = 12345;
+    function rand() {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    }
+    function levelFor(d) {
+      const r = rand();
+      // Base density with some weekend dip + occasional gaps
+      const dayOfWeek = d % 7;
+      const weekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const r2 = rand();
+      if (r2 < 0.04) return 0; // skip
+      if (weekend && r2 < 0.18) return 0;
+      let intensity = r2 * 0.9;
+      if (weekend) intensity *= 0.5;
+      // Recent days are more active
+      if (d > weekCount * 7 - 40) intensity = Math.min(1, intensity + 0.25);
+      if (intensity < 0.2) return 1;
+      if (intensity < 0.4) return 2;
+      if (intensity < 0.7) return 3;
+      return 4;
+    }
+
+    let totalDays = 0;
+    let maxWeek = 0, maxWeekDays = 0, maxWeekIndex = 0;
+
+    for (let w = 0; w < weekCount; w++) {
+      const col = document.createElement('div');
+      col.className = 'hm-col';
+      let weekSum = 0;
+      for (let d = 0; d < 7; d++) {
+        const cell = document.createElement('div');
+        cell.className = 'hm-cell';
+        const lvl = levelFor(w * 7 + d);
+        if (lvl > 0) {
+          cell.classList.add('l' + lvl);
+          totalDays++;
+          weekSum++;
+        }
+        // Mark today (last cell of last column)
+        if (w === weekCount - 1 && d === 6) {
+          cell.classList.add('today');
+        }
+        col.appendChild(cell);
+      }
+      if (weekSum > maxWeekDays) {
+        maxWeekDays = weekSum;
+        maxWeekIndex = w;
+      }
+      grid.appendChild(col);
+    }
+
+    // Month labels: place every ~4.3 weeks
+    const monthWeeks = [0, 4, 8, 12, 16, 21, 25, 29, 34, 38, 43, 47];
+    monthsList.forEach((m, i) => {
+      const span = document.createElement('span');
+      span.textContent = m;
+      span.style.flex = '0 0 calc(' + Math.max(1, weekCount - monthWeeks[i]) / weekCount + ' * 100%)';
+      months.appendChild(span);
+    });
+  })();
+</script>
+
+</body>
+</html>

@@ -12,7 +12,8 @@
 - 背新词：今日 last_memorize=today 且 memorized=1 的词数 ≥ 学习计划配额
 - 听打巩固：今日在目标词库上 final_right 的题数 ≥ min(15, 配额)
 
-跨午夜的会话按 assigned_day（会话创建日的本地日期）归属，与 daily_log 口径一致。
+跨午夜的会话按 assigned_day 归属；会话在创建日之后某天被打完时，完成那一刻
+assigned_day 会重挂到完成日（catalog.py /api/result），保证「今天完成」的判定跟得上。
 """
 from datetime import date, timedelta
 
@@ -23,19 +24,28 @@ from .config import CONFIG, MATERIALS
 from .db import db
 from .goal import _goal_view
 from .materials import iter_material, load_material
-from .misc import day_streak
+from .misc import local_today, day_streak
 
 bp = Blueprint("today", __name__)
 
 # 词测 CEFR → 推荐词库/句库（P1：测完一键建计划也用这个映射）
+# 今日主线只走新概念 1-4：词汇册配同册课文，保证五环既有单词也有句子；
+# 其他词库（CET 等）留在素材库自由练习
 CEFR_TO_LIST = {
-    "A1": ("nce1", "nc1"), "A2": ("cet4", "nc1"), "B1": ("nce2", "nc2"),
-    "B2": ("cet6", "nc3"), "C1": ("kaoyan", "nc4"), "C2": ("tuofu", "nc4"),
+    "A1": ("nce1", "nc1"), "A2": ("nce1", "nc1"), "B1": ("nce2", "nc2"),
+    "B2": ("nce3", "nc3"), "C1": ("nce4", "nc4"), "C2": ("nce4", "nc4"),
 }
 # 默认主线：新概念 1 册词汇 + 第 1 册课文，由低到高顺着学
 DEFAULT_WORD_LIST = "nce1"
 DEFAULT_SENT_LIST = "nc1"
 ARRANGE_TARGET = 3
+WRONG_TARGET = 10   # 错词回收一组的词数：今日错词优先，不够从错词本补满
+# 今日可选词库池：nce 素材缺失时退到全部词库（测试环境）。
+# 每次调用现算——测试会按用例 patch 本模块的 MATERIALS，import 时固化会被绕过
+def _word_pool():
+    nce = [k for k in ("nce1", "nce2", "nce3", "nce4")
+           if MATERIALS.get(k, {}).get("type") == "words"]
+    return nce or [k for k, m in MATERIALS.items() if m["type"] == "words"]
 
 
 def _first_of_type(kind):
@@ -43,15 +53,14 @@ def _first_of_type(kind):
 
 
 def _pick_lists(conn, user, cefr, want_word=None):
-    """目标词库/句库：用户选择 > 学习计划 > 词测推荐 > 默认 nce1；素材缺失时退到同类第一个。"""
+    """目标词库/句库：用户选择 > 学习计划 > 词测推荐 > 默认 nce1，词库限定在今日主线池。"""
     goals = conn.execute(
         "SELECT * FROM study_goal WHERE user=? ORDER BY updated_at DESC", (user,)).fetchall()
     rec_word, rec_sent = CEFR_TO_LIST.get(cefr, (None, None))
-    word = want_word or next((g["list"] for g in goals if g["list"] in MATERIALS
-                 and MATERIALS[g["list"]]["type"] == "words"), None) or rec_word
-    if word not in MATERIALS or MATERIALS.get(word, {}).get("type") != "words":
-        word = DEFAULT_WORD_LIST if MATERIALS.get(DEFAULT_WORD_LIST, {}).get("type") == "words" \
-            else _first_of_type("words")
+    pool = _word_pool()
+    word = want_word or next((g["list"] for g in goals if g["list"] in pool), None) or rec_word
+    if word not in pool:
+        word = DEFAULT_WORD_LIST if DEFAULT_WORD_LIST in pool else (pool[0] if pool else None)
     # 句库跟着词库走：nceN 词汇配 ncN 课文；否则用词测推荐
     sent = None
     if word and word.startswith("nce") and "nc" + word[3:] in MATERIALS:
@@ -97,11 +106,42 @@ def _current_lesson(conn, user, list_key, today):
     return lesson, total
 
 
-def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, due_wrong):
-    """按课五环：背本课单词 → 听打本课单词 → 听写本课句子 → 排句 → 错词回收。"""
-    lesson, sent_total = _current_lesson(conn, user, sent_list, today)
+def _lesson_options(conn, user, sent_list, today):
+    """返回该句库所有课的完成状态，前端用来渲染课程下拉。"""
+    lessons = _lessons(sent_list)
+    if not lessons:
+        return []
+    done_today = {r["lesson"] for r in conn.execute(
+        "SELECT DISTINCT lesson FROM study_session WHERE user=? AND list=? "
+        "AND state='completed' AND assigned_day=?",
+        (user, sent_list, today))}
+    done_ever = {r["lesson"] for r in conn.execute(
+        "SELECT DISTINCT lesson FROM study_session WHERE user=? AND list=? "
+        "AND state='completed'", (user, sent_list))}
+    return [{"n": n, "done_today": n in done_today, "done_ever": n in done_ever}
+            for n in lessons]
+
+
+def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, wrong_pool, wrong_done_n, want_lesson=None):
+    """按课五环：背本课单词 → 听打本课单词 → 排句 → 听写本课句子 → 错词回收。
+
+    want_lesson：用户显式选择的课号；有效时覆盖自动推导。
+    返回 (steps, lesson, review_mode)。review_mode 为 true 时前端不锁任何一环。
+    """
+    lessons = _lessons(sent_list)
+    if want_lesson and want_lesson in lessons:
+        lesson = want_lesson
+        sent_total = sum(1 for i in load_material(sent_list) if i.get("lesson") == lesson)
+    else:
+        lesson, sent_total = _current_lesson(conn, user, sent_list, today)
     wl = _word_lesson(_lessons(word_list), _lessons(sent_list), lesson)
     w_ids = [i["id"] for i in iter_material(word_list, wl)] if wl is not None else []
+
+    # review_mode：该课句库有完成会话 → 所有环节可自由练习
+    review_mode = bool(conn.execute(
+        "SELECT 1 FROM study_session WHERE user=? AND list=? AND lesson=? "
+        "AND state='completed' LIMIT 1",
+        (user, sent_list, lesson)).fetchone())
 
     steps = []
     if w_ids:
@@ -113,7 +153,8 @@ def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, due_wrong
             "key": "memorize", "title": "背单词", "minutes": 5,
             "desc": f"第 {lesson} 课 · {len(w_ids)} 个单词",
             "target": len(w_ids), "progress": mem_done_n, "done": mem_done_n >= len(w_ids),
-            "link": f"#/memorize?list={word_list}&lesson={wl}&n={min(len(w_ids), 100)}",
+            "link": f"#/memorize?list={word_list}&lesson={wl}&n={min(len(w_ids), 100)}&from=today"
+                    + ("&review=1" if review_mode else ""),
         })
         dic_done_n = conn.execute(
             "SELECT COUNT(DISTINCT i.item_id) c FROM study_session s "
@@ -129,7 +170,7 @@ def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, due_wrong
             "desc": f"第 {lesson} 课 · 听音拼写",
             "target": len(w_ids), "progress": min(dic_done_n, len(w_ids)),
             "done": dic_session_done or dic_done_n >= len(w_ids),
-            "link": f"#/word?list={word_list}&lesson={wl}",
+            "link": f"#/word?list={word_list}&lesson={wl}&from=today",
         })
     sent_done_n = conn.execute(
         "SELECT COUNT(*) c FROM study_session s JOIN study_session_item i ON i.session_id=s.id "
@@ -139,14 +180,7 @@ def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, due_wrong
     sent_finished = bool(conn.execute(
         "SELECT 1 FROM study_session WHERE user=? AND list=? AND lesson=? "
         "AND state='completed' AND assigned_day=? LIMIT 1", (user, sent_list, lesson, today)).fetchone())
-    q = f"?list={sent_list}&lesson={lesson}"
-    steps.append({
-        "key": "sentence", "title": "句子听写", "minutes": 5,
-        "desc": f"第 {lesson} 课 · {sent_total} 个句子",
-        "target": sent_total, "progress": min(sent_done_n, sent_total),
-        "done": sent_finished,
-        "link": f"#/sentence{q}",
-    })
+    q = f"?list={sent_list}&lesson={lesson}&from=today"
     steps.append({
         "key": "arrange", "title": "听音排句", "minutes": 3,
         "desc": "把打乱的词块听回正确语序",
@@ -154,22 +188,32 @@ def _lesson_steps(conn, user, word_list, sent_list, today, arr_done_n, due_wrong
         "done": arr_done_n >= ARRANGE_TARGET,
         "link": f"#/arrange{q}",
     })
-    steps.append(_wrong_step(due_wrong))
-    return steps, lesson
+    steps.append({
+        "key": "sentence", "title": "句子听写", "minutes": 5,
+        "desc": f"第 {lesson} 课 · {sent_total} 个句子",
+        "target": sent_total, "progress": min(sent_done_n, sent_total),
+        "done": sent_finished,
+        "link": f"#/sentence{q}",
+    })
+    steps.append(_wrong_step(wrong_pool, wrong_done_n))
+    return steps, lesson, review_mode
 
 
-def _wrong_step(due_wrong):
+def _wrong_step(pool_n, done_n):
+    """错词回收：一组 10 个，今天答错的优先、不够从错词本补；练完一组即完成。"""
+    target = min(WRONG_TARGET, pool_n)
     return {
         "key": "wrong", "title": "错词回收", "minutes": 3,
-        "desc": "到期错词清零，不清会越滚越多" if due_wrong else "今天没有到期错词",
-        "target": due_wrong, "progress": 0, "done": due_wrong == 0,
-        "link": "#/wrong",
+        "desc": f"今日错词优先，凑满 {target} 个一组" if target else "错词本是空的，干得漂亮",
+        "target": target, "progress": min(done_n, target),
+        "done": target == 0 or done_n >= target,
+        "link": "#/wrong?from=today",
     }
 
 
-def build_today(conn, user, want_word=None):
+def build_today(conn, user, want_word=None, want_lesson=None):
     """聚合今日任务卡；独立成函数便于单测直接喂连接。want_word 为用户手动选的词库。"""
-    today = date.today().isoformat()
+    today = local_today().isoformat()
 
     wt = conn.execute(
         "SELECT cefr, word_count FROM wordtest_result WHERE user=? "
@@ -182,15 +226,21 @@ def build_today(conn, user, want_word=None):
         "WHERE day=? AND user=? AND practice_mode='arrange'", (today, user)).fetchone()
     arr_done_n = arr_row["c"] if arr_row else 0
 
-    due_wrong = conn.execute(
-        "SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0 "
-        "AND next_review IS NOT NULL AND next_review<=?", (user, today)).fetchone()["c"]
+    # 错词回收：池 = 错词本全部单词；进度 = 今日「wrong」桶已练题数（错词回收练习专用模式）
+    wrong_pool = conn.execute(
+        "SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0 AND kind='word'",
+        (user,)).fetchone()["c"]
+    wrong_row = conn.execute(
+        "SELECT new_count+review_count c FROM daily_practice_log "
+        "WHERE day=? AND user=? AND practice_mode='wrong'", (today, user)).fetchone()
+    wrong_done_n = wrong_row["c"] if wrong_row else 0
 
     lesson_mode = bool(word_list and sent_list and _lessons(word_list) and _lessons(sent_list))
     goal = None
+    review_mode = False
     if lesson_mode:
-        steps, lesson = _lesson_steps(conn, user, word_list, sent_list, today,
-                                      arr_done_n, due_wrong)
+        steps, lesson, review_mode = _lesson_steps(conn, user, word_list, sent_list, today,
+                                       arr_done_n, wrong_pool, wrong_done_n, want_lesson)
     else:
         # 配额模式：无课词库（CET 等）按学习计划定量推进
         quota = CONFIG["new_per_day"]
@@ -237,25 +287,18 @@ def build_today(conn, user, want_word=None):
                 "key": "memorize", "title": "背新词", "minutes": 5,
                 "desc": f"{MATERIALS[word_list]['title']} · 今日 {quota} 个",
                 "target": quota, "progress": min(mem_done_n, quota), "done": bool(mem_finished),
-                "link": f"#/memorize?list={word_list}&n={min(quota, 100)}",
+                "link": f"#/memorize?list={word_list}&n={min(quota, 100)}&from=today",
             })
             steps.append({
                 "key": "dictation", "title": "听打巩固", "minutes": 5,
                 "desc": "听音拼写今天背过的词",
                 "target": dic_target, "progress": min(dic_done_n, dic_target),
                 "done": dic_done_n >= dic_target,
-                "link": f"#/word?list={word_list}&scope=memorized",
+                "link": f"#/word?list={word_list}&scope=memorized&from=today",
             })
         if sent_list:
             suffix = f" · 第 {lesson} 课" if lesson else ""
-            q = f"?list={sent_list}" + (f"&lesson={lesson}" if lesson else "")
-            steps.append({
-                "key": "sentence", "title": "句子听写", "minutes": 5,
-                "desc": f"{MATERIALS[sent_list]['title']}{suffix}",
-                "target": sent_target, "progress": min(sent_done_n, sent_target),
-                "done": bool(sent_finished),
-                "link": f"#/sentence{q}",
-            })
+            q = f"?list={sent_list}" + (f"&lesson={lesson}" if lesson else "") + "&from=today"
             steps.append({
                 "key": "arrange", "title": "听音排句", "minutes": 3,
                 "desc": "把打乱的词块听回正确语序",
@@ -263,13 +306,20 @@ def build_today(conn, user, want_word=None):
                 "done": arr_done_n >= ARRANGE_TARGET,
                 "link": f"#/arrange{q}",
             })
-        steps.append(_wrong_step(due_wrong))
+            steps.append({
+                "key": "sentence", "title": "句子听写", "minutes": 5,
+                "desc": f"{MATERIALS[sent_list]['title']}{suffix}",
+                "target": sent_target, "progress": min(sent_done_n, sent_target),
+                "done": bool(sent_finished),
+                "link": f"#/sentence{q}",
+            })
+        steps.append(_wrong_step(wrong_pool, wrong_done_n))
 
     dc_done = bool(conn.execute(
         "SELECT 1 FROM daily_challenge WHERE user=? AND day=? LIMIT 1", (user, today)).fetchone())
 
     # 连续打卡只看近 60 天窗口：60 天前的历史不影响 streak，避免随练习量全表扫描
-    streak_cutoff = (date.today() - timedelta(days=60)).isoformat()
+    streak_cutoff = (local_today() - timedelta(days=60)).isoformat()
     days = {r["day"] for r in conn.execute(
         "SELECT day FROM daily_log WHERE user=? AND day>=?", (user, streak_cutoff))}
     days |= {r["day"] for r in conn.execute(
@@ -283,11 +333,12 @@ def build_today(conn, user, want_word=None):
         "wordtest": {"cefr": cefr, "word_count": wt["word_count"]} if wt else None,
         "word_list": {"key": word_list, "title": MATERIALS[word_list]["title"]} if word_list else None,
         "sent_list": {"key": sent_list, "title": MATERIALS[sent_list]["title"]} if sent_list else None,
-        "word_options": [{"key": k, "title": m["title"]}
-                         for k, m in MATERIALS.items() if m["type"] == "words"],
+        "word_options": [{"key": k, "title": MATERIALS[k]["title"]} for k in _word_pool()],
         "lesson": lesson,
         "lesson_total": len(_lessons(sent_list)) if sent_list else 0,
         "lesson_mode": lesson_mode,
+        "lesson_options": _lesson_options(conn, user, sent_list, today) if sent_list else [],
+        "review_mode": review_mode,
         "goal": goal,
         "steps": steps,
         "done_count": sum(1 for s in steps if s["done"]),
@@ -299,9 +350,11 @@ def build_today(conn, user, want_word=None):
 @bp.get("/api/today")
 def api_today():
     user = get_user()
-    # ?list= 手动切换主线词库（前端存 localStorage，服务端不落库）
+    # ?list= 手动切换主线词库（前端存 localStorage，服务端不落库）；限定今日主线池
     want = request.args.get("list") or None
-    if want and (want not in MATERIALS or MATERIALS[want]["type"] != "words"):
+    if want and want not in _word_pool():
         want = None
+    # ?lesson= 手动选择课程（回看已学课，全部环节可自由练习）
+    want_lesson = request.args.get("lesson", type=int) or None
     with db() as conn:
-        return resp(build_today(conn, user, want))
+        return resp(build_today(conn, user, want, want_lesson))

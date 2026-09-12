@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入词库 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Import Hero ---- */
+  .import-hero {
+    background:linear-gradient(135deg, var(--blue) 0%, #4dd0ff 45%, var(--green) 100%);
+    border-radius:22px; padding:26px 32px; color:#fff;
+    box-shadow:0 6px 0 var(--green-dark), 0 12px 32px rgba(28,176,246,0.25);
+    position:relative; overflow:hidden; margin-bottom:20px;
+    display:flex; align-items:center; gap:24px;
+  }
+  .import-hero::after {
+    content:''; position:absolute; top:-50px; right:-30px;
+    width:220px; height:220px; border-radius:50%;
+    background:rgba(255,255,255,0.1);
+  }
+  .import-hero::before {
+    content:''; position:absolute; bottom:-60px; left:-40px;
+    width:160px; height:160px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .import-sparkles {
+    position:absolute; top:16px; right:240px;
+    font-size:18px; opacity:0.5; z-index:0;
+    animation:sparkle-bob 2.5s ease-in-out infinite;
+  }
+  @keyframes sparkle-bob { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-6px) rotate(8deg)} }
+  .import-hero-icon {
+    font-size:64px; flex-shrink:0; position:relative; z-index:1;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    animation:hero-pop 0.6s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes hero-pop { 0%{transform:scale(0.5) rotate(-8deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+  .import-hero-text { flex:1; min-width:0; position:relative; z-index:1; }
+  .import-hero-text h1 { font-size:28px; font-weight:900; letter-spacing:-0.5px; margin-bottom:4px; }
+  .import-hero-text .sub { font-size:15px; font-weight:800; opacity:0.92; margin-bottom:2px; }
+  .import-hero-text .sub2 { font-size:12px; font-weight:700; opacity:0.75; }
+  .import-hero-stats { display:flex; gap:12px; flex-shrink:0; position:relative; z-index:1; }
+  .ihs {
+    text-align:center; padding:12px 18px;
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    border-radius:14px;
+  }
+  .ihs .hv { font-size:28px; font-weight:900; letter-spacing:-1px; }
+  .ihs .hl { font-size:11px; font-weight:800; opacity:0.85; margin-top:1px; }
+
+  /* ---- Import Pipeline ---- */
+  .pipeline-card {
+    background:#fff; border-radius:18px; padding:16px 20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:20px;
+  }
+  .pipeline {
+    display:flex; align-items:stretch; gap:6px;
+  }
+  .pipeline-step {
+    flex:1; text-align:center;
+    padding:10px 6px 8px; border-radius:12px;
+    background:#f7f7f7; border:2px solid transparent;
+    transition:all 0.2s; position:relative;
+  }
+  .pipeline-step .ps-emoji { font-size:24px; display:block; margin-bottom:2px; }
+  .pipeline-step .ps-title { font-size:13px; font-weight:900; display:block; }
+  .pipeline-step .ps-desc { font-size:10px; font-weight:700; color:var(--text-dim); display:block; margin-top:1px; }
+  .pipeline-step.done {
+    background:var(--green-bg); border-color:rgba(88,204,2,0.3);
+  }
+  .pipeline-step.done .ps-title { color:var(--green-dark); }
+  .pipeline-step.done::after {
+    content:'✓'; position:absolute; top:4px; right:6px;
+    font-size:10px; font-weight:900; color:var(--green);
+  }
+  .pipeline-step.active {
+    background:var(--blue); color:#fff;
+    border-color:var(--blue-dark);
+    box-shadow:0 3px 0 var(--blue-dark);
+    transform:translateY(-2px);
+  }
+  .pipeline-step.active .ps-title { color:#fff; }
+  .pipeline-step.active .ps-desc { color:rgba(255,255,255,0.85); }
+  .pipeline-step.active .ps-emoji { animation:pipeline-pulse 1.5s ease-in-out infinite; }
+  @keyframes pipeline-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+  .pipeline-step.pending { opacity:0.6; }
+  .pipeline-step.pending .ps-emoji { opacity:0.6; }
+  .pipeline-arrow {
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-size:16px; font-weight:900; flex-shrink:0;
+  }
+
+  /* ---- Main 2-column grid ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1.4fr 1fr; gap:20px;
+    margin-bottom:20px;
+  }
+
+  /* ---- Method Tabs ---- */
+  .method-tabs { display:flex; gap:12px; margin-bottom:16px; }
+  .method-tab {
+    flex:1; padding:16px 18px; border-radius:14px;
+    background:#fff; border:2px solid var(--border);
+    display:flex; align-items:center; gap:12px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .method-tab .mt-emoji { font-size:32px; flex-shrink:0; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .method-tab .mt-body { flex:1; min-width:0; }
+  .method-tab .mt-title { font-size:15px; font-weight:900; display:block; }
+  .method-tab .mt-desc { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .method-tab.active {
+    border-color:var(--blue); background:var(--blue-bg);
+    box-shadow:0 3px 0 rgba(28,176,246,0.2);
+  }
+  .method-tab.active .mt-title { color:var(--blue-dark); }
+  .method-tab.active .mt-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:var(--blue); color:#fff; padding:2px 8px;
+    border-radius:8px; font-size:10px; font-weight:900;
+    margin-left:4px;
+  }
+  .method-tab .mt-check {
+    width:24px; height:24px; border-radius:50%;
+    background:var(--blue); color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:900;
+    box-shadow:0 2px 0 var(--blue-dark);
+  }
+
+  /* ---- Content Type Selector ---- */
+  .ctype-row {
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:16px;
+  }
+  .ctype-label { font-size:13px; font-weight:800; color:var(--text-dim); flex-shrink:0; }
+  .ctype-opt {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 16px; border-radius:10px;
+    background:#fff; border:2px solid var(--border);
+    font-size:13px; font-weight:800; color:var(--text-dim);
+    cursor:pointer; transition:all 0.2s;
+  }
+  .ctype-opt.active {
+    background:var(--green); color:#fff;
+    border-color:var(--green-dark);
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+
+  /* ---- Paste Zone ---- */
+  .paste-zone {
+    background:#fff; border:2px solid var(--blue); border-radius:14px;
+    padding:16px 18px; margin-bottom:16px;
+    box-shadow:0 4px 0 rgba(28,176,246,0.15);
+    position:relative; overflow:hidden;
+  }
+  .paste-zone::before {
+    content:''; position:absolute; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, transparent 0%, rgba(28,176,246,0.5) 50%, transparent 100%);
+    animation:scan-line 3s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes scan-line { 0%{top:0} 100%{top:100%} }
+  .paste-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .paste-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--green); color:#fff;
+    padding:5px 12px; border-radius:10px;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .paste-badge .pb-dot {
+    width:7px; height:7px; border-radius:50%; background:#fff;
+    animation:pulse 1.5s ease infinite;
+  }
+  .paste-count {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:900; color:var(--gold);
+    background:var(--gold-light); padding:5px 12px; border-radius:10px;
+  }
+  .paste-text {
+    font-family:'SF Mono','Consolas','Monaco','Courier New',monospace;
+    font-size:12px; line-height:1.8;
+    background:#f9fbfe; border-radius:10px; padding:12px 14px;
+    border:1px solid rgba(28,176,246,0.15);
+    max-height:180px; overflow:hidden; position:relative;
+  }
+  .paste-text::after {
+    content:''; position:absolute; bottom:0; left:0; right:0;
+    height:40px;
+    background:linear-gradient(transparent, #f9fbfe);
+  }
+  .pt-line { display:block; padding:1px 0; }
+  .pt-word { color:#1a1a1a; font-weight:700; }
+  .pt-phonetic { color:#888; font-style:italic; }
+  .pt-pos { color:var(--purple); font-weight:700; }
+  .pt-meaning { color:var(--green-dark); font-weight:700; }
+  .pt-more {
+    text-align:center; font-size:11px; font-weight:800;
+    color:var(--text-faint); padding:6px 0 2px;
+  }
+  .paste-footer {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:10px; padding-top:10px;
+    border-top:1px dashed var(--border);
+    font-size:11px; font-weight:700; color:var(--text-dim);
+  }
+  .paste-footer .pf-link {
+    color:var(--blue); font-weight:800; cursor:pointer;
+  }
+
+  /* ---- Live Preview ---- */
+  .preview-section { margin-bottom:16px; }
+  .preview-header {
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:12px;
+  }
+  .preview-header .ph-emoji { font-size:20px; }
+  .preview-header b { font-size:15px; font-weight:900; flex:1; }
+  .preview-header .ph-count {
+    font-size:11px; font-weight:900; color:var(--green-dark);
+    background:var(--green-bg); padding:3px 10px; border-radius:8px;
+  }
+  .preview-cards {
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;
+  }
+  .preview-card {
+    background:var(--green-bg); border:2px solid rgba(88,204,2,0.25);
+    border-radius:12px; padding:12px 14px;
+    position:relative; overflow:hidden;
+    animation:card-enter 0.4s ease backwards;
+  }
+  .preview-card:nth-child(1) { animation-delay:0.05s; }
+  .preview-card:nth-child(2) { animation-delay:0.1s; }
+  .preview-card:nth-child(3) { animation-delay:0.15s; }
+  @keyframes card-enter { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
+  .preview-card::before {
+    content:'✨'; position:absolute; top:6px; right:8px;
+    font-size:12px; opacity:0.4;
+  }
+  .pc-word { font-size:17px; font-weight:900; color:#1a1a1a; letter-spacing:-0.3px; margin-bottom:2px; }
+  .pc-phonetic { font-size:11px; font-weight:600; color:#888; font-family:'SF Mono','Consolas',monospace; margin-bottom:6px; }
+  .pc-meaning { font-size:15px; font-weight:900; color:var(--green-dark); margin-bottom:8px; }
+  .pc-actions { display:flex; align-items:center; justify-content:space-between; }
+  .pc-pos {
+    font-size:10px; font-weight:900; color:var(--purple);
+    background:var(--purple-light); padding:2px 8px; border-radius:6px;
+  }
+  .pc-play {
+    width:26px; height:26px; border-radius:50%;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; box-shadow:0 2px 0 var(--green-dark);
+  }
+
+  /* ---- Options Card ---- */
+  .options-card {
+    background:#fff; border-radius:18px; padding:18px 20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .oc-title { font-size:15px; font-weight:900; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .option-row {
+    display:flex; align-items:center; gap:14px;
+    padding:10px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .option-row:last-child { border-bottom:none; }
+  .or-body { flex:1; min-width:0; }
+  .or-body b { font-size:13px; font-weight:800; display:block; margin-bottom:2px; }
+  .or-body small { font-size:11px; font-weight:600; color:var(--text-dim); line-height:1.4; }
+  .toggle {
+    width:44px; height:24px; border-radius:12px;
+    background:#d0d0d0; position:relative; flex-shrink:0;
+    cursor:pointer; transition:background 0.2s;
+  }
+  .toggle::after {
+    content:''; position:absolute; top:2px; left:2px;
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+    transition:transform 0.2s;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle.on::after { transform:translateX(20px); }
+
+  /* ---- Right Column: Format Spec ---- */
+  .format-card {
+    background:#fff; border-radius:18px; padding:18px 20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .fc-title { font-size:15px; font-weight:900; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .fc-tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .fc-tab {
+    padding:6px 14px; border-radius:8px;
+    background:#f0f0f0; font-size:12px; font-weight:900;
+    color:var(--text-dim); cursor:pointer; transition:all 0.2s;
+  }
+  .fc-tab.active { background:var(--blue); color:#fff; box-shadow:0 2px 0 var(--blue-dark); }
+  .fc-code {
+    background:#f9fbfe; border-radius:10px; padding:12px 14px;
+    font-family:'SF Mono','Consolas','Monaco','Courier New',monospace;
+    font-size:11px; line-height:1.8;
+    border:1px solid rgba(28,176,246,0.15);
+    margin-bottom:10px;
+  }
+  .fcc-line { display:block; }
+  .fcc-word { color:#1a1a1a; font-weight:700; }
+  .fcc-phonetic { color:#888; font-style:italic; }
+  .fcc-pos { color:var(--purple); font-weight:700; }
+  .fcc-meaning { color:var(--green-dark); font-weight:700; }
+  .fcc-comment { color:#aaa; font-style:italic; }
+  .fc-hint {
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* ---- Right Column: Import History ---- */
+  .history-card {
+    background:#fff; border-radius:18px; padding:18px 20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .hc-title { font-size:15px; font-weight:900; margin-bottom:12px; display:flex; align-items:center; gap:8px; justify-content:space-between; }
+  .hc-title .hc-count { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .hc-list { display:flex; flex-direction:column; }
+  .history-item {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .history-item:last-child { border-bottom:none; padding-bottom:4px; }
+  .history-item:first-child { padding-top:4px; }
+  .hi-emoji { font-size:24px; flex-shrink:0; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1)); }
+  .hi-body { flex:1; min-width:0; }
+  .hi-body b { font-size:13px; font-weight:800; display:block; margin-bottom:1px; }
+  .hi-body small { font-size:11px; font-weight:600; color:var(--text-dim); }
+  .hi-count {
+    font-size:12px; font-weight:900; color:var(--green-dark);
+    flex-shrink:0; min-width:60px; text-align:right;
+  }
+  .hi-status {
+    width:22px; height:22px; border-radius:50%;
+    background:var(--green); color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+
+  /* ---- Right Column: Tips Banner ---- */
+  .tips-banner {
+    display:flex; align-items:flex-start; gap:12px;
+    padding:14px 16px; border-radius:14px;
+    background:var(--orange-light);
+    border:1px solid rgba(255,150,0,0.25);
+    margin-bottom:16px;
+  }
+  .tb-emoji { font-size:22px; flex-shrink:0; margin-top:1px; }
+  .tb-body { flex:1; min-width:0; }
+  .tb-body b { font-size:13px; font-weight:900; color:#8a5500; display:block; margin-bottom:3px; }
+  .tb-body p { font-size:11px; font-weight:600; color:#8a5500; line-height:1.5; }
+
+  /* ---- Action Bar ---- */
+  .action-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px; background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .ab-left { display:flex; gap:10px; }
+  .ab-right { display:flex; gap:10px; align-items:center; }
+  .ab-info {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 14px; border-radius:10px;
+    background:var(--green-bg); border:1px solid rgba(88,204,2,0.2);
+    font-size:12px; font-weight:800; color:var(--green-dark);
+  }
+  .ab-info .ai-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation:pulse 1.5s ease infinite; }
+
+  /* ---- Footer ---- */
+  .footer-link {
+    display:block; text-align:center; margin:14px 0 8px;
+    font-size:13px; font-weight:700; color:var(--text-dim); text-decoration:none;
+  }
+  .footer-link:hover { color:var(--green); }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">导入词库</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Import Hero ===== -->
+  <div class="import-hero">
+    <span class="import-sparkles">✨📥✨</span>
+    <div class="import-hero-icon">📥</div>
+    <div class="import-hero-text">
+      <h1>导入自定义词库 / 句库</h1>
+      <div class="sub">粘贴文本或上传文件，一键生成可练习的学卡</div>
+      <div class="sub2">支持 TXT / CSV / JSON · 自动识别格式 · 智能去重清洗</div>
+    </div>
+    <div class="import-hero-stats">
+      <div class="ihs">
+        <div class="hv">8</div>
+        <div class="hl">已导入</div>
+      </div>
+      <div class="ihs">
+        <div class="hv">12,570</div>
+        <div class="hl">总条目</div>
+      </div>
+      <div class="ihs">
+        <div class="hv">3</div>
+        <div class="hl">本月新增</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Import Pipeline ===== -->
+  <div class="pipeline-card">
+    <div class="pipeline">
+      <div class="pipeline-step done">
+        <span class="ps-emoji">📋</span>
+        <span class="ps-title">粘贴</span>
+        <span class="ps-desc">输入文本</span>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step done">
+        <span class="ps-emoji">🔍</span>
+        <span class="ps-title">解析</span>
+        <span class="ps-desc">识别格式</span>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step done">
+        <span class="ps-emoji">🧹</span>
+        <span class="ps-title">清洗</span>
+        <span class="ps-desc">去重格式化</span>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step active">
+        <span class="ps-emoji">✨</span>
+        <span class="ps-title">生成</span>
+        <span class="ps-desc">生成学卡</span>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step pending">
+        <span class="ps-emoji">✅</span>
+        <span class="ps-title">完成</span>
+        <span class="ps-desc">开始练习</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Main Grid ===== -->
+  <div class="main-grid">
+
+    <!-- ===== Left Column ===== -->
+    <div style="display:flex; flex-direction:column;">
+
+      <!-- Method Tabs -->
+      <div class="method-tabs">
+        <div class="method-tab active">
+          <span class="mt-emoji">📋</span>
+          <div class="mt-body">
+            <span class="mt-title">粘贴文本 <span class="mt-badge">✓ 当前</span></span>
+            <span class="mt-desc">从任意来源复制内容</span>
+          </div>
+          <span class="mt-check">✓</span>
+        </div>
+        <div class="method-tab">
+          <span class="mt-emoji">📤</span>
+          <div class="mt-body">
+            <span class="mt-title">上传文件</span>
+            <span class="mt-desc">TXT / CSV / JSON · 最大 5MB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Type Selector -->
+      <div class="ctype-row">
+        <span class="ctype-label">导入类型：</span>
+        <div class="ctype-opt active">📚 词库</div>
+        <div class="ctype-opt">💬 句库</div>
+      </div>
+
+      <!-- Paste Zone -->
+      <div class="paste-zone">
+        <div class="paste-header">
+          <div class="paste-badge">
+            <span class="pb-dot"></span>
+            ✅ 检测到 英语词库格式
+          </div>
+          <div class="paste-count">✨ 检测到 10 条词汇</div>
+        </div>
+        <div class="paste-text">
+          <div class="pt-line"><span class="pt-word">environment</span> <span class="pt-phonetic">/ɪnˈvaɪrənmənt/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">环境</span></div>
+          <div class="pt-line"><span class="pt-word">economy</span> <span class="pt-phonetic">/ɪˈkɒnəmi/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">经济</span></div>
+          <div class="pt-line"><span class="pt-word">technology</span> <span class="pt-phonetic">/tekˈnɒlədʒi/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">技术</span></div>
+          <div class="pt-line"><span class="pt-word">education</span> <span class="pt-phonetic">/ˌedʒuˈkeɪʃn/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">教育</span></div>
+          <div class="pt-line"><span class="pt-word">development</span> <span class="pt-phonetic">/dɪˈveləpmənt/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">发展</span></div>
+          <div class="pt-line"><span class="pt-word">government</span> <span class="pt-phonetic">/ˈɡʌvənmənt/</span> <span class="pt-pos">n.</span> <span class="pt-meaning">政府</span></div>
+          <div class="pt-more">··· 还有 4 条待生成</div>
+        </div>
+        <div class="paste-footer">
+          <span>📝 每行一条 · # 注释行自动忽略</span>
+          <span class="pf-link">📤 或拖拽文件到此处</span>
+        </div>
+      </div>
+
+      <!-- Live Preview -->
+      <div class="preview-section">
+        <div class="preview-header">
+          <span class="ph-emoji">✨</span>
+          <b>实时预览</b>
+          <span class="ph-count">10 条已解析</span>
+        </div>
+        <div class="preview-cards">
+          <div class="preview-card">
+            <div class="pc-word">environment</div>
+            <div class="pc-phonetic">/ɪnˈvaɪrənmənt/</div>
+            <div class="pc-meaning">环境</div>
+            <div class="pc-actions">
+              <span class="pc-pos">n.</span>
+              <span class="pc-play">🔊</span>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="pc-word">economy</div>
+            <div class="pc-phonetic">/ɪˈkɒnəmi/</div>
+            <div class="pc-meaning">经济</div>
+            <div class="pc-actions">
+              <span class="pc-pos">n.</span>
+              <span class="pc-play">🔊</span>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="pc-word">technology</div>
+            <div class="pc-phonetic">/tekˈnɒlədʒi/</div>
+            <div class="pc-meaning">技术</div>
+            <div class="pc-actions">
+              <span class="pc-pos">n.</span>
+              <span class="pc-play">🔊</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Options Card -->
+      <div class="options-card">
+        <div class="oc-title"><span>⚙️</span> 导入选项</div>
+        <div class="option-row">
+          <div class="or-body">
+            <b>🔊 自动生成发音</b>
+            <small>使用 TTS 为每个词汇生成标准发音音频</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="option-row">
+          <div class="or-body">
+            <b>🧹 去重合并</b>
+            <small>与现有词库重复的词汇将自动合并</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="option-row">
+          <div class="or-body">
+            <b>🔤 按字母排序</b>
+            <small>导入后按 A-Z 字母顺序排列</small>
+          </div>
+          <div class="toggle"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== Right Column ===== -->
+    <div style="display:flex; flex-direction:column;">
+
+      <!-- Format Spec -->
+      <div class="format-card">
+        <div class="fc-title"><span>📐</span> 格式规范</div>
+        <div class="fc-tabs">
+          <div class="fc-tab active">TXT</div>
+          <div class="fc-tab">CSV</div>
+          <div class="fc-tab">JSON</div>
+        </div>
+        <div class="fc-code">
+          <div class="fcc-line"><span class="fcc-comment"># 每行一条 · #注释忽略</span></div>
+          <div class="fcc-line"><span class="fcc-comment"># 格式: 单词 /音标/ 词性. 中文</span></div>
+          <div class="fcc-line"><span class="fcc-word">environment</span> <span class="fcc-phonetic">/ɪnˈvaɪrənmənt/</span> <span class="fcc-pos">n.</span> <span class="fcc-meaning">环境</span></div>
+          <div class="fcc-line"><span class="fcc-word">economy</span> <span class="fcc-phonetic">/ɪˈkɒnəmi/</span> <span class="fcc-pos">n.</span> <span class="fcc-meaning">经济</span></div>
+          <div class="fcc-line"><span class="fcc-word">knowledge</span> <span class="fcc-phonetic">/ˈnɒlɪdʒ/</span> <span class="fcc-pos">n.</span> <span class="fcc-meaning">知识</span></div>
+        </div>
+        <div class="fc-hint">💡 也可省略音标：environment n. 环境</div>
+      </div>
+
+      <!-- Import History -->
+      <div class="history-card">
+        <div class="hc-title">
+          <span style="display:flex; align-items:center; gap:8px;"><span>📜</span> 导入历史</span>
+          <span class="hc-count">共 8 套</span>
+        </div>
+        <div class="hc-list">
+          <div class="history-item">
+            <span class="hi-emoji">📚</span>
+            <div class="hi-body">
+              <b>考研核心词</b>
+              <small>3 天前导入 · TXT 格式</small>
+            </div>
+            <span class="hi-count">5,500 词</span>
+            <span class="hi-status">✓</span>
+          </div>
+          <div class="history-item">
+            <span class="hi-emoji">📚</span>
+            <div class="hi-body">
+              <b>CET-4 高频</b>
+              <small>1 周前导入 · CSV 格式</small>
+            </div>
+            <span class="hi-count">2,400 词</span>
+            <span class="hi-status">✓</span>
+          </div>
+          <div class="history-item">
+            <span class="hi-emoji">💬</span>
+            <div class="hi-body">
+              <b>新概念三册</b>
+              <small>2 周前导入 · TXT 格式</small>
+            </div>
+            <span class="hi-count">1,200 句</span>
+            <span class="hi-status">✓</span>
+          </div>
+          <div class="history-item">
+            <span class="hi-emoji">📚</span>
+            <div class="hi-body">
+              <b>学术词汇</b>
+              <small>1 月前导入 · JSON 格式</small>
+            </div>
+            <span class="hi-count">1,800 词</span>
+            <span class="hi-status">✓</span>
+          </div>
+          <div class="history-item">
+            <span class="hi-emoji">📚</span>
+            <div class="hi-body">
+              <b>商务英语</b>
+              <small>2 月前导入 · TXT 格式</small>
+            </div>
+            <span class="hi-count">980 词</span>
+            <span class="hi-status">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips Banner -->
+      <div class="tips-banner">
+        <span class="tb-emoji">💡</span>
+        <div class="tb-body">
+          <b>导入小贴士</b>
+          <p>单个文件最多 5,000 条。导入后自动进入素材库，可用于背单词、听打、跟读等所有练习模式。</p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ===== Action Bar ===== -->
+  <div class="action-bar">
+    <div class="ab-left">
+      <button class="btn btn-ghost">📄 下载模板</button>
+      <button class="btn btn-ghost">🗑️ 清空文本</button>
+    </div>
+    <div class="ab-right">
+      <div class="ab-info">
+        <span class="ai-dot"></span>
+        准备就绪 · 10 条待导入
+      </div>
+      <button class="btn btn-white">取消</button>
+      <button class="btn btn-primary btn-big">✨ 确认导入 10 条词汇</button>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    💡 导入的内容会自动进入素材库，可用于背单词、单词听打、句子听写、听读跟读等所有练习模式。
+  </div>
+
+</div>
+</body>
+</html>

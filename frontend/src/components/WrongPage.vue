@@ -1,6 +1,8 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { api, playUrl, playWord } from "../lib/core";
+
+const props = defineProps({ params: { type: Object, default: null } });
 
 const items = ref([]);
 const loading = ref(true);
@@ -9,8 +11,32 @@ const confusions = ref([]);
 const story = ref(null);
 const storyLoading = ref(false);
 const storyError = ref("");
+const fromToday = ref(false);       // 今日动线入口：hero 换成「今日错词回收」任务入口
+const reclaimLoading = ref(false);
+// 回收任务只练单词（与 /wrong/today 的 kind='word' 口径一致），句子错词留给「开始复习」
+const wordCount = computed(() => items.value.filter((i) => i.kind === "word").length);
 
-onMounted(load);
+onMounted(() => {
+  fromToday.value = props.params?.get("from") === "today";
+  load();
+});
+
+/* 今日错词回收：今日错词优先、错词本补满 10 个一组，练完即完成今日这一关 */
+async function startReclaim() {
+  reclaimLoading.value = true;
+  try {
+    const d = await api("/wrong/today");
+    const practice = d.items || [];
+    if (!practice.length) return;
+    sessionStorage.setItem("dict_custom", JSON.stringify(practice));
+    sessionStorage.setItem("dict_custom_label", "今日错词回收");
+    location.hash = "#/word?custom=1&from=today&wrongtask=1&list=" + practice[0].list;
+  } catch (err) {
+    alert(err.message || "回收题组加载失败，请检查网络");
+  } finally {
+    reclaimLoading.value = false;
+  }
+}
 
 /* AI 错词串记：把错词编成一段小故事，语境里记牢 */
 async function openStory(fresh) {
@@ -55,7 +81,7 @@ function drillConfusions() {
   if (!practice.length) return;
   sessionStorage.setItem("dict_custom", JSON.stringify(practice));
   sessionStorage.setItem("dict_custom_label", "易混词特练");
-  location.hash = "#/word?list=" + practice[0].list;
+  location.hash = "#/word?list=" + practice[0].list + "&custom=1";
 }
 
 function play(item) {
@@ -88,7 +114,7 @@ function redo() {
   const practice = items.value.map((i) => ({ ...i, phase: "review" }));
   sessionStorage.setItem("dict_custom", JSON.stringify(practice));
   sessionStorage.setItem("dict_custom_label", "错词重练");
-  location.hash = "#/word?list=" + (items.value[0]?.list || "cet4");
+  location.hash = "#/word?list=" + (items.value[0]?.list || "cet4") + "&custom=1";
 }
 /* 错词 Boss 战：最常错的词打包成 Boss，集中讨伐 */
 function goBoss() {
@@ -125,7 +151,8 @@ function grouped() {
           各模式答错的词自动收录于此，按 1 → 3 → 7 天间隔重复复习。连续答对 3 次即可毕业，标记为已掌握。
         </p>
         <div class="wh-cta">
-          <button class="btn primary big" @click="redo" :disabled="!items.length">🎯 开始复习</button>
+          <button v-if="fromToday" class="btn primary big" @click="startReclaim" :disabled="!wordCount || reclaimLoading">♻️ 开始今日错词回收（{{ Math.min(10, wordCount) }} 词）</button>
+          <button class="btn primary big" :class="{ ghost: fromToday }" @click="redo" :disabled="!items.length">🎯 开始复习</button>
           <button class="btn purple" @click="openStory(false)" :disabled="!items.length || storyLoading">✨ 错词串记</button>
         </div>
       </div>

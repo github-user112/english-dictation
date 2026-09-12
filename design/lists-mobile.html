@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>素材库 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+  }
+
+  /* Top Bar (mobile compact) */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:12px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:14px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+
+  /* Section header */
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px 10px;
+  }
+  .section-head h2 { font-size:18px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .section-head .count { font-size:12px; font-weight:700; color:var(--text-dim); }
+
+  /* Quota Card (mobile) */
+  .quota-card {
+    margin:14px 14px 14px;
+    background:linear-gradient(135deg, #e9ffd6 0%, #fff 55%);
+    border-radius:18px; padding:16px 16px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    border:2px solid rgba(88,204,2,0.25);
+    position:relative; overflow:hidden;
+  }
+  .quota-card::after {
+    content:''; position:absolute; top:-30px; right:-20px;
+    width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(88,204,2,0.12), transparent 70%);
+  }
+  .quota-top { display:flex; align-items:center; gap:14px; margin-bottom:14px; position:relative; z-index:1; }
+  .quota-ring { position:relative; width:78px; height:78px; flex-shrink:0; }
+  .quota-ring svg { width:78px; height:78px; }
+  .qr-bg { fill:none; stroke:#e5e5e5; stroke-width:4.5; }
+  .qr-fg {
+    fill:none; stroke:var(--green); stroke-width:4.5; stroke-linecap:round;
+    transform:rotate(-90deg); transform-origin:center;
+    stroke-dasharray:100; stroke-dashoffset:35;
+    filter:drop-shadow(0 0 4px rgba(88,204,2,0.3));
+  }
+  .qr-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .qr-center .pct { font-weight:900; font-size:18px; color:var(--green-dark); }
+  .qr-center .sub { font-size:9px; font-weight:800; color:var(--text-dim); margin-top:1px; }
+  .quota-body { flex:1; min-width:0; }
+  .quota-eyebrow {
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--green); color:#fff; padding:3px 10px;
+    border-radius:16px; font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark); margin-bottom:8px;
+  }
+  .quota-eyebrow .pulse { width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .quota-body h2 { font-size:20px; font-weight:900; letter-spacing:-0.3px; margin-bottom:4px; }
+  .quota-body h2 .num { color:var(--green-dark); }
+  .quota-body small { font-size:12px; color:var(--text-dim); font-weight:700; }
+
+  .quota-bar-wrap { margin-bottom:12px; position:relative; z-index:1; }
+  .quota-bar-head { display:flex; justify-content:space-between; font-size:12px; font-weight:800; margin-bottom:5px; }
+  .quota-bar-head .num { color:var(--green-dark); }
+  .quota-bar { height:10px; background:#fff; border-radius:10px; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.05); }
+  .quota-bar-fill { height:100%; background:linear-gradient(90deg, var(--green), #7ae002); border-radius:10px; box-shadow:0 0 8px rgba(88,204,2,0.4); }
+
+  .quota-meta {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 12px; background:#fff; border-radius:12px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.04); margin-bottom:12px;
+    position:relative; z-index:1;
+  }
+  .quota-meta .item { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:800; }
+  .quota-meta .item .ic { font-size:14px; }
+  .quota-meta .item.plan { color:var(--purple); }
+  .quota-meta .item.streak { color:var(--orange); }
+  .quota-meta .item.xp { color:var(--gold); }
+  .quota-meta .sep { color:var(--text-faint); font-weight:600; font-size:10px; }
+
+  .quota-btn {
+    display:block; width:100%; padding:13px;
+    background:var(--green); color:#fff; border:none;
+    border-radius:12px; font-family:inherit;
+    font-weight:900; font-size:15px; letter-spacing:0.5px;
+    box-shadow:0 4px 0 var(--green-dark);
+    text-decoration:none; text-align:center; transition:transform 0.1s;
+    position:relative; z-index:1;
+  }
+  .quota-btn:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+  .quota-btn .arrow { font-size:18px; margin-left:4px; }
+
+  /* Tabs (horizontal scroll) */
+  .tabs-scroll {
+    display:flex; gap:8px; padding:0 14px 14px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .tabs-scroll::-webkit-scrollbar { display:none; }
+  .tab-chip {
+    padding:9px 16px; border-radius:20px; font-weight:800; font-size:13px;
+    cursor:pointer; white-space:nowrap; text-decoration:none;
+    background:#e5e5e5; color:var(--text-dim); transition:all 0.2s;
+    display:inline-flex; align-items:center; gap:6px;
+    flex-shrink:0;
+  }
+  .tab-chip .cnt { font-size:10px; padding:1px 7px; border-radius:8px; background:rgba(0,0,0,0.08); color:inherit; }
+  .tab-chip.active { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .tab-chip.active .cnt { background:rgba(255,255,255,0.25); color:#fff; }
+
+  /* Book card (mobile compact) */
+  .book {
+    margin:0 14px 12px;
+    background:var(--panel); border-radius:18px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+    border:2px solid transparent;
+  }
+  .book.active {
+    border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12), 0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+
+  .book-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .book-cover {
+    width:48px; height:48px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; color:#fff;
+    box-shadow:0 3px 0 rgba(0,0,0,0.15), inset 0 -3px 0 rgba(0,0,0,0.08);
+    position:relative; overflow:hidden;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }
+  .book-cover::after {
+    content:''; position:absolute; top:0; left:0; width:100%; height:100%;
+    background:linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 40%);
+  }
+  .book-cover.green { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .book-cover.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .book-cover.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .book-cover.orange { background:linear-gradient(135deg, var(--orange), #ffb347); }
+  .book-cover.gold { background:linear-gradient(135deg, var(--gold), #ffe066); }
+  .book-cover.red { background:linear-gradient(135deg, var(--red), #ff7a7a); }
+
+  .book-info { flex:1; min-width:0; }
+  .book-info .row1 { display:flex; align-items:center; gap:6px; margin-bottom:2px; flex-wrap:wrap; }
+  .book-info h3 { font-size:15px; font-weight:900; }
+  .book-info .type-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:8px; font-size:9px; font-weight:900;
+    background:#f0f0f0; color:var(--text-dim); letter-spacing:0.5px;
+  }
+  .book-info .type-badge.purple { background:var(--purple-light); color:var(--purple-dark); }
+  .book-info .type-badge.blue { background:var(--blue-light); color:var(--blue-dark); }
+  .book-info .type-badge.orange { background:var(--orange-light); color:var(--orange-dark); }
+  .book-info .type-badge.gold { background:#fff8d1; color:#a88800; }
+  .book-info .type-badge.red { background:#ffd9d9; color:#c53030; }
+  .book-info .active-tag {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:2px 8px; border-radius:8px; font-size:9px; font-weight:900;
+    background:var(--green); color:#fff;
+  }
+  .book-info .active-tag .dot { width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  .book-info small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+
+  /* Stats row */
+  .book-stats {
+    display:flex; align-items:center; gap:10px; padding:8px 0;
+    border-top:1px dashed var(--border); border-bottom:1px dashed var(--border);
+    margin-bottom:10px;
+  }
+  .book-stat { flex:1; text-align:center; }
+  .book-stat .val { font-size:16px; font-weight:900; color:var(--text); }
+  .book-stat .val.green { color:var(--green-dark); }
+  .book-stat .val.red { color:var(--red); }
+  .book-stat .lbl { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:1px; }
+  .book-stat-divider { width:1px; height:22px; background:var(--border); }
+
+  /* Progress + actions */
+  .book-foot { display:flex; flex-direction:column; gap:10px; }
+  .book-progress .bp-head {
+    display:flex; justify-content:space-between; margin-bottom:4px;
+    font-size:11px; font-weight:800;
+  }
+  .book-progress .bp-head .pct { color:var(--green-dark); }
+  .book-progress .bp-bar { height:7px; background:#ececec; border-radius:7px; overflow:hidden; }
+  .book-progress .bp-fill { height:100%; background:linear-gradient(90deg, var(--green), #7ae002); border-radius:7px; box-shadow:0 0 6px rgba(88,204,2,0.3); }
+  .book-progress .bp-fill.blue { background:linear-gradient(90deg, var(--blue), #4dd0ff); box-shadow:0 0 6px rgba(28,176,246,0.3); }
+  .book-progress .bp-fill.purple { background:linear-gradient(90deg, var(--purple), #e0aaff); box-shadow:0 0 6px rgba(206,130,255,0.3); }
+  .book-progress .bp-fill.orange { background:linear-gradient(90deg, var(--orange), #ffb347); box-shadow:0 0 6px rgba(255,150,0,0.3); }
+  .book-progress .bp-fill.gold { background:linear-gradient(90deg, var(--gold), #ffe066); box-shadow:0 0 6px rgba(255,200,0,0.3); }
+  .book-progress .bp-fill.red { background:linear-gradient(90deg, var(--red), #ff7a7a); box-shadow:0 0 6px rgba(255,75,75,0.3); }
+
+  .book-actions { display:flex; gap:8px; }
+  .book-start {
+    flex:1; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    padding:11px 16px; border:none; border-radius:11px;
+    background:var(--green); color:#fff; font-family:inherit;
+    font-weight:900; font-size:13px; cursor:pointer;
+    box-shadow:0 4px 0 var(--green-dark);
+    text-decoration:none; white-space:nowrap; transition:transform 0.1s;
+  }
+  .book-start:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+  .book-start.blue { background:var(--blue); box-shadow:0 4px 0 var(--blue-dark); }
+  .book-start.blue:active { box-shadow:0 1px 0 var(--blue-dark); }
+  .book-start.purple { background:var(--purple); box-shadow:0 4px 0 var(--purple-dark); }
+  .book-start.purple:active { box-shadow:0 1px 0 var(--purple-dark); }
+  .book-start.orange { background:var(--orange); box-shadow:0 4px 0 var(--orange-dark); }
+  .book-start.orange:active { box-shadow:0 1px 0 var(--orange-dark); }
+  .book-start.gold { background:var(--gold); color:#3c3c3c; box-shadow:0 4px 0 #d4a800; }
+  .book-start.gold:active { box-shadow:0 1px 0 #d4a800; }
+  .book-start.red { background:var(--red); box-shadow:0 4px 0 var(--red-dark); }
+  .book-start.red:active { box-shadow:0 1px 0 var(--red-dark); }
+  .book-start.ghost { background:#fff; color:var(--green); box-shadow:0 4px 0 rgba(0,0,0,0.12); }
+  .book-start.ghost:active { box-shadow:0 1px 0 rgba(0,0,0,0.12); }
+
+  .expand-btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:4px;
+    padding:11px 14px; border:none; border-radius:11px;
+    background:#f0f0f0; color:var(--text-dim); font-family:inherit;
+    font-weight:800; font-size:12px; cursor:pointer; transition:all 0.2s;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    white-space:nowrap;
+  }
+  .expand-btn:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.06); }
+  .expand-btn.open { background:var(--green-light); color:var(--green-dark); box-shadow:0 4px 0 rgba(88,204,2,0.2); }
+  .expand-btn .chev { transition:transform 0.2s; font-size:14px; }
+  .expand-btn.open .chev { transform:rotate(180deg); }
+
+  /* Expanded lessons */
+  .lessons {
+    margin-top:12px; padding-top:12px;
+    border-top:1px dashed var(--border);
+    display:none;
+  }
+  .book.open .lessons { display:block; animation:slideDown 0.25s ease; }
+  @keyframes slideDown { from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+  .lessons-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .lessons-head b { font-size:12px; font-weight:900; display:flex; align-items:center; gap:4px; }
+  .lessons-head small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .lessons-grid {
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:7px;
+  }
+  .lesson {
+    background:#f7f7f7; border-radius:10px; padding:8px 6px;
+    text-align:center; position:relative; border:2px solid transparent;
+    transition:all 0.15s; cursor:pointer;
+  }
+  .lesson .num { font-size:9px; font-weight:800; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.5px; }
+  .lesson .name { font-size:11px; font-weight:900; margin:1px 0 3px; color:var(--text); }
+  .lesson .cnt { font-size:10px; font-weight:700; color:var(--text-dim); }
+  .lesson.done { background:var(--green-bg); border-color:rgba(88,204,2,0.3); }
+  .lesson.done .name { color:var(--green-dark); }
+  .lesson.done::after {
+    content:'✓'; position:absolute; top:3px; right:5px;
+    font-size:9px; font-weight:900; color:var(--green);
+  }
+  .lesson.current {
+    background:#fff; border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.1);
+  }
+  .lesson.current .name { color:var(--green-dark); }
+  .lesson.locked { opacity:0.5; }
+  .lesson.locked .cnt { color:var(--text-faint); }
+
+  /* Add card */
+  .add-card {
+    margin:6px 14px 14px; padding:14px 14px;
+    background:linear-gradient(135deg, #fff8e6, #fff);
+    border:2px dashed var(--orange); border-radius:16px;
+    display:flex; align-items:center; gap:12px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.04);
+  }
+  .add-card .ic {
+    font-size:28px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    width:46px; height:46px; border-radius:12px;
+    background:var(--orange-light); display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .add-card .body { flex:1; min-width:0; }
+  .add-card .body b { display:block; font-size:13px; font-weight:900; margin-bottom:1px; }
+  .add-card .body small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+  .add-card .btn-add {
+    background:var(--orange); color:#fff; border:none;
+    padding:9px 14px; border-radius:10px; font-family:inherit;
+    font-weight:900; font-size:12px; box-shadow:0 4px 0 var(--orange-dark);
+    cursor:pointer; text-decoration:none; white-space:nowrap; transition:transform 0.1s;
+    flex-shrink:0;
+  }
+  .add-card .btn-add:active { transform:translateY(3px); box-shadow:0 1px 0 var(--orange-dark); }
+
+  /* Footer link */
+  .footer-link {
+    display:block; text-align:center; margin:14px 16px 12px;
+    font-size:12px; font-weight:700; color:var(--text-dim); text-decoration:none;
+  }
+  .footer-link:hover { color:var(--green); }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span> 英语听打 · 素材库
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">🔥 12</div>
+      <div class="stat-item xp">⚡ 2,340</div>
+    </div>
+  </div>
+
+  <!-- Quota Card -->
+  <div class="quota-card">
+    <div class="quota-top">
+      <div class="quota-ring">
+        <svg viewBox="0 0 36 36" width="78" height="78">
+          <circle class="qr-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+          <circle class="qr-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="100" stroke-dashoffset="35"/>
+        </svg>
+        <div class="qr-center">
+          <span class="pct">65%</span>
+          <span class="sub">13/20</span>
+        </div>
+      </div>
+      <div class="quota-body">
+        <div class="quota-eyebrow"><span class="pulse"></span> 今日配额 · 90 天计划</div>
+        <h2>今日目标 <span class="num">20</span> 词</h2>
+        <small>CET-4 核心词汇 · 剩余 7 词</small>
+      </div>
+    </div>
+
+    <div class="quota-bar-wrap">
+      <div class="quota-bar-head"><span>进度</span><span class="num">13 / 20</span></div>
+      <div class="quota-bar"><div class="quota-bar-fill" style="width:65%"></div></div>
+    </div>
+
+    <div class="quota-meta">
+      <span class="item streak"><span class="ic">🔥</span> 连续 12 天</span>
+      <span class="sep">·</span>
+      <span class="item xp"><span class="ic">⚡</span> 完成 +50 XP</span>
+    </div>
+
+    <a class="quota-btn" href="#">继续背词 <span class="arrow">→</span></a>
+  </div>
+
+  <!-- Tabs (horizontal scroll) -->
+  <div class="tabs-scroll">
+    <a class="tab-chip active" href="#">📚 全部 <span class="cnt">8</span></a>
+    <a class="tab-chip" href="#">🔤 词库 <span class="cnt">5</span></a>
+    <a class="tab-chip" href="#">💬 句库 <span class="cnt">3</span></a>
+    <a class="tab-chip" href="#">🟢 学习中 <span class="cnt">2</span></a>
+  </div>
+
+  <!-- 词库 Section -->
+  <div class="section-head">
+    <h2>📖 词库</h2>
+    <span class="count">5 本 · 12,570 词</span>
+  </div>
+
+  <!-- Book 1: CET-4 (active + open) -->
+  <div class="book active open">
+    <div class="book-top">
+      <div class="book-cover green">📘</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>CET-4 核心词汇</h3>
+          <span class="active-tag"><span class="dot"></span> 学习中</span>
+        </div>
+        <small>第 128 / 2,460 词 · 每日配额 20 词</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">2,460</div><div class="lbl">总词数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">312</div><div class="lbl">已背</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val red">28</div><div class="lbl">错词</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct">13%</span></div>
+        <div class="bp-bar"><div class="bp-fill" style="width:13%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start" href="#">继续 →</a>
+        <button class="expand-btn open"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+    <div class="lessons">
+      <div class="lessons-head">
+        <b>📋 课次列表</b>
+        <small>120 课 · 每课 20 词</small>
+      </div>
+      <div class="lessons-grid">
+        <div class="lesson done"><div class="num">L01</div><div class="name">第 1 课</div><div class="cnt">20/20</div></div>
+        <div class="lesson done"><div class="num">L02</div><div class="name">第 2 课</div><div class="cnt">20/20</div></div>
+        <div class="lesson done"><div class="num">L03</div><div class="name">第 3 课</div><div class="cnt">20/20</div></div>
+        <div class="lesson done"><div class="num">L04</div><div class="name">第 4 课</div><div class="cnt">20/20</div></div>
+        <div class="lesson done"><div class="num">L05</div><div class="name">第 5 课</div><div class="cnt">20/20</div></div>
+        <div class="lesson current"><div class="num">L08</div><div class="name">第 8 课</div><div class="cnt">12/20</div></div>
+        <div class="lesson locked"><div class="num">L09</div><div class="name">第 9 课</div><div class="cnt">🔒</div></div>
+        <div class="lesson locked"><div class="num">L10</div><div class="name">第 10 课</div><div class="cnt">🔒</div></div>
+        <div class="lesson locked"><div class="num">L11</div><div class="name">第 11 课</div><div class="cnt">🔒</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Book 2: 考研 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover purple">📕</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>考研高频词</h3>
+          <span class="type-badge purple">考研</span>
+        </div>
+        <small>第 210 / 2,150 词 · 建议每日 15 词</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">2,150</div><div class="lbl">总词数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">210</div><div class="lbl">已背</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val red">17</div><div class="lbl">错词</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct">10%</span></div>
+        <div class="bp-bar"><div class="bp-fill purple" style="width:10%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start purple" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Book 3: CET-6 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover blue">📗</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>CET-6 真题词汇</h3>
+          <span class="type-badge blue">CET-6</span>
+        </div>
+        <small>第 96 / 1,890 词 · 近 7 天新增 41 词</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">1,890</div><div class="lbl">总词数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">96</div><div class="lbl">已背</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val red">11</div><div class="lbl">错词</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct">5%</span></div>
+        <div class="bp-bar"><div class="bp-fill blue" style="width:5%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start blue" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Book 4: 托福 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover orange">📙</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>托福核心词</h3>
+          <span class="type-badge orange">托福</span>
+        </div>
+        <small>尚未开始 · 建议每日 20 词起步</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">4,020</div><div class="lbl">总词数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">0</div><div class="lbl">已背</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val red">0</div><div class="lbl">错词</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct" style="color:var(--orange);">新</span></div>
+        <div class="bp-bar"><div class="bp-fill orange" style="width:0%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start orange" href="#">开始 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Book 5: 新概念词汇 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover gold">📔</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>新概念 1-4 词汇</h3>
+          <span class="type-badge gold">新概念</span>
+        </div>
+        <small>第 340 / 1,050 词 · 与句库联动学习</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">1,050</div><div class="lbl">总词数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">340</div><div class="lbl">已背</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val red">19</div><div class="lbl">错词</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct" style="color:#a88800;">32%</span></div>
+        <div class="bp-bar"><div class="bp-fill gold" style="width:32%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start gold" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 句库 Section -->
+  <div class="section-head">
+    <h2>💬 句库</h2>
+    <span class="count">3 套 · 1,080 句</span>
+  </div>
+
+  <!-- Sentence Book 1: NCE (active) -->
+  <div class="book active">
+    <div class="book-top">
+      <div class="book-cover green">🎬</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>新概念 1-4 册逐句</h3>
+          <span class="active-tag"><span class="dot"></span> 学习中</span>
+        </div>
+        <small>96 课 · 学至第二册 Lesson 21 · 整句听写</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">1,024</div><div class="lbl">总句数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">694</div><div class="lbl">已写</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">71%</div><div class="lbl">正确率</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>课程进度</span><span class="pct">68%</span></div>
+        <div class="bp-bar"><div class="bp-fill" style="width:68%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sentence Book 2: 口语900 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover blue">🗣️</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>口语 900 句</h3>
+          <span class="type-badge blue">口语</span>
+        </div>
+        <small>120 / 900 句 · 生活场景 · 晨间跟打热身</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">900</div><div class="lbl">总句数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">120</div><div class="lbl">已写</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">64%</div><div class="lbl">正确率</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct">13%</span></div>
+        <div class="bp-bar"><div class="bp-fill blue" style="width:13%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start blue" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sentence Book 3: 每日新闻 -->
+  <div class="book">
+    <div class="book-top">
+      <div class="book-cover red">📰</div>
+      <div class="book-info">
+        <div class="row1">
+          <h3>每日新闻</h3>
+          <span class="type-badge red">新闻</span>
+        </div>
+        <small>56 句 · 每日更新 · 近 3 日新鲜素材</small>
+      </div>
+    </div>
+    <div class="book-stats">
+      <div class="book-stat"><div class="val">56</div><div class="lbl">总句数</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">18</div><div class="lbl">已写</div></div>
+      <div class="book-stat-divider"></div>
+      <div class="book-stat"><div class="val green">70%</div><div class="lbl">正确率</div></div>
+    </div>
+    <div class="book-foot">
+      <div class="book-progress">
+        <div class="bp-head"><span>学习进度</span><span class="pct" style="color:var(--red);">32%</span></div>
+        <div class="bp-bar"><div class="bp-fill red" style="width:32%"></div></div>
+      </div>
+      <div class="book-actions">
+        <a class="book-start red" href="#">继续 →</a>
+        <button class="expand-btn"><span>课次</span><span class="chev">⌄</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add card -->
+  <div class="add-card">
+    <div class="ic">➕</div>
+    <div class="body">
+      <b>上传 / 导入自定义词库</b>
+      <small>支持 TXT / CSV / JSON，最多 5,000 词</small>
+    </div>
+    <a class="btn-add" href="#">上传 →</a>
+  </div>
+
+  <a class="footer-link" href="#">全部素材与自由练习 →</a>
+</div>
+</body>
+</html>

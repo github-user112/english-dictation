@@ -18,6 +18,7 @@ from .db import db
 from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item
 from .profile import derive_profile
+from .misc import local_today
 
 bp = Blueprint("boss", __name__)
 
@@ -78,7 +79,7 @@ def api_boss_result():
     if err:
         attempt_id = None  # 老客户端兼容
 
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     with db(immediate=True) as conn:
         # 幂等优先于答案校验：重放不重复校验，避免首次已清除的错词导致重放 400
         if attempt_id:

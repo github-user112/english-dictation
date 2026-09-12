@@ -14,6 +14,7 @@ from .catalog import now
 from .config import MATERIALS
 from .db import db
 from .materials import load_material
+from .misc import local_today
 
 bp = Blueprint("goal", __name__)
 
@@ -28,12 +29,12 @@ def _goal_view(conn, user, list_key, row):
         "SELECT COUNT(*) c FROM word_state WHERE user=? AND list=? AND memorized=1",
         (user, list_key)).fetchone()["c"]
     remaining = max(0, total - memorized)
-    elapsed = max(0, (date.today() - date.fromisoformat(row["start_day"])).days)
+    elapsed = max(0, (local_today() - date.fromisoformat(row["start_day"])).days)
     days_left = max(1, row["target_days"] - elapsed)
     daily_new = math.ceil(remaining / days_left) if remaining else 0
     log = conn.execute(
         "SELECT memorize_right FROM daily_log WHERE day=? AND user=?",
-        (date.today().isoformat(), user)).fetchone()
+        (local_today().isoformat(), user)).fetchone()
     return {"list": list_key, "target_days": row["target_days"],
             "start_day": row["start_day"], "days_left": days_left,
             "total": total, "memorized": memorized, "remaining": remaining,
@@ -78,7 +79,7 @@ def api_goal_save():
             """INSERT INTO study_goal(user,list,target_days,start_day,updated_at) VALUES(?,?,?,?,?)
                ON CONFLICT(user,list) DO UPDATE SET
                    target_days=excluded.target_days, updated_at=excluded.updated_at""",
-            (user, list_key, days, date.today().isoformat(), now()))
+            (user, list_key, days, local_today().isoformat(), now()))
         row = conn.execute(
             "SELECT * FROM study_goal WHERE user=? AND list=?", (user, list_key)).fetchone()
         view = _goal_view(conn, user, list_key, row)

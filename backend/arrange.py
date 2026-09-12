@@ -19,6 +19,7 @@ from .db import db
 from .idempotency import check_and_mark, mark_done, validate_attempt_id
 from .materials import audio_url, find_item, load_material
 from .profile import derive_profile
+from .misc import local_today
 
 bp = Blueprint("arrange", __name__)
 
@@ -122,7 +123,7 @@ def api_arrange_answer():
     if err:
         attempt_id = None  # 老客户端兼容
 
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     with db(immediate=True) as conn:
         if attempt_id:
             status, capped = check_and_mark(conn, user, "arrange", attempt_id)

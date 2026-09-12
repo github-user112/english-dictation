@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>词汇量测试 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Completion Hero Banner ---- */
+  .hero-completion {
+    background:linear-gradient(135deg, #58cc02 0%, #6fdd1a 40%, #ffc800 100%);
+    border-radius:22px; padding:32px 36px; color:#fff;
+    box-shadow:0 6px 0 #46a302, 0 12px 36px rgba(88,204,2,0.3);
+    position:relative; overflow:hidden; margin-bottom:22px;
+  }
+  .hero-completion::after {
+    content:''; position:absolute; top:-60px; right:-30px;
+    width:260px; height:260px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .hero-completion::before {
+    content:''; position:absolute; bottom:-80px; left:-50px;
+    width:200px; height:200px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .hero-confetti {
+    position:absolute; top:20px; right:40px; font-size:28px;
+    opacity:0.5; z-index:0;
+    animation:confetti-bob 2s ease-in-out infinite;
+  }
+  @keyframes confetti-bob { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-8px) rotate(5deg)} }
+  .hero-body {
+    display:flex; align-items:center; gap:32px;
+    position:relative; z-index:1;
+  }
+  .hero-icon {
+    font-size:76px; flex-shrink:0;
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    animation:hero-pop 0.6s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes hero-pop { 0%{transform:scale(0.5) rotate(-10deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+  .hero-text { flex:1; min-width:0; }
+  .hero-text h1 { font-size:30px; font-weight:900; letter-spacing:-0.5px; margin-bottom:4px; }
+  .hero-text .sub { font-size:16px; font-weight:800; opacity:0.9; margin-bottom:2px; }
+  .hero-text .sub2 { font-size:13px; font-weight:700; opacity:0.75; }
+  .hero-badge-row { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .hero-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.2); backdrop-filter:blur(4px);
+    padding:7px 14px; border-radius:12px; font-weight:900; font-size:13px;
+  }
+  .hero-badge b { font-size:17px; }
+  .hero-stat-cluster { display:flex; gap:16px; flex-shrink:0; }
+  .hero-stat {
+    text-align:center; padding:14px 20px;
+    background:rgba(255,255,255,0.18); border-radius:16px;
+    backdrop-filter:blur(4px);
+  }
+  .hero-stat .hv { font-size:34px; font-weight:900; letter-spacing:-1px; }
+  .hero-stat .hl { font-size:11px; font-weight:800; opacity:0.85; margin-top:1px; }
+
+  /* ---- Main 2-column grid ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1.3fr 1fr; gap:18px;
+    margin-bottom:18px;
+  }
+
+  /* ---- CEFR Level Ladder ---- */
+  .cfr-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .cfr-ladder {
+    display:flex; gap:6px; margin:20px 0 16px;
+    position:relative;
+  }
+  .cfr-step {
+    flex:1; text-align:center; position:relative;
+    padding:10px 4px 8px; border-radius:12px;
+    transition:all 0.2s;
+  }
+  .cfr-step .cs-emoji { font-size:26px; display:block; margin-bottom:4px; }
+  .cfr-step .cs-level { font-size:15px; font-weight:900; color:var(--text); display:block; }
+  .cfr-step .cs-name { font-size:10px; font-weight:700; color:var(--text-dim); display:block; }
+  .cfr-step .cs-bar { height:6px; border-radius:6px; background:#e5e5e5; margin-top:8px; }
+  .cfr-step.past { background:var(--green-bg); }
+  .cfr-step.past .cs-emoji { filter:grayscale(0.3); }
+  .cfr-step.past .cs-bar { background:var(--green-light); }
+  .cfr-step.active {
+    background:var(--green); color:#fff;
+    box-shadow:0 4px 0 var(--green-dark);
+    transform:translateY(-4px);
+  }
+  .cfr-step.active .cs-emoji { filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+  .cfr-step.active .cs-level { color:#fff; }
+  .cfr-step.active .cs-name { color:rgba(255,255,255,0.85); }
+  .cfr-step.active .cs-bar { background:#fff; box-shadow:0 0 8px rgba(255,255,255,0.5); }
+  .cfr-step.locked .cs-emoji { opacity:0.35; filter:grayscale(1); }
+  .cfr-step.locked .cs-bar { background:#e5e5e5; }
+  .cfr-step.locked .cs-level { color:var(--text-faint); }
+  .cfr-step.locked .cs-name { color:var(--text-faint); }
+  .cfr-marker {
+    position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+    font-size:18px; animation:marker-bob 1.5s ease-in-out infinite;
+  }
+  @keyframes marker-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-4px)} }
+  .cfr-legend {
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top:12px; border-top:1px solid #f0f0f0;
+    font-size:12px; font-weight:800; color:var(--text-dim);
+  }
+  .cfr-legend .cl-item { display:flex; align-items:center; gap:4px; }
+  .cfr-legend .cl-dot { width:8px; height:8px; border-radius:50%; }
+
+  /* ---- Vocabulary Gauge Card ---- */
+  .gauge-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .gauge-wrap {
+    display:flex; align-items:center; gap:24px; margin:16px 0;
+  }
+  .gauge-svg { flex-shrink:0; position:relative; }
+  .gauge-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .gauge-center .gv { font-size:36px; font-weight:900; color:var(--green); letter-spacing:-1px; }
+  .gauge-center .gv-sub { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .gauge-info { flex:1; min-width:0; }
+  .gauge-info .gi-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .gauge-info .gi-row:last-child { border-bottom:none; }
+  .gauge-info .gi-label { font-size:13px; font-weight:800; color:var(--text-dim); }
+  .gauge-info .gi-val { font-size:14px; font-weight:900; }
+  .gauge-info .gi-val.green { color:var(--green); }
+  .gauge-info .gi-val.blue { color:var(--blue); }
+  .gauge-info .gi-val.gold { color:var(--gold); }
+  .gauge-info .gi-val.purple { color:var(--purple); }
+  .gauge-bar {
+    display:flex; height:10px; border-radius:10px; overflow:hidden; margin-top:14px;
+    background:#f0f0f0;
+  }
+  .gauge-bar .gb-seg { height:100%; transition:width 0.6s ease; }
+  .gauge-bar .gb-seg.easy { background:var(--green); }
+  .gauge-bar .gb-seg.medium { background:var(--blue); }
+  .gauge-bar .gb-seg.hard { background:var(--orange); }
+  .gauge-bar .gb-seg.advanced { background:var(--red); }
+  .gauge-bar-labels {
+    display:flex; justify-content:space-between; margin-top:5px;
+    font-size:10px; font-weight:800; color:var(--text-dim);
+  }
+
+  /* ---- Difficulty Distribution ---- */
+  .diff-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .diff-rows { display:flex; flex-direction:column; gap:12px; margin-top:14px; }
+  .diff-row {
+    display:flex; align-items:center; gap:12px;
+  }
+  .diff-row .dr-emoji { font-size:24px; flex-shrink:0; }
+  .diff-row .dr-body { flex:1; min-width:0; }
+  .diff-row .dr-body b { font-size:13px; font-weight:800; display:block; }
+  .diff-row .dr-bar { height:10px; background:#e5e5e5; border-radius:10px; overflow:hidden; margin-top:6px; }
+  .diff-row .dr-fill { height:100%; border-radius:10px; transition:width 0.6s ease; }
+  .diff-row .dr-fill.green { background:linear-gradient(90deg, var(--green), #6fdd1a); }
+  .diff-row .dr-fill.blue { background:linear-gradient(90deg, var(--blue), #4dd0ff); }
+  .diff-row .dr-fill.orange { background:linear-gradient(90deg, var(--orange), #ffb347); }
+  .diff-row .dr-fill.red { background:linear-gradient(90deg, var(--red), #ff7a7a); }
+  .diff-row .dr-count { font-size:14px; font-weight:900; color:var(--text-dim); flex-shrink:0; min-width:40px; text-align:right; }
+
+  /* ---- Test Summary Card ---- */
+  .summary-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .summary-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px;
+  }
+  .sum-item {
+    text-align:center; padding:14px 10px; border-radius:14px;
+    background:#f7f7f7;
+  }
+  .sum-item .sv { font-size:24px; font-weight:900; }
+  .sum-item .sv.green { color:var(--green); }
+  .sum-item .sv.red { color:var(--red); }
+  .sum-item .sv.orange { color:var(--orange); }
+  .sum-item .sv.blue { color:var(--blue); }
+  .sum-item .sv.gold { color:var(--gold); }
+  .sum-item .sv.purple { color:var(--purple); }
+  .sum-item .sl { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* ---- Right column: Recommended Lists ---- */
+  .reco-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .reco-list { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+  .reco-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px; border-radius:12px;
+    background:#f7f7f7;
+    transition:all 0.2s;
+  }
+  .reco-item:hover { background:#f0f0f0; }
+  .reco-item .ri-emoji { font-size:28px; flex-shrink:0; }
+  .reco-item .ri-body { flex:1; min-width:0; }
+  .reco-item .ri-body b { font-size:14px; font-weight:800; display:block; margin-bottom:3px; }
+  .reco-item .ri-bar { height:6px; background:#e5e5e5; border-radius:6px; overflow:hidden; }
+  .reco-item .ri-fill { height:100%; border-radius:6px; }
+  .reco-item .ri-fill.green { background:var(--green); }
+  .reco-item .ri-fill.blue { background:var(--blue); }
+  .reco-item .ri-fill.purple { background:var(--purple); }
+  .reco-item .ri-fill.orange { background:var(--orange); }
+  .reco-item .ri-count { font-size:12px; font-weight:900; color:var(--text-dim); flex-shrink:0; min-width:60px; text-align:right; }
+  .reco-item .ri-badge {
+    font-size:9px; font-weight:800; padding:2px 8px; border-radius:8px;
+    background:var(--green); color:#fff; flex-shrink:0;
+  }
+  .reco-item .ri-badge.done { background:var(--green); }
+  .reco-item .ri-badge.ing { background:var(--blue); }
+  .reco-item .ri-badge.todo { background:#e5e5e5; color:var(--text-dim); }
+
+  /* ---- Study Plan Banner ---- */
+  .plan-banner {
+    display:flex; align-items:center; gap:14px;
+    padding:18px 22px; border-radius:16px;
+    background:linear-gradient(135deg, var(--purple-light), #f3e5ff);
+    border:2px solid rgba(206,130,255,0.25);
+    box-shadow:0 4px 0 rgba(206,130,255,0.15);
+    margin-bottom:18px; position:relative; overflow:hidden;
+  }
+  .plan-banner::after {
+    content:''; position:absolute; top:-20px; right:-10px;
+    width:80px; height:80px; border-radius:50%;
+    background:rgba(206,130,255,0.1);
+  }
+  .plan-banner .pb-icon { font-size:36px; flex-shrink:0; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); position:relative; z-index:1; }
+  .plan-banner .pb-body { flex:1; min-width:0; position:relative; z-index:1; }
+  .plan-banner .pb-body b { font-size:16px; font-weight:900; display:block; margin-bottom:2px; color:var(--purple-dark); }
+  .plan-banner .pb-body small { font-size:12px; font-weight:700; color:var(--text-dim); line-height:1.4; }
+  .plan-banner .pb-body .plan-details { display:flex; gap:12px; margin-top:8px; }
+  .plan-banner .pb-body .pd-item { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:800; color:var(--purple-dark); }
+
+  /* ---- Test History ---- */
+  .history-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .history-timeline { margin-top:14px; }
+  .history-item {
+    display:flex; align-items:center; gap:14px;
+    padding:12px 14px; border-radius:12px;
+    margin-bottom:8px; position:relative;
+  }
+  .history-item:last-child { margin-bottom:0; }
+  .history-item .hi-date {
+    flex-shrink:0; width:56px; text-align:center;
+  }
+  .history-item .hi-date .d { font-size:14px; font-weight:900; display:block; }
+  .history-item .hi-date .m { font-size:10px; font-weight:700; color:var(--text-dim); }
+  .history-item .hi-dot {
+    width:14px; height:14px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:8px; font-weight:900;
+  }
+  .history-item .hi-dot.best { background:var(--green); color:#fff; }
+  .history-item .hi-dot.normal { background:var(--blue); color:#fff; }
+  .history-item .hi-dot.worse { background:var(--red); color:#fff; }
+  .history-item .hi-body { flex:1; min-width:0; }
+  .history-item .hi-body b { font-size:13px; font-weight:800; display:block; }
+  .history-item .hi-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .history-item .hi-score {
+    font-size:16px; font-weight:900; flex-shrink:0;
+    padding:6px 12px; border-radius:10px;
+    background:#f7f7f7;
+  }
+  .history-item .hi-score.green { color:var(--green); }
+  .history-item .hi-score.blue { color:var(--blue); }
+  .history-item .hi-change {
+    font-size:11px; font-weight:800; flex-shrink:0;
+  }
+  .history-item .hi-change.up { color:var(--green); }
+  .history-item .hi-change.down { color:var(--red); }
+
+  /* ---- Action bar ---- */
+  .action-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 24px; background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .action-left { display:flex; gap:10px; }
+  .action-right { display:flex; gap:10px; }
+  .btn-retake {
+    background:linear-gradient(135deg, var(--blue), #4dd0ff);
+    color:#fff; padding:14px 28px; border-radius:14px;
+    font-weight:900; font-size:15px; border:none; cursor:pointer;
+    box-shadow:0 4px 0 var(--blue-dark); display:inline-flex; align-items:center; gap:8px;
+    transition:transform 0.1s;
+  }
+  .btn-retake:active { transform:translateY(3px); box-shadow:0 1px 0 var(--blue-dark); }
+
+  /* ---- Comparison card ---- */
+  .compare-card { background:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .compare-bar {
+    position:relative; height:28px; background:#e5e5e5; border-radius:14px;
+    overflow:hidden; margin:14px 0 8px;
+  }
+  .compare-fill {
+    position:absolute; top:0; left:0; height:100%;
+    background:linear-gradient(90deg, var(--green), #6fdd1a);
+    border-radius:14px; box-shadow:0 0 8px rgba(88,204,2,0.3);
+    display:flex; align-items:center; padding:0 12px;
+    color:#fff; font-size:11px; font-weight:900; white-space:nowrap;
+  }
+  .compare-markers {
+    display:flex; justify-content:space-between; margin-top:4px;
+    font-size:10px; font-weight:700; color:var(--text-faint);
+  }
+  .compare-user-line {
+    position:absolute; top:-6px; height:40px; width:2px;
+    background:var(--purple); border-radius:1px;
+    z-index:2;
+  }
+  .compare-user-flag {
+    position:absolute; top:-20px; transform:translateX(-50%);
+    font-size:10px; font-weight:900; color:var(--purple);
+    white-space:nowrap;
+  }
+  .compare-user-flag::after {
+    content:''; display:block; width:0; height:0;
+    border-left:4px solid transparent; border-right:4px solid transparent;
+    border-top:5px solid var(--purple);
+    margin:1px auto 0;
+  }
+  .compare-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 0; font-size:12px; font-weight:700;
+  }
+  .compare-row .cr-label { color:var(--text-dim); }
+  .compare-row .cr-val { font-weight:900; }
+
+  /* ---- Footer ---- */
+  .footer-link { display:block; text-align:center; margin:16px 0 8px; font-size:13px; font-weight:700; color:var(--text-dim); }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">词汇量测试</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Completion Hero ===== -->
+  <div class="hero-completion">
+    <span class="hero-confetti">🎉</span>
+    <div class="hero-body">
+      <div class="hero-icon">🏆</div>
+      <div class="hero-text">
+        <h1>词汇量测试完成！</h1>
+        <div class="sub">你已达到 B1 水平 · 超过了 68% 的学习者</div>
+        <div class="sub2">25 道自适应题目 · 用时 4 分 32 秒 · 准确率 84%</div>
+        <div class="hero-badge-row">
+          <div class="hero-badge">📊 CEFR <b>B1</b></div>
+          <div class="hero-badge">📏 词汇量 <b>4,200</b></div>
+          <div class="hero-badge">⚡ <b>+150 XP</b></div>
+          <div class="hero-badge">🎖️ 新纪录!</div>
+        </div>
+      </div>
+      <div class="hero-stat-cluster">
+        <div class="hero-stat">
+          <div class="hv">B1</div>
+          <div class="hl">CEFR 等级</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hv">4,200</div>
+          <div class="hl">词汇量估算</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Main Grid ===== -->
+  <div class="main-grid">
+
+    <!-- ===== Left Column ===== -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <!-- CEFR Level Ladder -->
+      <div class="cfr-card">
+        <div class="card-title"><span class="card-icon">📊</span> CEFR 等级评估</div>
+        <div class="card-desc">欧洲共同语言参考框架 · 展示你当前的语言水平与成长方向</div>
+        <div class="cfr-ladder">
+          <div class="cfr-step past">
+            <span class="cs-emoji">🌱</span>
+            <span class="cs-level">A1</span>
+            <span class="cs-name">入门</span>
+            <div class="cs-bar"></div>
+          </div>
+          <div class="cfr-step past">
+            <span class="cs-emoji">🌿</span>
+            <span class="cs-level">A2</span>
+            <span class="cs-name">初级</span>
+            <div class="cs-bar"></div>
+          </div>
+          <div class="cfr-step active">
+            <span class="cfr-marker">⭐</span>
+            <span class="cs-emoji">🌳</span>
+            <span class="cs-level">B1</span>
+            <span class="cs-name">中级</span>
+            <div class="cs-bar"></div>
+          </div>
+          <div class="cfr-step locked">
+            <span class="cs-emoji">🏔️</span>
+            <span class="cs-level">B2</span>
+            <span class="cs-name">中高级</span>
+            <div class="cs-bar"></div>
+          </div>
+          <div class="cfr-step locked">
+            <span class="cs-emoji">🏢</span>
+            <span class="cs-level">C1</span>
+            <span class="cs-name">高级</span>
+            <div class="cs-bar"></div>
+          </div>
+          <div class="cfr-step locked">
+            <span class="cs-emoji">🎓</span>
+            <span class="cs-level">C2</span>
+            <span class="cs-name">精通</span>
+            <div class="cs-bar"></div>
+          </div>
+        </div>
+        <div class="cfr-legend">
+          <div class="cl-item"><span class="cl-dot" style="background:var(--green);"></span> 已达水平</div>
+          <div class="cl-item"><span class="cl-dot" style="background:var(--green-light);"></span> 已掌握</div>
+          <div class="cl-item"><span class="cl-dot" style="background:#e5e5e5;"></span> 未达标</div>
+        </div>
+      </div>
+
+      <!-- Vocabulary Gauge + Distribution -->
+      <div class="gauge-card">
+        <div class="card-title"><span class="card-icon">📏</span> 词汇量估算</div>
+        <div class="card-desc">基于 25 道自适应题目推理的词汇量估算</div>
+        <div class="gauge-wrap">
+          <div class="gauge-svg">
+            <svg width="180" height="120" viewBox="0 0 180 120">
+              <!-- Background arc -->
+              <path d="M 20 100 A 70 70 0 0 1 160 100" fill="none" stroke="#ececec" stroke-width="16" stroke-linecap="round"/>
+              <!-- Progress arc (4200 / 8000 = 52.5%) -->
+              <path d="M 20 100 A 70 70 0 0 1 160 100" fill="none" stroke="url(#gauge-grad)" stroke-width="16" stroke-linecap="round" stroke-dasharray="220 220" stroke-dashoffset="105" style="filter:drop-shadow(0 0 6px rgba(88,204,2,0.3));"/>
+              <defs>
+                <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#58cc02"/>
+                  <stop offset="100%" style="stop-color:#ffc800"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="gauge-center">
+              <div class="gv">4,200</div>
+              <div class="gv-sub">词汇量</div>
+            </div>
+          </div>
+          <div class="gauge-info">
+            <div class="gi-row">
+              <span class="gi-label">词汇范围</span>
+              <span class="gi-val green">3,500 – 5,000</span>
+            </div>
+            <div class="gi-row">
+              <span class="gi-label">CEFR 对应</span>
+              <span class="gi-val purple">B1 中级</span>
+            </div>
+            <div class="gi-row">
+              <span class="gi-label">同龄排名</span>
+              <span class="gi-val blue">前 32%</span>
+            </div>
+            <div class="gi-row">
+              <span class="gi-label">距 B2 还差</span>
+              <span class="gi-val orange">≈ 3,000 词</span>
+            </div>
+          </div>
+        </div>
+        <!-- Difficulty distribution bar -->
+        <div class="gauge-bar">
+          <div class="gb-seg easy" style="width:35%;"></div>
+          <div class="gb-seg medium" style="width:30%;"></div>
+          <div class="gb-seg hard" style="width:22%;"></div>
+          <div class="gb-seg advanced" style="width:13%;"></div>
+        </div>
+        <div class="gauge-bar-labels">
+          <span>A1 基础 (35%)</span>
+          <span>A2-B1 中级 (30%)</span>
+          <span>B2 高级 (22%)</span>
+          <span>C1+ 精通 (13%)</span>
+        </div>
+      </div>
+
+      <!-- Difficulty Distribution -->
+      <div class="diff-card">
+        <div class="card-title"><span class="card-icon">📊</span> 掌握程度分析</div>
+        <div class="card-desc">各难度词汇的答题正确率</div>
+        <div class="diff-rows">
+          <div class="diff-row">
+            <span class="dr-emoji">🌱</span>
+            <div class="dr-body">
+              <b>基础词汇 (A1-A2)</b>
+              <div class="dr-bar"><div class="dr-fill green" style="width:95%;"></div></div>
+            </div>
+            <span class="dr-count">95%</span>
+          </div>
+          <div class="diff-row">
+            <span class="dr-emoji">🌿</span>
+            <div class="dr-body">
+              <b>中级词汇 (B1)</b>
+              <div class="dr-bar"><div class="dr-fill blue" style="width:80%;"></div></div>
+            </div>
+            <span class="dr-count">80%</span>
+          </div>
+          <div class="diff-row">
+            <span class="dr-emoji">🌳</span>
+            <div class="dr-body">
+              <b>高级词汇 (B2)</b>
+              <div class="dr-bar"><div class="dr-fill orange" style="width:55%;"></div></div>
+            </div>
+            <span class="dr-count">55%</span>
+          </div>
+          <div class="diff-row">
+            <span class="dr-emoji">🏔️</span>
+            <div class="dr-body">
+              <b>精通词汇 (C1+)</b>
+              <div class="dr-bar"><div class="dr-fill red" style="width:28%;"></div></div>
+            </div>
+            <span class="dr-count">28%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Summary -->
+      <div class="summary-card">
+        <div class="card-title"><span class="card-icon">📝</span> 测试详情</div>
+        <div class="summary-grid">
+          <div class="sum-item">
+            <div class="sv green">✓ 21</div>
+            <div class="sl">答对</div>
+          </div>
+          <div class="sum-item">
+            <div class="sv red">✕ 4</div>
+            <div class="sl">答错</div>
+          </div>
+          <div class="sum-item">
+            <div class="sv orange">🔥 84%</div>
+            <div class="sl">准确率</div>
+          </div>
+          <div class="sum-item">
+            <div class="sv blue">⏱ 4:32</div>
+            <div class="sl">总用时</div>
+          </div>
+          <div class="sum-item">
+            <div class="sv gold">⚡ 10.8s</div>
+            <div class="sl">平均每题</div>
+          </div>
+          <div class="sum-item">
+            <div class="sv purple">📈 22-12</div>
+            <div class="sl">难度梯度</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== Right Column ===== -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <!-- Study Plan Recommendation -->
+      <div class="plan-banner">
+        <span class="pb-icon">🎯</span>
+        <div class="pb-body">
+          <b>推荐学习计划：B1 → B2 冲刺</b>
+          <small>30 天计划 · 每天 10 新词 + 5 道听打 + 1 课句子</small>
+          <div class="plan-details">
+            <span class="pd-item">📚 10 词/天</span>
+            <span class="pd-item">🎧 5 听打/天</span>
+            <span class="pd-item">📝 1 课/天</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended Word Lists -->
+      <div class="reco-card">
+        <div class="card-title"><span class="card-icon">📚</span> 推荐词库</div>
+        <div class="card-desc">基于你的 B1 水平推荐的下一步词库</div>
+        <div class="reco-list">
+          <div class="reco-item">
+            <span class="ri-emoji">📖</span>
+            <div class="ri-body">
+              <b>新概念第二册</b>
+              <div class="ri-bar"><div class="ri-fill green" style="width:100%;"></div></div>
+            </div>
+            <span class="ri-count">1,500 词</span>
+            <span class="ri-badge done">✓ 已完成</span>
+          </div>
+          <div class="reco-item">
+            <span class="ri-emoji">📘</span>
+            <div class="ri-body">
+              <b>CET-4 核心词汇</b>
+              <div class="ri-bar"><div class="ri-fill green" style="width:100%;"></div></div>
+            </div>
+            <span class="ri-count">4,500 词</span>
+            <span class="ri-badge done">✓ 已完成</span>
+          </div>
+          <div class="reco-item">
+            <span class="ri-emoji">📗</span>
+            <div class="ri-body">
+              <b>新概念第三册</b>
+              <div class="ri-bar"><div class="ri-fill blue" style="width:62%;"></div></div>
+            </div>
+            <span class="ri-count">2,800 词</span>
+            <span class="ri-badge ing">进行中 62%</span>
+          </div>
+          <div class="reco-item">
+            <span class="ri-emoji">📙</span>
+            <div class="ri-body">
+              <b>CET-6 核心词汇</b>
+              <div class="ri-bar"><div class="ri-fill purple" style="width:35%;"></div></div>
+            </div>
+            <span class="ri-count">6,000 词</span>
+            <span class="ri-badge ing">进行中 35%</span>
+          </div>
+          <div class="reco-item">
+            <span class="ri-emoji">📕</span>
+            <div class="ri-body">
+              <b>考研核心词汇</b>
+              <div class="ri-bar"><div class="ri-fill orange" style="width:0%;"></div></div>
+            </div>
+            <span class="ri-count">5,500 词</span>
+            <span class="ri-badge todo">○ 未开始</span>
+          </div>
+          <div class="reco-item">
+            <span class="ri-emoji">🔴</span>
+            <div class="ri-body">
+              <b>托福词汇</b>
+              <div class="ri-bar"><div class="ri-fill orange" style="width:0%;"></div></div>
+            </div>
+            <span class="ri-count">8,000 词</span>
+            <span class="ri-badge todo">○ 未开始</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Peer Comparison -->
+      <div class="compare-card">
+        <div class="card-title"><span class="card-icon">👥</span> 同龄对比</div>
+        <div class="card-desc">与同龄学习者的词汇量对比</div>
+        <div class="compare-bar">
+          <div class="compare-fill" style="width:68%;">你在这里 68%</div>
+          <div class="compare-user-line" style="left:68%;"></div>
+        </div>
+        <div class="compare-markers">
+          <span>0</span>
+          <span>2k</span>
+          <span>4k</span>
+          <span>6k</span>
+          <span>8k</span>
+          <span>10k+</span>
+        </div>
+        <div style="margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f0;">
+          <div class="compare-row">
+            <span class="cr-label">你的词汇量</span>
+            <span class="cr-val green">4,200</span>
+          </div>
+          <div class="compare-row">
+            <span class="cr-label">同龄平均</span>
+            <span class="cr-val">3,100</span>
+          </div>
+          <div class="compare-row">
+            <span class="cr-label">同龄前 10%</span>
+            <span class="cr-val gold">6,500</span>
+          </div>
+          <div class="compare-row">
+            <span class="cr-label">同龄前 1%</span>
+            <span class="cr-val purple">9,200</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test History -->
+      <div class="history-card">
+        <div class="card-title"><span class="card-icon">📜</span> 测试历史</div>
+        <div class="card-desc">近 4 次词汇量测试结果</div>
+        <div class="history-timeline">
+          <div class="history-item">
+            <div class="hi-date"><span class="d">10</span><span class="m">九月</span></div>
+            <div class="hi-dot best">👑</div>
+            <div class="hi-body">
+              <b>B1 · 4,200 词</b>
+              <small>25题 · 84% 准确率</small>
+            </div>
+            <div class="hi-score green">+200</div>
+            <div class="hi-change up">▲ 新纪录</div>
+          </div>
+          <div class="history-item">
+            <div class="hi-date"><span class="d">03</span><span class="m">九月</span></div>
+            <div class="hi-dot normal">·</div>
+            <div class="hi-body">
+              <b>B1 · 4,100 词</b>
+              <small>25题 · 80% 准确率</small>
+            </div>
+            <div class="hi-score blue">+100</div>
+            <div class="hi-change up">▲ +100</div>
+          </div>
+          <div class="history-item">
+            <div class="hi-date"><span class="d">27</span><span class="m">八月</span></div>
+            <div class="hi-dot normal">·</div>
+            <div class="hi-body">
+              <b>A2 · 3,500 词</b>
+              <small>25题 · 76% 准确率</small>
+            </div>
+            <div class="hi-score blue">+100</div>
+            <div class="hi-change up">▲ +600</div>
+          </div>
+          <div class="history-item">
+            <div class="hi-date"><span class="d">20</span><span class="m">八月</span></div>
+            <div class="hi-dot worse">·</div>
+            <div class="hi-body">
+              <b>A2 · 3,400 词</b>
+              <small>25题 · 72% 准确率</small>
+            </div>
+            <div class="hi-score blue">+100</div>
+            <div class="hi-change up">▲ 首次</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ===== Action Bar ===== -->
+  <div class="action-bar">
+    <div class="action-left">
+      <button class="btn btn-ghost">🔄 重新测试</button>
+      <button class="btn btn-ghost">📤 分享结果</button>
+    </div>
+    <div class="action-right">
+      <button class="btn-retake">📚 查看学习计划</button>
+      <button class="btn btn-primary btn-big">🎯 开始 B2 冲刺</button>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    💡 建议每两周重新测试一次词汇量，跟踪成长曲线。词汇量测试使用自适应算法，会根据你的答题表现自动调整题目难度。
+  </div>
+
+</div>
+</body>
+</html>

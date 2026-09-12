@@ -49,8 +49,11 @@
   .lv-chip .lv-bar { width: 28px; }
 }
 
-/* ---------- 手机：两行网格 —— 第一行品牌+账户，第二行横滑导航 ---------- */
-@media (max-width: 620px) {
+/* ---------- 手机/窄平板：两行网格 —— 第一行品牌+账户，第二行横滑导航 ----------
+   断点取 800px（而非 620px）：横排导航（成长指标+6 个入口+账户）实测约 690px，
+   叠上品牌区与内边距后，<800px 的视口都塞不下，会把 documentElement 撑出
+   横向滚动条（实测 768px 时 ovf=167）。800px 起改用两行网格彻底规避。 */
+@media (max-width: 800px) {
   #topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

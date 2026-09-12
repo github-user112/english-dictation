@@ -41,11 +41,11 @@ export function applyProfile(d = {}) {
 
 let inflight = null;
 
-/** 拉取词力档案；force=false 时短路复用已有数据与在途请求。 */
+/** 拉取词力档案；force=false 时短路复用已有数据。在途请求始终去重——
+    force=true 只跳过 ready 缓存，不该对在途请求再发一次 /api/profile。 */
 export async function refreshProfile(force = false) {
-  if (!force && (Profile.ready || inflight)) {
-    return inflight || Promise.resolve(Profile);
-  }
+  if (inflight) return inflight;
+  if (!force && Profile.ready) return Promise.resolve(Profile);
   Profile.loading = !Profile.ready;
   inflight = api("/profile").then((d) => {
     inflight = null;

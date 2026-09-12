@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong, audioPlaying } from "../lib/core";
+import { api, audioEl, ensureAudio, playUrl, preloadAudio, playWord, sndRight, sndWrong, audioPlaying } from "../lib/core";
 import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import WordCells from "./WordCells.vue";
 
@@ -8,6 +8,8 @@ const props = defineProps({ params: { type: Object, default: null } });
 
 const list = ref("cet4");
 const lesson = ref(null);            // 按课背诵时的课号（今日动线入口带入）
+const reviewAll = ref(false);        // 已学课重学：整课重出，不按已背过滤
+const fromToday = ref(false);        // 今日动线入口带 from=today：透传给听打，打完跳下一关
 const phase = ref("learn");            // learn | quiz | done
 const items = ref([]);                 // 全部任务
 const queue = ref([]);                 // 自测队列
@@ -15,6 +17,7 @@ const cur = ref(null);
 const flipped = ref(false);
 const submitted = ref(false);
 const lastRight = ref(false);
+const retrying = ref(false);          // 自测答错已亮答案，等待照着重打（不换题）
 const lastNote = ref("");
 const loading = ref(true);
 const cells = ref(null);
@@ -53,9 +56,10 @@ function saveState() {
   if (!items.value.length) return;
   try {
     sessionStorage.setItem(SS_KEY, JSON.stringify({
-      list: list.value, lesson: lesson.value, phase: phase.value, items: items.value,
+      list: list.value, lesson: lesson.value, review: reviewAll.value, phase: phase.value, items: items.value,
       queue: queue.value, cur: cur.value, stat: stat.value,
       submitted: submitted.value, lastRight: lastRight.value, lastNote: lastNote.value,
+      retrying: retrying.value,
       attemptId: attemptId.value, saveError: saveError.value,
       quizRound: quizRound.value, learnIndex: learnIndex.value,
     }));
@@ -89,8 +93,11 @@ onMounted(() => {
 async function init() {
   list.value = props.params?.get("list") || "cet4";
   lesson.value = Number(props.params?.get("lesson")) || null;
+  reviewAll.value = props.params?.get("review") === "1";
+  fromToday.value = props.params?.get("from") === "today";
   const saved = loadState();
-  if (saved && saved.list === list.value && (saved.lesson || null) === lesson.value && saved.items?.length) {
+  if (saved && saved.list === list.value && (saved.lesson || null) === lesson.value
+      && Boolean(saved.review) === reviewAll.value && saved.items?.length) {
     // 恢复刷新前的进度
     items.value = saved.items;
     queue.value = saved.queue || [];
@@ -99,6 +106,7 @@ async function init() {
     stat.value = saved.stat || { right: 0, wrong: 0, memorized: 0 };
     submitted.value = Boolean(saved.submitted);
     lastRight.value = Boolean(saved.lastRight);
+    retrying.value = Boolean(saved.retrying);
     lastNote.value = saved.lastNote || "";
     attemptId.value = saved.attemptId || newAttemptId();
     saveError.value = saved.saveError || "";
@@ -114,7 +122,8 @@ async function init() {
     const n = Number(props.params?.get("n")) || 0;
     const d = await api(`/memorize/session?list=${list.value}`
       + (n >= 1 && n <= 100 ? `&n=${n}` : "")
-      + (lesson.value ? `&lesson=${lesson.value}` : ""));
+      + (lesson.value ? `&lesson=${lesson.value}` : "")
+      + (reviewAll.value ? "&review=1" : ""));
     if (!mounted) return;
     items.value = d.items || [];
     queue.value = [...items.value];
@@ -179,10 +188,21 @@ function onKey(ev) {
   }
   if (phase.value !== "quiz") return;
   if (submitted.value) {
-    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); quizNext(); return; }
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      if (saveError.value) retrySave();
+      else if (retrying.value) retryInput();   // 答错：Enter 清空重打，不跳题
+      else quizNext();
+      return;
+    }
     return;
   }
-  if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
+  if (ev.key === "Enter") {
+    ev.preventDefault();
+    if (retrying.value && !(cells.value && cells.value.isFull())) return;   // 重打没打完不提交
+    submit();
+    return;
+  }
   if (ev.key === "Backspace") {
     ev.preventDefault();
     cells.value.backspace();
@@ -226,10 +246,8 @@ function preloadNext() {
     ni = queue.value[0] || null;
   }
   if (!ni) return;
-  if (ni.kind === "word") {
-    preloadWord(ni);   // 单词：预拉取有道真人音
-    return;
-  }
+  // 单词不预拉：有道 dictvoice 不返回缓存头，预拉=白下载两遍，播放时照样重新请求
+  if (ni.kind === "word") return;
   if (audioCache.value[ni.text]) return;
   ensureAudio(ni).then((u) => {
     if (!mounted) return;
@@ -281,7 +299,7 @@ function typeChar(ch) {
   if (cells.value.isFull()) submit();
 }
 function onInput(ev) {
-  onCharInput(ev, typeChar, () => !submitted.value);
+  onCharInput(ev, typeChar, () => !submitted.value, () => cells.value?.backspace());
 }
 async function persistAnswer(right) {
   saving.value = true;
@@ -304,6 +322,7 @@ function finishAnswer(right, result) {
   if (right) {
     sndRight();
     stat.value.right++;
+    retrying.value = false;
     if (result.memorized) {
       stat.value.memorized++;
       lastNote.value = "✔ 已背过！";
@@ -318,8 +337,9 @@ function finishAnswer(right, result) {
   } else {
     sndWrong();
     stat.value.wrong++;
-    lastNote.value = "✗ 再背一次，明天还会见到它";
+    lastNote.value = "✗ 记错了——照答案重打，本轮还会再考它";
     lastRight.value = false;
+    retrying.value = true;   // 答错留在本题：亮答案，照着重打
     saveState();
   }
 }
@@ -345,6 +365,15 @@ async function retrySave() {
   if (!mounted || !result) return;
   finishAnswer(lastRight.value, result);
 }
+function retryInput() {
+  // 答错后照答案重打：清空重输、不换题；换新 attemptId，纠正后的保存才不会被判成重复请求
+  retrying.value = true;
+  submitted.value = false;
+  attemptId.value = newAttemptId();
+  cells.value?.reset();
+  saveState();
+  focusCatch();
+}
 function quizNext() {
   if (saving.value) return;
   playToken.value++;
@@ -352,6 +381,7 @@ function quizNext() {
   quizRound.value++;
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   submitted.value = false;
+  retrying.value = false;
   lastNote.value = "";
   saveError.value = "";
   if (!queue.value.length) {
@@ -375,6 +405,7 @@ function goDictation() {
   const q = new URLSearchParams({ list: list.value });
   if (lesson.value) q.set("lesson", lesson.value);
   else q.set("scope", "memorized");
+  if (fromToday.value) q.set("from", "today");
   window.location.hash = `#/word?${q}`;
 }
 function goCatalog() { window.location.hash = "#/catalog"; }
@@ -492,17 +523,18 @@ function goCatalog() { window.location.hash = "#/catalog"; }
           <WordCells ref="cells" :key="quizRound" :tokens="cur" :submitted="submitted"></WordCells>
         </div>
         <div id="answer-line" aria-live="polite">
-          <template v-if="submitted">
-            <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}<span v-if="cur.phonetic"> · {{ cur.phonetic }}</span></span>
+          <span v-if="retrying && !submitted" class="show-word">✍️ 照答案重打一遍：<b>{{ cur.text }}</b></span>
+          <template v-else-if="submitted">
+            <span v-if="!lastRight" class="show-word">✗ 答案：{{ cur.text }}<span v-if="cur.phonetic"> · {{ cur.phonetic }}</span> · 按 Enter 重输</span>
             <span v-if="lastRight" class="mem-note">{{ lastNote }}</span>
           </template>
         </div>
         <div class="mem-quiz-controls">
           <div v-if="saveError" class="mem-save-error" role="alert">保存失败：{{ saveError }}</div>
-          <button class="btn primary big" :disabled="saving" @mousedown.prevent @click="saveError ? retrySave() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : submitted ? '继续' : '提交' }}</button>
+          <button class="btn primary big" :disabled="saving" @mousedown.prevent @click="saveError ? retrySave() : retrying ? retryInput() : submitted ? quizNext() : submit()">{{ saveError ? '重试保存' : retrying ? '重输一次' : submitted ? '继续' : '提交' }}</button>
           <button class="btn ghost" :class="{ playing: audioPlaying }" aria-label="播放发音" @mousedown.prevent @click="play">🔊 听发音</button>
         </div>
-        <div class="mem-quiz-hint">看中文，打英文 · 答对自动下一题（自动发音）· 答对 2 次算已背</div>
+        <div class="mem-quiz-hint">看中文，打英文 · 答对自动下一题（自动发音）· 答错不可跳过，照答案重打 · 连对 2 次才算背过</div>
       </div>
       <div class="mem-phase" style="margin-top:16px;">
         <div class="mem-phase-step done"><span class="step-ic">📖</span> 学习</div>

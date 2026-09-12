@@ -106,7 +106,7 @@ async function playCustom(m) {
     const d = await api(`/materials/custom/${m.id}`);
     sessionStorage.setItem("dict_custom", JSON.stringify(d.sentences));
     sessionStorage.setItem("dict_custom_label", `《${d.title}》`);
-    location.hash = "#/sentence";
+    location.hash = "#/sentence?custom=1";
   } catch (err) {
     alert(err.message || "文章加载失败");
   }

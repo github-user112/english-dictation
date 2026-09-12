@@ -18,6 +18,7 @@ from .catalog import clamp_int, now
 from .friends import escape_like
 from .db import db
 from .profile import derive_profile
+from .misc import local_today
 
 bp = Blueprint("groups", __name__)
 
@@ -41,7 +42,7 @@ def _membership(conn, group_id, user):
 
 
 def _today_iso():
-    return date.today().isoformat()
+    return local_today().isoformat()
 
 
 @bp.post("/api/groups")
@@ -332,7 +333,7 @@ def api_create_challenge(gid):
     if kind == "words_target":
         cfg["target_words"] = clamp_int(data.get("target_words"), 50, 1, 100000)
 
-    expires = (date.today() + timedelta(days=days)).isoformat()
+    expires = (local_today() + timedelta(days=days)).isoformat()
     with db() as conn:
         # BEGIN IMMEDIATE 串行化并发创建：活跃挑战数上限不可被并发突破
         conn.execute("BEGIN IMMEDIATE")

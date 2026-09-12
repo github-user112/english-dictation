@@ -274,8 +274,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .nav-menu-item.active { background: var(--green-bg); color: var(--green-dark); }
 .nav-menu-sep { height: 1px; margin: 5px 9px; background: var(--border); }
 
-/* 移动端会话区 */
-.mobile-session { display: flex; align-items: center; gap: 8px; }
+/* 移动端会话区（display 由 ≤800px 媒体查询接管，桌面保持上方 none） */
+.mobile-session { align-items: center; gap: 8px; }
 .mobile-login {
   padding: 8px 14px;
   border-radius: var(--r-btn);

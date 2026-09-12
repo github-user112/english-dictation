@@ -11,6 +11,7 @@ memorize 接口已有专属 memorize_attempt 表，走同套路但沿用其表�
 from datetime import date, datetime, timezone
 
 from flask import jsonify
+from .misc import local_today
 
 # 与 catalog.now() 同口径（UTC ISO 带时区）。
 # 定义在此处而非从 catalog 导入：idempotency 是 catalog 的依赖模块，
@@ -52,7 +53,7 @@ def check_and_mark(conn, user, endpoint, attempt_id):
     ).fetchone()
     if row:
         return "duplicate", None
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     count = conn.execute(
         "SELECT COUNT(*) c FROM score_attempt WHERE user=? AND endpoint=? AND day=?",
         (user, endpoint, today),
@@ -65,7 +66,7 @@ def check_and_mark(conn, user, endpoint, attempt_id):
 
 def mark_done(conn, user, endpoint, attempt_id):
     """放行后落 attempt 记录，供后续重放/上限计数。与 check_and_mark 同事务。"""
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     conn.execute(
         "INSERT INTO score_attempt(user, endpoint, attempt_id, day, created_at) "
         "VALUES(?,?,?,?,?)",

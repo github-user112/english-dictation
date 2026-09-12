@@ -15,7 +15,7 @@ from flask import Blueprint, jsonify, request
 from .auth import display_names, get_user, resp
 from .catalog import clamp_int
 from .db import db
-from .misc import day_streak
+from .misc import local_today, day_streak
 from .profile import LEVELS, XP_WEIGHTS, level_of
 
 bp = Blueprint("leaderboard", __name__)
@@ -30,7 +30,7 @@ ACCURACY_MIN_ATTEMPTS = 20   # 少于该首答数不参与正确率榜，避免 
 
 def _cutoff(period):
     """周期的统计起点（含）；all 返回 None 表示不限。"""
-    today = date.today()
+    today = local_today()
     if period == "weekly":
         return today - timedelta(days=today.weekday())
     if period == "monthly":
@@ -106,7 +106,7 @@ _STREAK_LOOKBACK_DAYS = 400
 
 def _streak_rows(conn):
     """当前连续活跃天数，口径与 profile 一致：三类练习日期的并集。"""
-    floor = (date.today() - timedelta(days=_STREAK_LOOKBACK_DAYS)).isoformat()
+    floor = (local_today() - timedelta(days=_STREAK_LOOKBACK_DAYS)).isoformat()
     days = defaultdict(set)
     for sql in ("SELECT DISTINCT user, day FROM daily_log WHERE day>=?",
                 "SELECT DISTINCT user, day FROM daily_practice_log WHERE day>=?",

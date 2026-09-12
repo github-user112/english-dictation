@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>限时冲刺 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Sprint-specific styles ============ */
+
+  /* ---- Race Hero (dark racing theme) ---- */
+  .race-hero {
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,150,0,0.16) 0%, transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(28,176,246,0.14) 0%, transparent 45%),
+      linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f1e3f 100%);
+    border-radius:22px; padding:26px 32px; color:#fff;
+    box-shadow:0 8px 0 rgba(0,0,0,0.28), 0 16px 40px rgba(0,0,0,0.32);
+    position:relative; overflow:hidden; margin-bottom:20px;
+  }
+  .race-hero::after {
+    content:''; position:absolute; top:-60px; right:-40px;
+    width:260px; height:260px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,200,0,0.14), transparent 70%);
+  }
+  .race-hero::before {
+    content:''; position:absolute; bottom:-70px; left:-50px;
+    width:200px; height:200px; border-radius:50%;
+    background:radial-gradient(circle, rgba(88,204,2,0.12), transparent 70%);
+  }
+  /* speed lines decoration */
+  .speed-lines {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:repeating-linear-gradient(90deg,
+      transparent 0, transparent 60px,
+      rgba(255,255,255,0.02) 60px, rgba(255,255,255,0.02) 62px);
+    pointer-events:none;
+  }
+  .race-body {
+    display:grid; grid-template-columns:1fr auto 1fr; gap:28px;
+    align-items:center; position:relative; z-index:1;
+  }
+
+  /* Left: title + modes */
+  .race-left { min-width:0; }
+  .race-live {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,150,0,0.18); color:var(--orange);
+    padding:5px 12px; border-radius:20px; font-size:12px; font-weight:900;
+    margin-bottom:10px; letter-spacing:0.5px;
+  }
+  .race-live .pulse-dot { width:7px; height:7px; background:var(--orange); }
+  .race-title { font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.15; margin-bottom:4px; }
+  .race-sub { font-size:14px; font-weight:700; opacity:0.82; margin-bottom:16px; }
+  .mode-row { display:flex; gap:10px; }
+  .mode-pill {
+    flex:1; padding:12px 8px; border-radius:14px; text-align:center;
+    background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.1);
+    cursor:pointer; transition:all 0.2s;
+  }
+  .mode-pill .mt { font-size:22px; font-weight:900; letter-spacing:-0.5px; line-height:1; }
+  .mode-pill .ms { font-size:10px; font-weight:800; opacity:0.7; margin-top:3px; }
+  .mode-pill .mi { font-size:20px; margin-bottom:4px; }
+  .mode-pill.active {
+    background:var(--green); border-color:var(--green);
+    box-shadow:0 4px 0 var(--green-dark);
+    transform:translateY(-3px);
+  }
+  .mode-pill:not(.active):hover { background:rgba(255,255,255,0.12); }
+
+  /* Center: countdown ring */
+  .race-center { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .countdown-wrap { position:relative; width:180px; height:180px; }
+  .countdown-num {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .countdown-num .cn-big {
+    font-size:64px; font-weight:900; letter-spacing:-3px; line-height:1;
+    font-variant-numeric:tabular-nums;
+    text-shadow:0 4px 16px rgba(255,200,0,0.35);
+  }
+  .countdown-num .cn-lbl {
+    font-size:11px; font-weight:800; opacity:0.75; margin-top:4px; letter-spacing:1px;
+  }
+  .countdown-sub {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:11px;
+    background:rgba(255,255,255,0.08); backdrop-filter:blur(4px);
+    font-size:12px; font-weight:800; opacity:0.85;
+  }
+
+  /* Right: score + combo + start */
+  .race-right { display:flex; flex-direction:column; gap:12px; }
+  .rr-block {
+    display:flex; align-items:center; gap:14px;
+    padding:12px 16px; border-radius:14px;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.08);
+  }
+  .rr-emoji { font-size:26px; flex-shrink:0; }
+  .rr-body { flex:1; min-width:0; }
+  .rr-lbl { font-size:11px; font-weight:800; opacity:0.7; }
+  .rr-val { font-size:22px; font-weight:900; line-height:1.15; letter-spacing:-0.5px; }
+  .rr-val.gold { color:var(--gold); }
+  .rr-val.orange { color:var(--orange); }
+  .rr-val.green { color:var(--green); }
+  .rr-val small { font-size:12px; font-weight:700; opacity:0.75; }
+  .btn-start {
+    background:#fff; color:#1a1a2e; border:none; cursor:pointer;
+    padding:16px 28px; border-radius:14px; font-family:inherit;
+    font-weight:900; font-size:17px; letter-spacing:0.5px;
+    box-shadow:0 5px 0 rgba(0,0,0,0.28); transition:transform 0.1s;
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    text-transform:uppercase;
+  }
+  .btn-start:active { transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,0.28); }
+  .btn-start .arrow { font-size:20px; }
+
+  /* ---- Live Sprint Session Card ---- */
+  .sprint-grid {
+    display:grid; grid-template-columns:1.5fr 1fr; gap:18px;
+    margin-bottom:18px; align-items:start;
+  }
+  .col-stack { display:flex; flex-direction:column; gap:18px; }
+
+  .live-card {
+    background:#fff; border-radius:18px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 22px rgba(0,0,0,0.05);
+    overflow:hidden;
+  }
+  .live-top-bar { height:6px; background:linear-gradient(90deg, var(--green) 0%, #ffd84d 60%, var(--orange) 100%); }
+  .live-inner { padding:20px 24px 22px; }
+  .live-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .live-head-l { display:flex; align-items:center; gap:10px; }
+  .live-head-emoji { font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12)); }
+  .live-head-title { font-size:17px; font-weight:900; }
+  .live-head-sub { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .live-head-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--red); color:#fff; padding:5px 11px; border-radius:10px;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--red-dark);
+  }
+  .live-head-badge .pulse-dot { width:6px; height:6px; }
+
+  /* current question */
+  .qnow {
+    display:flex; align-items:center; gap:14px;
+    padding:16px 18px; border-radius:14px;
+    background:var(--green-bg); border:2px solid rgba(88,204,2,0.3);
+    margin-bottom:14px;
+  }
+  .qnow-play {
+    width:52px; height:52px; border-radius:14px; flex-shrink:0;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 4px 0 var(--green-dark);
+    cursor:pointer;
+    animation:q-pulse 1.2s ease infinite;
+  }
+  @keyframes q-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  .qnow-body { flex:1; min-width:0; }
+  .qnow-label { font-size:11px; font-weight:800; color:var(--green-dark); margin-bottom:2px; letter-spacing:0.5px; }
+  .qnow-word { font-size:20px; font-weight:900; letter-spacing:-0.3px; }
+  .qnow-word small { font-size:13px; font-weight:700; color:var(--text-dim); margin-left:6px; }
+  .qnow-hint { font-size:11px; font-weight:700; color:var(--text-faint); margin-top:3px; }
+  .qnow-input {
+    flex:1.4; min-width:0;
+    padding:14px 18px; border:3px solid var(--green); border-radius:14px;
+    font-family:inherit; font-size:17px; font-weight:800; background:#fff;
+    box-shadow:0 4px 0 rgba(88,204,2,0.18);
+    outline:none;
+  }
+  .qnow-input::placeholder { color:var(--text-faint); font-weight:700; }
+  .qnow-underline {
+    flex:1.4; min-width:0;
+    padding:14px 18px; border-radius:14px;
+    background:#fff; border:3px solid var(--green);
+    display:flex; align-items:center; justify-content:center; gap:3px;
+    box-shadow:0 4px 0 rgba(88,204,2,0.18);
+  }
+  .qnow-underline .ul-cell {
+    width:30px; height:38px; border-bottom:3px solid var(--green);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:900;
+  }
+  .qnow-underline .ul-cell.filled { background:var(--green-bg); }
+  .qnow-underline .ul-cell.active { background:var(--green); color:#fff; border-bottom-color:var(--green-dark); }
+  .qnow-underline .ul-cell.wrong { background:var(--red-light); color:var(--red-dark); border-bottom-color:var(--red); }
+  .qnow-underline .ul-cell.empty { color:var(--text-faint); }
+
+  /* time progress bar */
+  .time-progress {
+    height:14px; background:#e5e5e5; border-radius:14px; overflow:hidden;
+    margin-bottom:8px; position:relative;
+  }
+  .time-fill {
+    height:100%; background:linear-gradient(90deg, var(--green), var(--orange), var(--red));
+    border-radius:14px;
+    transition:width 0.3s linear;
+    position:relative;
+  }
+  .time-fill::after {
+    content:''; position:absolute; top:0; right:0; width:20px; height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.5));
+    border-radius:0 14px 14px 0;
+  }
+  .time-labels { display:flex; justify-content:space-between; font-size:11px; font-weight:800; color:var(--text-dim); margin-bottom:14px; }
+  .time-labels .tl-left { color:var(--green); }
+  .time-labels .tl-right { color:var(--red); }
+
+  /* answer log */
+  .answer-log {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:12px 14px; border-radius:12px; background:#f7f7f7;
+  }
+  .answer-log-label { font-size:11px; font-weight:800; color:var(--text-dim); margin-right:4px; }
+  .ans-chip {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:5px 10px; border-radius:9px; font-size:12px; font-weight:800;
+  }
+  .ans-chip.ok { background:var(--green-bg); color:var(--green-dark); border:1px solid rgba(88,204,2,0.3); }
+  .ans-chip.bad { background:var(--red-light); color:var(--red-dark); border:1px solid rgba(255,75,75,0.25); }
+  .ans-chip.cur { background:#fff; color:var(--green-dark); border:2px solid var(--green); box-shadow:0 2px 0 var(--green-dark); }
+  .ans-chip.lock { background:#fff; color:var(--text-faint); border:1px dashed var(--border-strong); }
+  .ans-dot {
+    width:22px; height:22px; border-radius:7px;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:900; color:#fff;
+  }
+  .ans-dot.ok { background:var(--green); box-shadow:0 2px 0 var(--green-dark); }
+  .ans-dot.bad { background:var(--red); box-shadow:0 2px 0 var(--red-dark); }
+  .ans-dot.cur { background:var(--blue); box-shadow:0 2px 0 var(--blue-dark); animation:q-pulse 1.2s ease infinite; }
+  .ans-dot.lock { background:#d0d0d0; color:var(--text-faint); }
+
+  /* combo badge on live card */
+  .combo-strip {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px; border-radius:12px;
+    background:linear-gradient(135deg, var(--gold-light), #fff3b8);
+    border:1px solid rgba(255,200,0,0.35);
+    margin-top:14px;
+  }
+  .combo-strip .cs-emoji { font-size:22px; }
+  .combo-strip .cs-body { flex:1; }
+  .combo-strip .cs-title { font-size:13px; font-weight:900; color:#8a6400; }
+  .combo-strip .cs-sub { font-size:11px; font-weight:700; color:#a88020; }
+  .combo-strip .cs-mult {
+    font-size:24px; font-weight:900; color:var(--gold);
+    text-shadow:0 2px 0 rgba(0,0,0,0.06);
+    letter-spacing:-0.5px;
+  }
+
+  /* ---- Combo Multiplier Ladder ---- */
+  .combo-card { background:#fff; border-radius:18px; padding:20px 22px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .combo-ladder { display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+  .cl-row {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 14px; border-radius:12px;
+    background:#f7f7f7;
+    transition:all 0.2s;
+  }
+  .cl-row.unlocked { background:#fff; border:2px solid var(--border); }
+  .cl-row.active {
+    background:linear-gradient(135deg, var(--gold-light), #ffe680);
+    border:2px solid var(--gold);
+    box-shadow:0 3px 0 rgba(255,200,0,0.35);
+    transform:translateX(4px);
+  }
+  .cl-row.locked { opacity:0.55; }
+  .cl-mult {
+    width:52px; height:52px; border-radius:14px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:900; color:#fff;
+    background:var(--text-faint); letter-spacing:-0.5px;
+  }
+  .cl-row.unlocked .cl-mult { background:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .cl-row.active .cl-mult { background:var(--gold); box-shadow:0 3px 0 #d4a800; color:#8a6400; animation:cl-pulse 1.2s ease infinite; }
+  .cl-row.locked .cl-mult { background:#e0e0e0; color:var(--text-dim); }
+  @keyframes cl-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  .cl-body { flex:1; min-width:0; }
+  .cl-title { font-size:14px; font-weight:900; }
+  .cl-title small { font-size:11px; font-weight:700; color:var(--text-dim); margin-left:6px; }
+  .cl-sub { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .cl-status {
+    font-size:10px; font-weight:900; padding:4px 10px; border-radius:9px;
+    flex-shrink:0; display:inline-flex; align-items:center; gap:3px;
+  }
+  .cl-status.on { background:var(--gold); color:#8a6400; }
+  .cl-status.done { background:var(--green-bg); color:var(--green-dark); }
+  .cl-status.lock { background:#e5e5e5; color:var(--text-dim); }
+
+  /* ---- Leaderboard ---- */
+  .lb-card { background:#fff; border-radius:18px; padding:20px 22px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .lb-tabs { display:flex; gap:6px; margin-top:14px; margin-bottom:12px; }
+  .lb-tab {
+    padding:7px 14px; border-radius:10px; font-size:12px; font-weight:800;
+    cursor:pointer; background:#f0f0f0; color:var(--text-dim);
+  }
+  .lb-tab.active { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .lb-list { display:flex; flex-direction:column; gap:7px; }
+  .lb-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .lb-rank {
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .lb-rank.gold { background:var(--gold); color:#fff; box-shadow:0 2px 0 #d4a800; }
+  .lb-rank.silver { background:#c0c0c0; color:#fff; box-shadow:0 2px 0 #8a8a8a; }
+  .lb-rank.bronze { background:#cd7f32; color:#fff; box-shadow:0 2px 0 #9c6224; }
+  .lb-rank.num { color:var(--text-dim); font-size:13px; }
+  .lb-avatar {
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; background:var(--blue-light);
+  }
+  .lb-body { flex:1; min-width:0; }
+  .lb-name { font-size:13px; font-weight:800; display:block; }
+  .lb-name small { font-weight:700; color:var(--text-dim); font-size:10px; margin-left:4px; }
+  .lb-meta { display:flex; gap:8px; margin-top:3px; font-size:10px; font-weight:700; color:var(--text-dim); }
+  .lb-meta .m { display:inline-flex; align-items:center; gap:2px; }
+  .lb-score { font-size:14px; font-weight:900; flex-shrink:0; color:var(--text); text-align:right; }
+  .lb-score small { font-size:10px; color:var(--text-dim); font-weight:700; display:block; }
+  .lb-me {
+    background:linear-gradient(135deg, var(--green-bg), #e8ffd0);
+    border:2px solid rgba(88,204,2,0.3); box-shadow:0 3px 0 rgba(88,204,2,0.15);
+  }
+  .lb-me .lb-rank { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .lb-me .lb-name { color:var(--green-dark); }
+  .lb-divider {
+    display:flex; align-items:center; gap:10px; margin:3px 0;
+    font-size:10px; font-weight:800; color:var(--text-faint);
+  }
+  .lb-divider::before, .lb-divider::after { content:''; flex:1; height:1px; background:#eee; }
+
+  /* ---- History / My Stats ---- */
+  .stats-card { background:#fff; border-radius:18px; padding:20px 22px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .stats-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;
+  }
+  .st-box {
+    padding:14px 12px; border-radius:13px;
+    background:#f7f7f7; text-align:center;
+  }
+  .st-box .st-emoji { font-size:22px; margin-bottom:4px; }
+  .st-box .st-val { font-size:22px; font-weight:900; line-height:1.1; letter-spacing:-0.5px; }
+  .st-box .st-lbl { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+  .st-box.green .st-val { color:var(--green); }
+  .st-box.gold .st-val { color:var(--gold); }
+  .st-box.orange .st-val { color:var(--orange); }
+  .st-box.purple .st-val { color:var(--purple); }
+  .st-box.blue .st-val { color:var(--blue); }
+
+  /* history list */
+  .hist-list { display:flex; flex-direction:column; gap:7px; margin-top:14px; }
+  .hist-item {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 14px; border-radius:12px; background:#f7f7f7;
+  }
+  .hist-icon {
+    width:38px; height:38px; border-radius:11px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .hist-body { flex:1; min-width:0; }
+  .hist-title { font-size:13px; font-weight:900; }
+  .hist-title small { font-weight:700; color:var(--text-dim); font-size:10px; margin-left:6px; }
+  .hist-meta { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .hist-score {
+    font-size:16px; font-weight:900; color:var(--green); flex-shrink:0;
+    display:flex; flex-direction:column; align-items:flex-end;
+  }
+  .hist-score small { font-size:10px; color:var(--text-dim); font-weight:700; }
+
+  /* ---- Footer stat strip ---- */
+  .stat-strip {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
+    margin-bottom:16px;
+  }
+  .stat-pill {
+    background:#fff; border-radius:16px; padding:16px 18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    display:flex; align-items:center; gap:12px;
+  }
+  .stat-pill .sp-emoji {
+    font-size:26px; flex-shrink:0;
+    width:46px; height:46px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));
+  }
+  .stat-pill .sp-body { flex:1; min-width:0; }
+  .stat-pill .sp-val { font-size:20px; font-weight:900; line-height:1.1; letter-spacing:-0.3px; }
+  .stat-pill .sp-lbl { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .stat-pill.green .sp-val { color:var(--green); }
+  .stat-pill.gold .sp-val { color:var(--gold); }
+  .stat-pill.orange .sp-val { color:var(--orange); }
+  .stat-pill.blue .sp-val { color:var(--blue); }
+  .stat-pill.green .sp-emoji { background:var(--green-bg); }
+  .stat-pill.gold .sp-emoji { background:var(--gold-light); }
+  .stat-pill.orange .sp-emoji { background:var(--orange-light); }
+  .stat-pill.blue .sp-emoji { background:var(--blue-light); }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">限时冲刺</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 33天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Race Hero ===== -->
+  <div class="race-hero">
+    <div class="speed-lines"></div>
+    <div class="race-body">
+
+      <!-- Left: title + mode selector -->
+      <div class="race-left">
+        <div class="race-live"><span class="pulse-dot"></span> 冲刺进行中 · 全站实时对战</div>
+        <div class="race-title">🏁 限时单词听打</div>
+        <div class="race-sub">答对连击叠加倍率 · 时间越短得分越高</div>
+        <div class="mode-row">
+          <div class="mode-pill active">
+            <div class="mi">⚡</div>
+            <div class="mt">30s</div>
+            <div class="ms">闪电</div>
+          </div>
+          <div class="mode-pill">
+            <div class="mi">🔥</div>
+            <div class="mt">60s</div>
+            <div class="ms">标准</div>
+          </div>
+          <div class="mode-pill">
+            <div class="mi">🏆</div>
+            <div class="mt">90s</div>
+            <div class="ms">马拉松</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: countdown ring -->
+      <div class="race-center">
+        <div class="countdown-wrap">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <defs>
+              <linearGradient id="cd-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#58cc02"/>
+                <stop offset="55%" style="stop-color:#ffc800"/>
+                <stop offset="100%" style="stop-color:#ff4b4b"/>
+              </linearGradient>
+            </defs>
+            <circle cx="90" cy="90" r="74" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+            <circle cx="90" cy="90" r="74" fill="none" stroke="url(#cd-grad)" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="464.9" stroke-dashoffset="162.7"
+              transform="rotate(-90 90 90)"
+              style="filter:drop-shadow(0 0 10px rgba(255,200,0,0.45));"/>
+            <!-- tick marks -->
+            <g stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round">
+              <line x1="90" y1="12" x2="90" y2="22"/>
+              <line x1="168" y1="90" x2="158" y2="90"/>
+              <line x1="90" y1="168" x2="90" y2="158"/>
+              <line x1="12" y1="90" x2="22" y2="90"/>
+            </g>
+          </svg>
+          <div class="countdown-num">
+            <div class="cn-big">47</div>
+            <div class="cn-lbl">剩余秒数</div>
+          </div>
+        </div>
+        <div class="countdown-sub">⏱️ 本轮进度 <b style="color:var(--gold);">64%</b> · 已过 13 秒</div>
+      </div>
+
+      <!-- Right: live score + combo + start -->
+      <div class="race-right">
+        <div class="rr-block">
+          <div class="rr-emoji">⭐</div>
+          <div class="rr-body">
+            <div class="rr-lbl">当前得分</div>
+            <div class="rr-val gold">1,240 <small>分</small></div>
+          </div>
+        </div>
+        <div class="rr-block">
+          <div class="rr-emoji">🔥</div>
+          <div class="rr-body">
+            <div class="rr-lbl">连击倍率</div>
+            <div class="rr-val orange">×3.5 <small>· 8 连击</small></div>
+          </div>
+        </div>
+        <button class="btn-start">
+          ▶ 立即开始冲刺
+          <span class="arrow">🏁</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Main Grid ===== -->
+  <div class="sprint-grid">
+
+    <!-- ===== Left Column ===== -->
+    <div class="col-stack">
+
+      <!-- Live Sprint Session -->
+      <div class="live-card">
+        <div class="live-top-bar"></div>
+        <div class="live-inner">
+          <div class="live-head">
+            <div class="live-head-l">
+              <span class="live-head-emoji">🎧</span>
+              <div>
+                <div class="live-head-title">当前正在冲刺 · 第 8 题</div>
+                <div class="live-head-sub">听音 → 打字 → 计分 · 服务端权威判分</div>
+              </div>
+            </div>
+            <div class="live-head-badge"><span class="pulse-dot"></span> LIVE · 0:47</div>
+          </div>
+
+          <!-- current question -->
+          <div class="qnow">
+            <div class="qnow-play">🔊</div>
+            <div class="qnow-body">
+              <div class="qnow-label">Q8 · 请听音拼写</div>
+              <div class="qnow-word">spontaneous <small>/spɒnˈteɪniəs/</small></div>
+              <div class="qnow-hint">💡 提示：s-p-o-n-t-a-n-e-o-u-s · 共 11 个字母</div>
+            </div>
+            <div class="qnow-underline">
+              <div class="ul-cell filled">s</div>
+              <div class="ul-cell filled">p</div>
+              <div class="ul-cell filled">o</div>
+              <div class="ul-cell filled">n</div>
+              <div class="ul-cell filled">t</div>
+              <div class="ul-cell filled">a</div>
+              <div class="ul-cell active">n</div>
+              <div class="ul-cell empty">_</div>
+              <div class="ul-cell empty">_</div>
+              <div class="ul-cell empty">_</div>
+              <div class="ul-cell empty">_</div>
+            </div>
+          </div>
+
+          <!-- time progress -->
+          <div class="time-progress">
+            <div class="time-fill" style="width:64%;"></div>
+          </div>
+          <div class="time-labels">
+            <span class="tl-left">⏱️ 已过 13s</span>
+            <span class="tl-right">🎯 剩余 27s</span>
+          </div>
+
+          <!-- answer log -->
+          <div class="answer-log">
+            <span class="answer-log-label">本轮答题：</span>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> vocabulary</div>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> ambitious</div>
+            <div class="ans-chip bad"><span class="ans-dot bad">✗</span> resiliant</div>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> meticulous</div>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> profound</div>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> eloquent</div>
+            <div class="ans-chip ok"><span class="ans-dot ok">✓</span> diligent</div>
+            <div class="ans-chip cur"><span class="ans-dot cur">8</span> 正在答</div>
+            <div class="ans-chip lock"><span class="ans-dot lock">🔒</span> 9</div>
+            <div class="ans-chip lock"><span class="ans-dot lock">🔒</span> 10</div>
+          </div>
+
+          <!-- combo strip -->
+          <div class="combo-strip">
+            <span class="cs-emoji">🔥</span>
+            <div class="cs-body">
+              <div class="cs-title">连击倍率 ×3.5 已生效</div>
+              <div class="cs-sub">再连对 2 题即可触发 ×4.0 · 答错连击清零</div>
+            </div>
+            <div class="cs-mult">×3.5</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Combo Multiplier Ladder -->
+      <div class="combo-card">
+        <div class="card-title"><span class="card-icon">🔥</span> 连击倍率奖励</div>
+        <div class="card-desc">连续答对越多，得分倍率越高 · 达到 10 连击触发「超级冲刺」</div>
+        <div class="combo-ladder">
+          <div class="cl-row unlocked">
+            <div class="cl-mult">×1</div>
+            <div class="cl-body">
+              <div class="cl-title">起步 <small>0 连击</small></div>
+              <div class="cl-sub">基础得分 · 每答对 1 题 +50 分</div>
+            </div>
+            <span class="cl-status done">✓ 已通过</span>
+          </div>
+          <div class="cl-row unlocked">
+            <div class="cl-mult">×1.5</div>
+            <div class="cl-body">
+              <div class="cl-title">热身 <small>3 连击</small></div>
+              <div class="cl-sub">得分 1.5 倍 · 已连对 2 题</div>
+            </div>
+            <span class="cl-status done">✓ 已通过</span>
+          </div>
+          <div class="cl-row active">
+            <div class="cl-mult">×3.5</div>
+            <div class="cl-body">
+              <div class="cl-title">燃烧 🔥 <small>8 连击</small></div>
+              <div class="cl-sub">得分 3.5 倍 · 当前倍率</div>
+            </div>
+            <span class="cl-status on">▶ 生效中</span>
+          </div>
+          <div class="cl-row locked">
+            <div class="cl-mult">×4</div>
+            <div class="cl-body">
+              <div class="cl-title">爆发 <small>10 连击</small></div>
+              <div class="cl-sub">得分 4 倍 · 需再连对 2 题</div>
+            </div>
+            <span class="cl-status lock">🔒 2 题后解锁</span>
+          </div>
+          <div class="cl-row locked">
+            <div class="cl-mult">×5</div>
+            <div class="cl-body">
+              <div class="cl-title">超级冲刺 🚀 <small>15 连击</small></div>
+              <div class="cl-sub">得分 5 倍 · 触发成就徽章</div>
+            </div>
+            <span class="cl-status lock">🔒 待解锁</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== Right Column ===== -->
+    <div class="col-stack">
+
+      <!-- Leaderboard -->
+      <div class="lb-card">
+        <div class="card-title"><span class="card-icon">🏆</span> 冲刺排行榜</div>
+        <div class="card-desc">按最近一次冲刺得分排名 · 全站实时</div>
+        <div class="lb-tabs">
+          <span class="lb-tab active">🔥 近 7 天</span>
+          <span class="lb-tab">📅 本月</span>
+          <span class="lb-tab">🌍 全站</span>
+        </div>
+        <div class="lb-list">
+          <div class="lb-item">
+            <div class="lb-rank gold">🥇</div>
+            <div class="lb-avatar">🦊</div>
+            <div class="lb-body">
+              <span class="lb-name">王小明 <small>Lv.9 · B2</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 2,180 分</span>
+                <span class="m">🔥 21连</span>
+              </div>
+            </div>
+            <div class="lb-score">2,180<small>30s · ×5</small></div>
+          </div>
+          <div class="lb-item">
+            <div class="lb-rank silver">🥈</div>
+            <div class="lb-avatar">🐰</div>
+            <div class="lb-body">
+              <span class="lb-name">林小雨 <small>Lv.8 · B2</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 1,920 分</span>
+                <span class="m">🔥 18连</span>
+              </div>
+            </div>
+            <div class="lb-score">1,920<small>60s · ×4</small></div>
+          </div>
+          <div class="lb-item">
+            <div class="lb-rank bronze">🥉</div>
+            <div class="lb-avatar">🐯</div>
+            <div class="lb-body">
+              <span class="lb-name">陈思远 <small>Lv.7 · B1</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 1,640 分</span>
+                <span class="m">🔥 15连</span>
+              </div>
+            </div>
+            <div class="lb-score">1,640<small>60s · ×4</small></div>
+          </div>
+          <div class="lb-item">
+            <div class="lb-rank num">4</div>
+            <div class="lb-avatar">🐱</div>
+            <div class="lb-body">
+              <span class="lb-name">赵雅婷 <small>Lv.6 · B1</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 1,480 分</span>
+                <span class="m">🔥 12连</span>
+              </div>
+            </div>
+            <div class="lb-score">1,480<small>60s · ×3.5</small></div>
+          </div>
+          <div class="lb-item">
+            <div class="lb-rank num">5</div>
+            <div class="lb-avatar">🐻</div>
+            <div class="lb-body">
+              <span class="lb-name">李昊然 <small>Lv.6 · B1</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 1,360 分</span>
+                <span class="m">🔥 11连</span>
+              </div>
+            </div>
+            <div class="lb-score">1,360<small>60s · ×3.5</small></div>
+          </div>
+          <div class="lb-divider">··· 你的排名 ···</div>
+          <div class="lb-item lb-me">
+            <div class="lb-rank">23</div>
+            <div class="lb-avatar">🦉</div>
+            <div class="lb-body">
+              <span class="lb-name">你 <small>Lv.7 · B1</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 1,240 分</span>
+                <span class="m">🔥 8连</span>
+              </div>
+            </div>
+            <div class="lb-score">1,240<small>60s · ×3.5</small></div>
+          </div>
+          <div class="lb-item">
+            <div class="lb-rank num">40</div>
+            <div class="lb-avatar">🐸</div>
+            <div class="lb-body">
+              <span class="lb-name">刘一诺 <small>Lv.5 · A2</small></span>
+              <div class="lb-meta">
+                <span class="m">⚡ 920 分</span>
+                <span class="m">🔥 6连</span>
+              </div>
+            </div>
+            <div class="lb-score">920<small>30s · ×2</small></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Sprint Stats -->
+      <div class="stats-card">
+        <div class="card-title"><span class="card-icon">📊</span> 我的冲刺数据</div>
+        <div class="card-desc">近 30 天统计 · 数据从学习记录实时推导</div>
+        <div class="stats-grid">
+          <div class="st-box orange">
+            <div class="st-emoji">🏁</div>
+            <div class="st-val">186</div>
+            <div class="st-lbl">总冲刺次数</div>
+          </div>
+          <div class="st-box green">
+            <div class="st-emoji">🔥</div>
+            <div class="st-val">24</div>
+            <div class="st-lbl">最长连击</div>
+          </div>
+          <div class="st-box gold">
+            <div class="st-emoji">⭐</div>
+            <div class="st-val">2,860</div>
+            <div class="st-lbl">历史最高分</div>
+          </div>
+          <div class="st-box blue">
+            <div class="st-emoji">⚡</div>
+            <div class="st-val">1.8s</div>
+            <div class="st-lbl">平均答题速度</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Sprint History -->
+      <div class="stats-card">
+        <div class="card-title"><span class="card-icon">📜</span> 最近冲刺记录</div>
+        <div class="card-desc">答错词自动收入错词本 · 点击查看详情</div>
+        <div class="hist-list">
+          <div class="hist-item">
+            <div class="hist-icon">🏆</div>
+            <div class="hist-body">
+              <div class="hist-title">60s 标准冲刺 <small>刚刚</small></div>
+              <div class="hist-meta">🔥 8连击 · ⚡ ×3.5 倍率 · 答对 9/10</div>
+            </div>
+            <div class="hist-score">1,240<small>+240 XP</small></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon">⚡</div>
+            <div class="hist-body">
+              <div class="hist-title">30s 闪电冲刺 <small>2 小时前</small></div>
+              <div class="hist-meta">🔥 12连击 · ⚡ ×4 倍率 · 答对 14/14</div>
+            </div>
+            <div class="hist-score">2,180<small>+320 XP</small></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon">🎯</div>
+            <div class="hist-body">
+              <div class="hist-title">60s 标准冲刺 <small>昨天</small></div>
+              <div class="hist-meta">🔥 10连击 · ⚡ ×3.5 倍率 · 答对 10/12</div>
+            </div>
+            <div class="hist-score">1,080<small>+180 XP</small></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon">🔥</div>
+            <div class="hist-body">
+              <div class="hist-title">90s 马拉松 <small>2 天前</small></div>
+              <div class="hist-meta">🔥 15连击 · ⚡ ×4 倍率 · 答对 18/20</div>
+            </div>
+            <div class="hist-score">2,860<small>+420 XP</small></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon">📈</div>
+            <div class="hist-body">
+              <div class="hist-title">30s 闪电冲刺 <small>3 天前</small></div>
+              <div class="hist-meta">🔥 6连击 · ⚡ ×2 倍率 · 答对 8/10</div>
+            </div>
+            <div class="hist-score">560<small>+80 XP</small></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Stats Footer Strip ===== -->
+  <div class="stat-strip">
+    <div class="stat-pill orange">
+      <div class="sp-emoji">🔥</div>
+      <div class="sp-body">
+        <div class="sp-val">33 天</div>
+        <div class="sp-lbl">连续打卡</div>
+      </div>
+    </div>
+    <div class="stat-pill gold">
+      <div class="sp-emoji">⚡</div>
+      <div class="sp-body">
+        <div class="sp-val">+2,860</div>
+        <div class="sp-lbl">历史最高冲刺分</div>
+      </div>
+    </div>
+    <div class="stat-pill green">
+      <div class="sp-emoji">📈</div>
+      <div class="sp-body">
+        <div class="sp-val">#23</div>
+        <div class="sp-lbl">近 7 天全站排名</div>
+      </div>
+    </div>
+    <div class="stat-pill blue">
+      <div class="sp-emoji">🚀</div>
+      <div class="sp-body">
+        <div class="sp-val">24 连击</div>
+        <div class="sp-lbl">个人最长连击</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    💡 限时冲刺：30s / 60s / 90s 三档模式，答对连击叠加倍率（最高 ×5），得分从学习记录实时推导。答错的词自动收入错词本，是错词本最好的清剿出口。
+  </div>
+
+</div>
+</body>
+</html>

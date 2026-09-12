@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单词树 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Mobile page head ---- */
+  .m-page-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 4px 10px;
+  }
+  .m-page-head h1 {
+    font-size:24px; font-weight:900; letter-spacing:-0.5px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .m-page-head h1 .emoji { font-size:26px; }
+
+  /* ============ TREE HERO ============ */
+  .tree-hero {
+    background:linear-gradient(135deg, #58cc02 0%, #7be22a 55%, #6fdd1a 100%);
+    border-radius:20px; padding:20px; color:#fff;
+    box-shadow:0 5px 0 var(--green-dark), 0 10px 28px rgba(88,204,2,0.28);
+    position:relative; overflow:hidden; margin-bottom:16px;
+  }
+  .tree-hero::after {
+    content:''; position:absolute; top:-60px; right:-40px;
+    width:200px; height:200px; border-radius:50%;
+    background:rgba(255,255,255,0.08);
+  }
+  .tree-hero::before {
+    content:''; position:absolute; bottom:-80px; left:-40px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.05);
+  }
+
+  .hero-top {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px; position:relative; z-index:2;
+  }
+  .hero-stage-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:6px 14px; border-radius:12px;
+    font-size:14px; font-weight:900;
+  }
+  .hero-stage-badge .em { font-size:18px; }
+  .hero-day-pill {
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    padding:6px 14px; border-radius:12px;
+    font-size:13px; font-weight:900; color:#fff;
+    box-shadow:0 2px 0 var(--orange-dark);
+  }
+  .hero-day-pill .em { font-size:16px; }
+
+  /* Scene */
+  .tree-scene {
+    position:relative; height:200px;
+    background:linear-gradient(180deg, #e8f7ff 0%, #f0fff5 60%, #f7f7f7 100%);
+    border-radius:14px; overflow:hidden; margin:0 -2px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .sun {
+    position:absolute; top:12px; right:18px; width:32px; height:32px;
+    border-radius:50%; background:radial-gradient(circle, var(--gold), #ffb300);
+    box-shadow:0 0 20px rgba(255,200,0,0.5), 0 0 40px rgba(255,200,0,0.2);
+    animation:sun-pulse 3s ease-in-out infinite;
+  }
+  @keyframes sun-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  .cloud {
+    position:absolute; background:#fff; border-radius:16px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.06);
+    animation:cloud-drift 18s linear infinite;
+  }
+  .cloud.c1 { top:18px; left:40px; width:40px; height:16px; }
+  .cloud.c2 { top:34px; left:68px; width:30px; height:12px; animation-delay:-6s; }
+  .cloud.c3 { top:26px; right:100px; width:44px; height:17px; animation-delay:-12s; }
+  @keyframes cloud-drift { 0%{transform:translateX(0)} 100%{transform:translateX(-30px)} }
+  .ground {
+    position:absolute; bottom:0; left:0; right:0; height:30px;
+    background:linear-gradient(180deg, #a8d878, #7cb94a);
+    border-radius:50% 50% 0 0 / 30% 30% 0 0;
+  }
+  .ground-flowers {
+    position:absolute; bottom:5px; left:0; right:0;
+    display:flex; justify-content:space-around; padding:0 6%;
+  }
+  .flower { font-size:11px; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1)); }
+
+  .tree-svg-wrap {
+    position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+  }
+  .tree-svg { display:block; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.15)); }
+
+  .drop {
+    position:absolute; width:5px; height:8px; background:var(--blue);
+    border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow:0 0 4px rgba(28,176,246,0.6);
+    animation:drop-fall 2s ease-in infinite;
+  }
+  @keyframes drop-fall {
+    0%{ transform:translateY(-30px); opacity:0; }
+    20%{ opacity:1; }
+    90%{ transform:translateY(190px); opacity:1; }
+    100%{ transform:translateY(205px); opacity:0; }
+  }
+
+  .watering-can {
+    position:absolute; top:14px; left:30px;
+    font-size:36px; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));
+    animation:can-pour 3s ease-in-out infinite;
+  }
+  @keyframes can-pour { 0%,100%{transform:rotate(-15deg) translateY(0)} 50%{transform:rotate(-20deg) translateY(-3px)} }
+
+  /* Hero bottom */
+  .hero-bottom {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:12px; position:relative; z-index:2; gap:10px;
+  }
+  .hero-stat-inline {
+    display:flex; gap:10px;
+  }
+  .hs-mini {
+    display:flex; flex-direction:column; align-items:center;
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    padding:8px 12px; border-radius:12px;
+  }
+  .hs-mini .v { font-size:20px; font-weight:900; line-height:1; }
+  .hs-mini .k { font-size:10px; font-weight:800; opacity:0.9; margin-top:2px; }
+  .hs-mini .em { font-size:14px; }
+
+  .btn-water-full {
+    background:#fff; color:var(--green-dark);
+    padding:12px 24px; border-radius:12px; font-family:inherit;
+    font-weight:900; font-size:15px; cursor:pointer; text-decoration:none;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15); display:inline-flex;
+    align-items:center; gap:6px; border:none; transition:transform 0.1s;
+  }
+  .btn-water-full:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+  .btn-water-full .em { font-size:18px; }
+
+  /* ============ STAT GRID (2x3) ============ */
+  .stat-grid-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .stat-grid-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:12px;
+  }
+  .stat-grid-card .card-title .ic { font-size:20px; }
+
+  .stat-grid {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
+  }
+  .stat-tile {
+    background:#f7f7f7; border-radius:12px; padding:10px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    text-align:center;
+  }
+  .stat-tile .em { font-size:18px; margin-bottom:1px; }
+  .stat-tile .v { font-size:16px; font-weight:900; }
+  .stat-tile .v.green { color:var(--green-dark); }
+  .stat-tile .v.blue { color:var(--blue-dark); }
+  .stat-tile .v.orange { color:var(--orange); }
+  .stat-tile .v.gold { color:var(--gold); }
+  .stat-tile .k { font-size:10px; font-weight:800; color:var(--text-dim); }
+
+  /* ============ GROWTH TIMELINE ============ */
+  .timeline-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .timeline-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:4px;
+  }
+  .timeline-card .card-title .ic { font-size:20px; }
+  .timeline-card .card-desc {
+    font-size:12px; color:var(--text-dim); font-weight:600; margin-bottom:14px;
+  }
+
+  .stage-timeline {
+    position:relative; display:flex; justify-content:space-between;
+    padding:0 4px;
+  }
+  .stage-node {
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    flex:1; position:relative; z-index:2;
+  }
+  .stage-emoji {
+    width:42px; height:42px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; background:#e5e5e5;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .stage-node.done .stage-emoji { background:var(--green); box-shadow:0 2px 0 var(--green-dark); }
+  .stage-node.current .stage-emoji {
+    background:var(--green); box-shadow:0 2px 0 var(--green-dark), 0 0 0 4px rgba(88,204,2,0.2);
+    animation:node-glow 2s ease-in-out infinite;
+  }
+  @keyframes node-glow { 0%,100%{box-shadow:0 2px 0 var(--green-dark), 0 0 0 4px rgba(88,204,2,0.2)} 50%{box-shadow:0 2px 0 var(--green-dark), 0 0 0 8px rgba(88,204,2,0.08)} }
+  .stage-node.locked .stage-emoji { background:#e5e5e5; opacity:0.6; }
+  .stage-name { font-size:10px; font-weight:800; color:var(--text-dim); text-align:center; }
+  .stage-node.done .stage-name { color:var(--green-dark); }
+  .stage-node.current .stage-name { color:var(--green-dark); font-weight:900; }
+  .stage-node.locked .stage-name { color:var(--text-faint); }
+  .stage-info { font-size:9px; font-weight:700; color:var(--text-faint); text-align:center; }
+
+  .stage-line {
+    position:absolute; top:21px; left:50%; right:-50%; height:3px;
+    background:#e5e5e5; z-index:1; border-radius:2px;
+  }
+  .stage-node.done .stage-line,
+  .stage-node.current .stage-line { background:var(--green); }
+  .stage-node:last-child .stage-line { display:none; }
+
+  .stage-detail {
+    margin-top:16px; padding:14px 16px;
+    background:linear-gradient(135deg, var(--green-bg), #fff);
+    border:2px solid rgba(88,204,2,0.3); border-radius:12px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .stage-detail .em-big { font-size:32px; flex-shrink:0; }
+  .stage-detail-info { flex:1; min-width:0; }
+  .stage-detail-info .title { font-size:14px; font-weight:900; color:var(--green-dark); margin-bottom:1px; }
+  .stage-detail-info .desc { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .stage-detail-info .next { font-size:11px; font-weight:800; color:var(--blue-dark); margin-top:2px; }
+  .stage-detail-info .next b { color:var(--blue-dark); }
+  .stage-detail-btn {
+    flex-shrink:0; background:var(--green); color:#fff;
+    padding:10px 16px; border-radius:10px; font-weight:900; font-size:13px;
+    box-shadow:0 3px 0 var(--green-dark); text-decoration:none;
+    display:inline-flex; align-items:center; gap:4px;
+  }
+
+  /* ============ WATERING REWARDS ============ */
+  .rewards-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .rewards-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:12px;
+  }
+  .rewards-card .card-title .ic { font-size:20px; }
+
+  .reward-list { display:flex; flex-direction:column; gap:8px; }
+  .reward-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .reward-row.unlocked { background:var(--green-bg); border:1.5px solid rgba(88,204,2,0.25); }
+  .reward-row.locked { opacity:0.6; }
+  .reward-icon {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .reward-icon.green { background:linear-gradient(135deg, var(--green), #6fdd1a); color:#fff; }
+  .reward-icon.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); color:#fff; }
+  .reward-icon.orange { background:linear-gradient(135deg, var(--orange), #ffb347); color:#fff; }
+  .reward-icon.gold { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; }
+  .reward-icon.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); color:#fff; }
+  .reward-body { flex:1; min-width:0; }
+  .reward-body b { display:block; font-size:13px; font-weight:900; }
+  .reward-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .reward-status {
+    flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+  }
+  .reward-status .check {
+    width:22px; height:22px; border-radius:50%;
+    background:var(--green); color:#fff; display:flex; align-items:center;
+    justify-content:center; font-size:12px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .reward-status .lock {
+    width:22px; height:22px; border-radius:50%;
+    background:#e5e5e5; display:flex; align-items:center;
+    justify-content:center; font-size:12px; color:var(--text-faint);
+  }
+  .reward-status .need { font-size:9px; font-weight:800; color:var(--text-dim); }
+
+  /* ============ WEEKLY BAR CHART ============ */
+  .history-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .history-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:4px;
+  }
+  .history-card .card-title .ic { font-size:20px; }
+  .history-card .card-desc {
+    font-size:12px; color:var(--text-dim); font-weight:600; margin-bottom:12px;
+  }
+
+  .week-bar {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    height:100px; gap:4px; padding:0 2px; margin-bottom:10px;
+  }
+  .week-col {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    gap:3px; height:100%; justify-content:flex-end;
+  }
+  .week-bar-val { font-size:9px; font-weight:900; color:var(--green-dark); }
+  .week-bar-fill {
+    width:100%; max-width:28px; border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg, var(--blue), #4dd0ff);
+    box-shadow:0 -2px 0 rgba(28,176,246,0.2) inset;
+    min-height:5px;
+  }
+  .week-bar-fill.today { background:linear-gradient(180deg, var(--orange), #ffb347); }
+  .week-bar-fill.today .week-bar-val { color:var(--orange); }
+  .week-bar-label { font-size:9px; font-weight:800; color:var(--text-dim); }
+  .week-bar-label.today { color:var(--orange); }
+
+  .weekly-mini-stats {
+    display:flex; gap:8px; justify-content:space-between;
+  }
+  .wms-item {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    padding:8px 4px; background:#f7f7f7; border-radius:10px;
+  }
+  .wms-item .v { font-size:14px; font-weight:900; }
+  .wms-item .v.blue { color:var(--blue-dark); }
+  .wms-item .v.green { color:var(--green-dark); }
+  .wms-item .v.orange { color:var(--orange); }
+  .wms-item .k { font-size:9px; font-weight:800; color:var(--text-dim); margin-top:1px; }
+
+  /* ============ FRIENDS TREES ============ */
+  .friends-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .friends-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:12px;
+  }
+  .friends-card .card-title .ic { font-size:20px; }
+
+  .friends-list { display:flex; flex-direction:column; gap:8px; }
+  .friend-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .friend-row.me {
+    background:linear-gradient(90deg, var(--green-bg), #fff);
+    border:2px solid var(--green); box-shadow:0 2px 0 rgba(88,204,2,0.12);
+  }
+  .friend-rank {
+    width:28px; height:28px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900; background:#e5e5e5; color:var(--text-dim);
+  }
+  .friend-rank.r1 { background:linear-gradient(135deg, #ffd700, #ffb300); color:#5a3e00; box-shadow:0 2px 0 #d9a600; }
+  .friend-rank.r2 { background:linear-gradient(135deg, #e0e0e0, #bfbfbf); color:#5a5a5a; box-shadow:0 2px 0 #9a9a9a; }
+  .friend-rank.r3 { background:linear-gradient(135deg, #cd7f32, #a0522d); color:#fff; box-shadow:0 2px 0 #8b4513; }
+  .friend-avatar {
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+  }
+  .friend-info { flex:1; min-width:0; }
+  .friend-info b { display:block; font-size:13px; font-weight:900; }
+  .friend-info small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .friend-tree-mini {
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+  }
+  .friend-tree-mini .em { font-size:20px; }
+  .friend-tree-mini .days { font-size:9px; font-weight:800; color:var(--orange); }
+
+  /* ============ MILESTONES ============ */
+  .milestones-card {
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    margin-bottom:16px;
+  }
+  .milestones-card .card-title {
+    font-size:16px; font-weight:900; display:flex; align-items:center; gap:6px;
+    margin-bottom:4px;
+  }
+  .milestones-card .card-title .ic { font-size:20px; }
+  .milestones-card .card-desc {
+    font-size:12px; color:var(--text-dim); font-weight:600; margin-bottom:12px;
+  }
+
+  .milestone-list { display:flex; flex-direction:column; gap:8px; }
+  .milestone-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:12px; background:#f7f7f7;
+  }
+  .milestone-row.done { background:var(--green-bg); }
+  .milestone-row.next { border:2px solid var(--blue); }
+  .milestone-icon {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .milestone-icon.green { background:linear-gradient(135deg, var(--green), #6fdd1a); color:#fff; }
+  .milestone-icon.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); color:#fff; }
+  .milestone-icon.gold { background:linear-gradient(135deg, var(--gold), #ffdf6b); color:#5a3e00; }
+  .milestone-body { flex:1; min-width:0; }
+  .milestone-body b { display:block; font-size:13px; font-weight:900; }
+  .milestone-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .milestone-status {
+    flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end;
+  }
+  .milestone-status .done-tag {
+    background:var(--green); color:#fff; padding:2px 8px; border-radius:7px;
+    font-size:9px; font-weight:900; box-shadow:0 2px 0 var(--green-dark);
+  }
+  .milestone-status .next-tag {
+    background:var(--blue); color:#fff; padding:2px 8px; border-radius:7px;
+    font-size:9px; font-weight:900; box-shadow:0 2px 0 var(--blue-dark);
+  }
+  .milestone-status .date { font-size:9px; font-weight:800; color:var(--text-faint); margin-top:1px; }
+
+  /* ============ CTA Banner ============ */
+  .cta-banner {
+    display:flex; align-items:center; gap:12px;
+    padding:16px 18px; border-radius:16px; color:#fff;
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg, var(--purple), #e0aaff);
+    box-shadow:0 4px 0 var(--purple-dark);
+    margin-bottom:16px;
+  }
+  .cta-banner::after {
+    content:''; position:absolute; top:-16px; right:-8px;
+    width:60px; height:60px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .cta-banner .b-icon { font-size:28px; flex-shrink:0; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.15)); position:relative; z-index:1; }
+  .cta-banner .b-body { flex:1; min-width:0; position:relative; z-index:1; }
+  .cta-banner .b-body b { display:block; font-size:15px; font-weight:900; margin-bottom:2px; }
+  .cta-banner .b-body small { font-size:12px; font-weight:700; opacity:0.9; line-height:1.4; }
+  .cta-banner .b-go {
+    flex-shrink:0; background:rgba(255,255,255,0.25); backdrop-filter:blur(4px);
+    padding:8px 14px; border-radius:10px; font-weight:900; font-size:13px;
+    position:relative; z-index:1; text-decoration:none; color:#fff;
+  }
+
+  /* ============ FULL-WIDTH BUTTONS ============ */
+  .btn-full-water {
+    display:flex; width:100%; padding:14px;
+    background:var(--green); color:#fff; border:none; border-radius:14px;
+    font-family:inherit; font-weight:900; font-size:16px; letter-spacing:0.5px;
+    box-shadow:0 4px 0 var(--green-dark); align-items:center; justify-content:center;
+    gap:8px; text-decoration:none; cursor:pointer;
+  }
+  .btn-full-water:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+  .btn-full-water .em { font-size:20px; }
+
+  .btn-full-detail {
+    display:flex; width:100%; padding:12px;
+    background:#fff; color:var(--blue-dark); border:2px solid var(--blue); border-radius:14px;
+    font-family:inherit; font-weight:900; font-size:14px;
+    box-shadow:0 4px 0 rgba(28,176,246,0.2); align-items:center; justify-content:center;
+    gap:8px; text-decoration:none; cursor:pointer; margin-top:10px;
+  }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:12px;
+    font-size:11px; color:var(--text-faint); font-weight:700;
+  }
+</style>
+</head>
+<body>
+
+<div class="container-mobile">
+
+  <!-- ============ TOP BAR (mobile simplified) ============ -->
+  <div class="topbar" style="padding:10px 14px;">
+    <div class="topbar-brand" style="font-size:17px;">
+      <span class="owl" style="font-size:24px;">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div style="font-weight:900; font-size:14px; color:var(--text);">单词树</div>
+    <div class="topbar-stats" style="gap:12px;">
+      <div class="stat-item streak" style="font-size:14px;">
+        <span class="icon" style="font-size:15px;">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp" style="font-size:14px;">
+        <span class="icon" style="font-size:15px;">⚡</span>
+        <span>42k</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="m-page-head">
+    <h1><span class="emoji">🌳</span> 单词树</h1>
+    <span class="badge badge-green" style="font-size:11px; padding:3px 10px;">🌿 幼苗期</span>
+  </div>
+
+  <!-- ============ TREE HERO ============ -->
+  <div class="tree-hero">
+    <div class="hero-top">
+      <div class="hero-stage-badge">
+        <span class="em">🌿</span>
+        <span>第 3 阶段</span>
+      </div>
+      <div class="hero-day-pill">
+        <span class="em">🔥</span>
+        <span>连续 27 天</span>
+      </div>
+    </div>
+
+    <div class="tree-scene">
+      <div class="watering-can">🚿</div>
+      <div class="sun"></div>
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+
+      <div class="drop" style="left:28%; animation-delay:0s;"></div>
+      <div class="drop" style="left:42%; animation-delay:0.5s;"></div>
+      <div class="drop" style="left:55%; animation-delay:1.0s;"></div>
+      <div class="drop" style="left:65%; animation-delay:0.3s;"></div>
+
+      <div class="ground">
+        <div class="ground-flowers">
+          <span class="flower">🌸</span>
+          <span class="flower">🌼</span>
+          <span class="flower">🌷</span>
+          <span class="flower">🌻</span>
+          <span class="flower">🌺</span>
+        </div>
+      </div>
+
+      <div class="tree-svg-wrap">
+        <svg width="220" height="180" viewBox="0 0 220 180" class="tree-svg">
+          <!-- Trunk -->
+          <path d="M104 170 Q108 130 100 100 Q110 95 120 100 Q112 130 115 170 Z" fill="#8b5a2b"/>
+          <!-- Branches -->
+          <path d="M108 110 Q80 95 70 80" stroke="#8b5a2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path d="M112 100 Q140 88 150 70" stroke="#8b5a2b" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path d="M108 95 Q100 75 105 55" stroke="#8b5a2b" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- Leaf clusters -->
+          <circle cx="68" cy="78" r="26" fill="#58cc02"/>
+          <circle cx="50" cy="68" r="18" fill="#6fdd1a"/>
+          <circle cx="85" cy="60" r="20" fill="#46a302"/>
+          <circle cx="150" cy="65" r="28" fill="#58cc02"/>
+          <circle cx="170" cy="78" r="18" fill="#6fdd1a"/>
+          <circle cx="135" cy="50" r="22" fill="#46a302"/>
+          <circle cx="105" cy="45" r="26" fill="#58cc02"/>
+          <circle cx="100" cy="30" r="20" fill="#6fdd1a"/>
+          <circle cx="120" cy="35" r="18" fill="#46a302"/>
+          <!-- Fruits -->
+          <circle cx="65" cy="70" r="6" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+          <circle cx="150" cy="72" r="6" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+          <circle cx="110" cy="35" r="6" fill="#ffc800" stroke="#fff" stroke-width="1.5"/>
+          <circle cx="140" cy="60" r="5" fill="#ff9600" stroke="#fff" stroke-width="1.5"/>
+          <circle cx="75" cy="82" r="5" fill="#ffc800" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="hero-bottom">
+      <div class="hero-stat-inline">
+        <div class="hs-mini">
+          <span class="em">💧</span>
+          <span class="v">27</span>
+          <span class="k">天数</span>
+        </div>
+        <div class="hs-mini">
+          <span class="em">🍎</span>
+          <span class="v">1,284</span>
+          <span class="k">果实</span>
+        </div>
+        <div class="hs-mini">
+          <span class="em">✨</span>
+          <span class="v">+15</span>
+          <span class="k">今日</span>
+        </div>
+        <div class="hs-mini">
+          <span class="em">📈</span>
+          <span class="v" style="color:var(--gold);">68%</span>
+          <span class="k">进度</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FULL-WIDTH WATER BUTTON ============ -->
+  <div style="margin-bottom:16px;">
+    <a href="#" class="btn-full-water"><span class="em">💧</span> 立即浇水 +5 XP</a>
+    <a href="#" class="btn-full-detail"><span style="font-size:18px;">📊</span> 查看详情</a>
+  </div>
+
+  <!-- ============ STAT GRID ============ -->
+  <div class="stat-grid-card">
+    <div class="card-title"><span class="ic">📊</span> 浇水统计</div>
+    <div class="stat-grid">
+      <div class="stat-tile">
+        <span class="em">💧</span>
+        <span class="v blue">2,430</span>
+        <span class="k">累计浇水</span>
+      </div>
+      <div class="stat-tile">
+        <span class="em">🔥</span>
+        <span class="v orange">27天</span>
+        <span class="k">连续浇水</span>
+      </div>
+      <div class="stat-tile">
+        <span class="em">🏆</span>
+        <span class="v gold">92天</span>
+        <span class="k">历史最长</span>
+      </div>
+      <div class="stat-tile">
+        <span class="em">📅</span>
+        <span class="v green">89</span>
+        <span class="k">总浇水天数</span>
+      </div>
+      <div class="stat-tile">
+        <span class="em">🌱</span>
+        <span class="v green">3/6</span>
+        <span class="k">成长阶段</span>
+      </div>
+      <div class="stat-tile">
+        <span class="em">🎁</span>
+        <span class="v gold">12/18</span>
+        <span class="k">奖励解锁</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GROWTH TIMELINE ============ -->
+  <div class="timeline-card">
+    <div class="card-title"><span class="ic">🌱</span> 成长路线图</div>
+    <div class="card-desc">达成条件后树形会进化</div>
+
+    <div class="stage-timeline">
+      <div class="stage-node done">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🌱</div>
+        <div class="stage-name">种子</div>
+        <div class="stage-info">Day 1-3</div>
+      </div>
+      <div class="stage-node done">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🌿</div>
+        <div class="stage-name">发芽</div>
+        <div class="stage-info">Day 4-7</div>
+      </div>
+      <div class="stage-node current">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🌳</div>
+        <div class="stage-name">幼苗</div>
+        <div class="stage-info">Day 8-14</div>
+      </div>
+      <div class="stage-node locked">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🌴</div>
+        <div class="stage-name">小树</div>
+        <div class="stage-info">Day 15-30</div>
+      </div>
+      <div class="stage-node locked">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🌲</div>
+        <div class="stage-name">大树</div>
+        <div class="stage-info">Day 31-60</div>
+      </div>
+      <div class="stage-node locked">
+        <div class="stage-line"></div>
+        <div class="stage-emoji">🎄</div>
+        <div class="stage-name">参天</div>
+        <div class="stage-info">Day 60+</div>
+      </div>
+    </div>
+
+    <div class="stage-detail">
+      <span class="em-big">🌳</span>
+      <div class="stage-detail-info">
+        <div class="title">幼苗期 · 第 27 天</div>
+        <div class="desc">已结出第一批果实！</div>
+        <div class="next">💧 再浇 <b>1,580 XP</b> → 🌴 小树</div>
+      </div>
+      <a href="#" class="stage-detail-btn">💧 浇水</a>
+    </div>
+  </div>
+
+  <!-- ============ WATERING REWARDS ============ -->
+  <div class="rewards-card">
+    <div class="card-title"><span class="ic">🎁</span> 浇水奖励</div>
+    <div class="reward-list">
+      <div class="reward-row unlocked">
+        <div class="reward-icon green">💧</div>
+        <div class="reward-body">
+          <b>初尝甘霖</b>
+          <small>连续浇水 7 天</small>
+        </div>
+        <div class="reward-status">
+          <div class="check">✓</div>
+          <span class="need">Day 7</span>
+        </div>
+      </div>
+      <div class="reward-row unlocked">
+        <div class="reward-icon orange">🔥</div>
+        <div class="reward-body">
+          <b>铁人浇水</b>
+          <small>连续浇水 14 天</small>
+        </div>
+        <div class="reward-status">
+          <div class="check">✓</div>
+          <span class="need">Day 14</span>
+        </div>
+      </div>
+      <div class="reward-row unlocked">
+        <div class="reward-icon gold">🏆</div>
+        <div class="reward-body">
+          <b>滴水穿石</b>
+          <small>连续浇水 21 天</small>
+        </div>
+        <div class="reward-status">
+          <div class="check">✓</div>
+          <span class="need">Day 21</span>
+        </div>
+      </div>
+      <div class="reward-row">
+        <div class="reward-icon blue">🌊</div>
+        <div class="reward-body">
+          <b>水到渠成</b>
+          <small>连续 30 天 · +500 XP</small>
+        </div>
+        <div class="reward-status">
+          <div class="lock">🔒</div>
+          <span class="need">还差 3 天</span>
+        </div>
+      </div>
+      <div class="reward-row locked">
+        <div class="reward-icon purple">👑</div>
+        <div class="reward-body">
+          <b>百水王</b>
+          <small>累计 100 天 · 称号奖励</small>
+        </div>
+        <div class="reward-status">
+          <div class="lock">🔒</div>
+          <span class="need">Day 100</span>
+        </div>
+      </div>
+      <div class="reward-row locked">
+        <div class="reward-icon green">🌳</div>
+        <div class="reward-body">
+          <b>参天大树</b>
+          <small>最终阶段 · 永久金框</small>
+        </div>
+        <div class="reward-status">
+          <div class="lock">🔒</div>
+          <span class="need">Day 60+</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WEEKLY HISTORY ============ -->
+  <div class="history-card">
+    <div class="card-title"><span class="ic">📅</span> 本周浇水记录</div>
+    <div class="card-desc">每天浇水 +XP 和果实奖励</div>
+
+    <div class="week-bar">
+      <div class="week-col">
+        <span class="week-bar-val">18</span>
+        <div class="week-bar-fill" style="height:52%"></div>
+        <span class="week-bar-label">周一</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val">22</span>
+        <div class="week-bar-fill" style="height:64%"></div>
+        <span class="week-bar-label">周二</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val">15</span>
+        <div class="week-bar-fill" style="height:44%"></div>
+        <span class="week-bar-label">周三</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val">20</span>
+        <div class="week-bar-fill" style="height:58%"></div>
+        <span class="week-bar-label">周四</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val">25</span>
+        <div class="week-bar-fill" style="height:72%"></div>
+        <span class="week-bar-label">周五</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val">12</span>
+        <div class="week-bar-fill" style="height:36%"></div>
+        <span class="week-bar-label">周六</span>
+      </div>
+      <div class="week-col">
+        <span class="week-bar-val" style="color:var(--orange);">15</span>
+        <div class="week-bar-fill today" style="height:44%"></div>
+        <span class="week-bar-label today">今天</span>
+      </div>
+    </div>
+
+    <div class="weekly-mini-stats">
+      <div class="wms-item">
+        <span class="v blue">127</span>
+        <span class="k">本周 XP</span>
+      </div>
+      <div class="wms-item">
+        <span class="v green">18.1</span>
+        <span class="k">日均</span>
+      </div>
+      <div class="wms-item">
+        <span class="v orange">7/7</span>
+        <span class="k">全勤</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FRIENDS TREES ============ -->
+  <div class="friends-card">
+    <div class="card-title"><span class="ic">🏆</span> 好友树排行</div>
+    <div class="friends-list">
+      <div class="friend-row">
+        <div class="friend-rank r1">1</div>
+        <div class="friend-avatar" style="background:linear-gradient(135deg, #ff9600, #ffb347);">🔥</div>
+        <div class="friend-info">
+          <b>铁人意志</b>
+          <small>Lv.12 · 连续 92 天</small>
+        </div>
+        <div class="friend-tree-mini">
+          <span class="em">🌴</span>
+          <span class="days">92天</span>
+        </div>
+      </div>
+      <div class="friend-row">
+        <div class="friend-rank r2">2</div>
+        <div class="friend-avatar" style="background:linear-gradient(135deg, var(--blue), #4dd0ff);">🚀</div>
+        <div class="friend-info">
+          <b>单词猎人</b>
+          <small>Lv.13 · 连续 75 天</small>
+        </div>
+        <div class="friend-tree-mini">
+          <span class="em">🌲</span>
+          <span class="days">75天</span>
+        </div>
+      </div>
+      <div class="friend-row">
+        <div class="friend-rank r3">3</div>
+        <div class="friend-avatar" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">🧙</div>
+        <div class="friend-info">
+          <b>学神小王</b>
+          <small>Lv.12 · 连续 60 天</small>
+        </div>
+        <div class="friend-tree-mini">
+          <span class="em">🌴</span>
+          <span class="days">60天</span>
+        </div>
+      </div>
+      <div class="friend-row me">
+        <div class="friend-rank" style="background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark);">17</div>
+        <div class="friend-avatar">🎓</div>
+        <div class="friend-info">
+          <b>李小明（你）</b>
+          <small>Lv.11 · 连续 27 天</small>
+        </div>
+        <div class="friend-tree-mini">
+          <span class="em">🌳</span>
+          <span class="days">27天</span>
+        </div>
+      </div>
+      <div class="friend-row">
+        <div class="friend-rank">18</div>
+        <div class="friend-avatar" style="background:linear-gradient(135deg, var(--gold), #ffdf6b);">🌟</div>
+        <div class="friend-info">
+          <b>词海行者</b>
+          <small>Lv.11 · 连续 12 天</small>
+        </div>
+        <div class="friend-tree-mini">
+          <span class="em">🌿</span>
+          <span class="days">12天</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MILESTONES ============ -->
+  <div class="milestones-card">
+    <div class="card-title"><span class="ic">🏅</span> 里程碑记录</div>
+    <div class="card-desc">你的浇水历史重要时刻</div>
+
+    <div class="milestone-list">
+      <div class="milestone-row done">
+        <div class="milestone-icon green">🌱</div>
+        <div class="milestone-body">
+          <b>种下第一颗种子</b>
+          <small>开始连续浇水之旅</small>
+        </div>
+        <div class="milestone-status">
+          <span class="done-tag">已完成</span>
+          <span class="date">9/1</span>
+        </div>
+      </div>
+      <div class="milestone-row done">
+        <div class="milestone-icon green">🌿</div>
+        <div class="milestone-body">
+          <b>种子发芽</b>
+          <small>连续 4 天 · 发芽期</small>
+        </div>
+        <div class="milestone-status">
+          <span class="done-tag">已完成</span>
+          <span class="date">9/4</span>
+        </div>
+      </div>
+      <div class="milestone-row done">
+        <div class="milestone-icon green">🌳</div>
+        <div class="milestone-body">
+          <b>幼苗茁壮成长</b>
+          <small>连续 8 天 · 长出枝叶</small>
+        </div>
+        <div class="milestone-status">
+          <span class="done-tag">已完成</span>
+          <span class="date">9/8</span>
+        </div>
+      </div>
+      <div class="milestone-row next">
+        <div class="milestone-icon blue">🌴</div>
+        <div class="milestone-body">
+          <b>长成小树</b>
+          <small>连续 15 天 · 小树期</small>
+        </div>
+        <div class="milestone-status">
+          <span class="next-tag">进行中</span>
+          <span class="date">预计 9/22</span>
+        </div>
+      </div>
+      <div class="milestone-row" style="opacity:0.6;">
+        <div class="milestone-icon gold">🌲</div>
+        <div class="milestone-body">
+          <b>长成大树</b>
+          <small>连续 31 天 · 大树期</small>
+        </div>
+        <div class="milestone-status">
+          <span class="next-tag" style="background:var(--gold); color:#5a3e00; box-shadow:0 2px 0 #d9a600;">锁定</span>
+          <span class="date">Day 31+</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CTA BANNER ============ -->
+  <div class="cta-banner">
+    <span class="b-icon">🎯</span>
+    <div class="b-body">
+      <b>今天还没浇水！</b>
+      <small>浇水 +5 XP，连浇 7 天有惊喜</small>
+    </div>
+    <a href="#" class="b-go">💧 浇水</a>
+  </div>
+
+  <div class="foot">每天浇水 · 见证词汇之树成长 · 数据每日更新</div>
+</div>
+
+</body>
+</html>

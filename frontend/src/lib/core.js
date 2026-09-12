@@ -56,6 +56,8 @@ export async function api(path, opts = {}) {
       headers: {
         "Content-Type": "application/json",
         "X-CSRF-Token": cookie("dict_csrf"),
+        // 用户时区（JS getTimezoneOffset，分钟，西正东负）：后端按它划「今天」，统计/打卡口径跟用户走
+        "X-Tz-Offset": String(new Date().getTimezoneOffset()),
         ...(opts.headers || {}),
       },
     });
@@ -230,8 +232,19 @@ export function playWord(item, onended = null) {
   audioEl.play().catch(markBlocked);
 }
 
-// 预加载单词真人音（失败回落后端音频）
-export function preloadWord(item) {
-  if (!item) return;
-  preloadAudio(youdaoFailed.has(item.text) ? item.audio : wordAudioUrl(item.text));
+
+/* 今日动线串联：拉 /api/today，返回当前环节（afterKey）之后第一个未完成环节——
+   五环按顺序走，做完句子听写该去排句而不是跳回背单词；
+   后面没有未完成环节（或拉取失败）返回 null → 回动线首页 */
+export async function todayNextStep(afterKey) {
+  try {
+    const want = localStorage.getItem("dict_today_list");
+    const d = await api("/today" + (want ? `?list=${encodeURIComponent(want)}` : ""));
+    const steps = d.steps || [];
+    const i = afterKey ? steps.findIndex((s) => s.key === afterKey) : -1;
+    return steps.slice(i + 1).find((s) => !s.done) || null;
+  } catch { return null; }
+}
+export function goTodayStep(step) {
+  location.hash = step ? step.link : "#/catalog";
 }

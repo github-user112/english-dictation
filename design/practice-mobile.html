@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听打练习 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles (mobile) ============ */
+
+  .phone-frame { max-width:400px; margin:0 auto; min-height:100vh; position:relative; overflow:hidden; }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-title { font-size:13px; font-weight:800; color:var(--text-dim); }
+  .topbar-stats { display:flex; align-items:center; gap:12px; }
+  .stat-item { display:flex; align-items:center; gap:3px; font-weight:800; font-size:14px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:#c9a000; }
+
+  /* ---- Session cockpit (mobile) ---- */
+  .cockpit {
+    margin:14px 14px 14px; background:var(--panel); border-radius:16px; padding:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .cock-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .mode-tabs { display:flex; gap:6px; }
+  .mode-tab {
+    display:flex; align-items:center; gap:5px; padding:8px 12px; border-radius:10px;
+    font-weight:800; font-size:13px; cursor:pointer; text-decoration:none; white-space:nowrap;
+    background:#f0f0f0; color:var(--text-dim);
+  }
+  .mode-tab .ic { font-size:15px; }
+  .mode-tab.active { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .mode-tab.blue.active { background:var(--blue); box-shadow:0 3px 0 var(--blue-dark); }
+
+  .cock-num { display:flex; align-items:baseline; gap:3px; font-size:18px; font-weight:900; color:var(--green-dark); }
+  .cock-num small { font-size:12px; color:var(--text-dim); font-weight:700; }
+
+  .seg-bar { display:flex; gap:2px; height:9px; margin-bottom:12px; }
+  .seg { flex:1; min-width:0; border-radius:3px; background:#e8e8e8; }
+  .seg.ok { background:linear-gradient(180deg, var(--green), #6fdd1a); box-shadow:0 1px 0 rgba(88,204,2,0.3); }
+  .seg.bad { background:linear-gradient(180deg, var(--red), #ff7a7a); box-shadow:0 1px 0 rgba(255,75,75,0.3); }
+  .seg.cur { background:linear-gradient(180deg, var(--orange), #ffb347); animation:seg-pulse 1.5s ease infinite; }
+  @keyframes seg-pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+  .cock-ctrls { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .seg-toggle { display:flex; background:#f0f0f0; border-radius:10px; padding:3px; }
+  .seg-toggle button {
+    border:none; background:transparent; padding:6px 12px; border-radius:8px;
+    font-family:inherit; font-weight:800; font-size:12px; cursor:pointer; color:var(--text-dim);
+  }
+  .seg-toggle button.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+  .speed-btn {
+    display:inline-flex; align-items:center; gap:5px; padding:8px 12px;
+    border:none; border-radius:10px; background:#f0f0f0; color:var(--text-dim);
+    font-family:inherit; font-weight:800; font-size:12px; cursor:pointer;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .speed-btn .ic { font-size:14px; }
+  .timer-pill {
+    display:inline-flex; align-items:center; gap:5px; padding:6px 10px;
+    border-radius:10px; background:#fff8e6; border:1.5px solid rgba(255,150,0,0.3);
+    font-size:13px; font-weight:900; color:var(--orange); font-variant-numeric:tabular-nums;
+  }
+  .timer-pill .ic { font-size:14px; }
+
+  /* ---- Arena card ---- */
+  .arena {
+    margin:0 14px 14px; background:var(--panel); border-radius:16px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 22px rgba(0,0,0,0.05);
+    overflow:hidden;
+  }
+  .arena-topbar { height:4px; background:linear-gradient(90deg, var(--green), #6fdd1a 60%, var(--blue)); }
+  .arena-inner { padding:18px 16px 16px; }
+
+  .arena-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .arena-head .left { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .qnum {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:9px; background:#f7f7f7;
+    font-size:12px; font-weight:900; color:var(--text-dim);
+  }
+  .qnum .ic { font-size:14px; }
+  .mode-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 10px; border-radius:9px; font-size:11px; font-weight:900;
+    background:var(--blue-light); color:var(--blue-dark);
+  }
+
+  .audio-row { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .play-btn {
+    width:60px; height:60px; border-radius:50%; border:none;
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    color:#fff; font-size:24px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 5px 0 var(--orange-dark), 0 7px 18px rgba(255,150,0,0.3);
+    transition:transform 0.1s; position:relative;
+  }
+  .play-btn:active { transform:translateY(3px); box-shadow:0 2px 0 var(--orange-dark); }
+  .play-btn .pulse-ring {
+    position:absolute; inset:-5px; border-radius:50%;
+    border:3px solid var(--orange); opacity:0; animation:ring-pulse 1.8s ease-out infinite;
+  }
+  @keyframes ring-pulse { 0%{transform:scale(0.9); opacity:0.7} 100%{transform:scale(1.35); opacity:0} }
+  .eq { display:flex; align-items:flex-end; gap:2px; height:28px; color:#fff; }
+  .eq i { width:4px; background:currentColor; border-radius:2px; animation:eq 0.7s ease-in-out infinite; }
+  .eq i:nth-child(1){ height:35%; animation-delay:0s; }
+  .eq i:nth-child(2){ height:75%; animation-delay:0.12s; }
+  .eq i:nth-child(3){ height:55%; animation-delay:0.24s; }
+  .eq i:nth-child(4){ height:95%; animation-delay:0.06s; }
+  .eq i:nth-child(5){ height:45%; animation-delay:0.18s; }
+  .eq i:nth-child(6){ height:70%; animation-delay:0.3s; }
+  @keyframes eq { 0%,100%{ transform:scaleY(0.35);} 50%{ transform:scaleY(1);} }
+
+  .audio-meta { flex:1; min-width:0; }
+  .audio-meta .status {
+    display:flex; align-items:center; gap:6px; margin-bottom:5px;
+    font-size:13px; font-weight:900; color:var(--orange);
+  }
+  .audio-meta .status .dot { width:7px; height:7px; border-radius:50%; background:var(--orange); animation:pulse 1.2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .audio-meta .sub { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:700; color:var(--text-dim); flex-wrap:wrap; }
+  .audio-meta .sub span { display:flex; align-items:center; gap:3px; }
+  .audio-meta .sub .ic { font-size:13px; }
+  .replay-dots { display:flex; align-items:center; gap:5px; margin-top:6px; }
+  .replay-dot { width:8px; height:8px; border-radius:50%; background:#e0e0e0; }
+  .replay-dot.on { background:var(--orange); box-shadow:0 0 0 2px rgba(255,150,0,0.18); }
+  .replay-dots .lbl { font-size:11px; font-weight:700; color:var(--text-faint); margin-left:3px; }
+
+  .info-line {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:10px 13px; background:#f7f7f7; border-radius:11px; margin-bottom:16px;
+  }
+  .info-line .phonetic { font-size:16px; font-weight:800; color:var(--purple-dark); font-family:'Nunito',sans-serif; }
+  .info-line .divider { color:var(--text-faint); font-weight:600; }
+  .info-line .meaning { font-size:14px; font-weight:700; color:var(--text); }
+
+  .cells-wrap { margin-bottom:16px; }
+  .cells-label { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cells-label .lbl { font-size:12px; font-weight:900; color:var(--text-dim); display:flex; align-items:center; gap:4px; }
+  .cells-label .hint { font-size:11px; font-weight:700; color:var(--text-faint); }
+  .cells { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .cell {
+    width:36px; height:44px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:900; font-family:'Nunito',sans-serif;
+    position:relative; transition:all 0.15s;
+  }
+  .cell.empty { background:#f5f5f5; border:2px solid var(--border); color:var(--text-faint); box-shadow:0 2px 0 rgba(0,0,0,0.06); }
+  .cell.right { background:var(--green-bg); border:2px solid var(--green); color:var(--green-dark); box-shadow:0 2px 0 rgba(88,204,2,0.22); }
+  .cell.wrong { background:#fff0f0; border:2px solid var(--red); color:var(--red); box-shadow:0 2px 0 rgba(255,75,75,0.22); animation:cell-shake 0.4s; }
+  @keyframes cell-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-2px)} 80%{transform:translateX(2px)} }
+  .cell.current { background:#fff; border:2px solid var(--green); color:var(--text); box-shadow:0 2px 0 rgba(88,204,2,0.22), 0 0 0 4px rgba(88,204,2,0.12); }
+  .cell.current .caret { display:block; width:2px; height:24px; background:var(--green); animation:blink 0.9s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .cell .target {
+    position:absolute; bottom:-19px; left:50%; transform:translateX(-50%);
+    font-size:10px; font-weight:700; color:var(--text-faint); font-family:'Nunito',sans-serif;
+  }
+  .cell.wrong .target { color:var(--red); }
+
+  .feedback {
+    display:flex; align-items:flex-start; gap:7px; flex-wrap:wrap;
+    padding:11px 13px; border-radius:11px; margin-bottom:14px;
+    background:#fff0f0; border:1.5px solid rgba(255,75,75,0.3);
+  }
+  .feedback .ic { font-size:16px; flex-shrink:0; }
+  .feedback .txt { font-size:13px; font-weight:800; color:var(--red); }
+  .feedback .muted { font-size:12px; font-weight:600; color:var(--text-dim); }
+  .feedback kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:22px; height:20px; padding:0 5px; border-radius:5px;
+    background:#fff; border:1.5px solid var(--border-strong); border-bottom-width:2px;
+    font-size:10px; font-weight:800; color:var(--text); font-family:'Nunito',sans-serif;
+  }
+
+  .arena-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .arena-controls .btn { flex:1; min-width:0; padding:12px 10px; font-size:13px; }
+  .arena-controls .btn-primary.big { padding:13px 16px; font-size:14px; flex:1.4; }
+  .arena-controls .btn .ic { font-size:16px; }
+
+  .arena-hint {
+    display:flex; align-items:flex-start; gap:7px; margin-top:14px;
+    padding-top:12px; border-top:1px dashed var(--border);
+    font-size:11px; font-weight:600; color:var(--text-dim); line-height:1.5;
+  }
+  .arena-hint .ic { font-size:14px; flex-shrink:0; }
+  .arena-hint kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:20px; height:18px; padding:0 4px; border-radius:4px;
+    background:#f0f0f0; border:1px solid var(--border);
+    font-size:9px; font-weight:800; color:var(--text-dim);
+  }
+
+  /* ---- Section head ---- */
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px 10px;
+  }
+  .section-head h2 { font-size:17px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .section-head .count { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .section-head .more { font-size:12px; font-weight:800; color:var(--green-dark); text-decoration:none; }
+
+  /* ---- Stats grid ---- */
+  .stat-card {
+    margin:0 14px 14px; background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .stat-card-title { font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; margin-bottom:14px; }
+  .stat-card-title .ic { font-size:20px; }
+
+  .ring-row { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .ring-wrap { position:relative; width:84px; height:84px; flex-shrink:0; }
+  .ring-wrap svg { width:84px; height:84px; }
+  .ring-bg { fill:none; stroke:#ececec; stroke-width:4.5; }
+  .ring-fg {
+    fill:none; stroke:var(--green); stroke-width:4.5; stroke-linecap:round;
+    transform:rotate(-90deg); transform-origin:center;
+    stroke-dasharray:100; stroke-dashoffset:18;
+    filter:drop-shadow(0 0 4px rgba(88,204,2,0.3));
+  }
+  .ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .ring-center .pct { font-weight:900; font-size:20px; color:var(--green-dark); }
+  .ring-center .sub { font-size:9px; font-weight:800; color:var(--text-dim); margin-top:1px; }
+
+  .ring-side { flex:1; min-width:0; }
+  .ring-side .item { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:5px; }
+  .ring-side .item .dot { width:7px; height:7px; border-radius:50%; }
+  .ring-side .item .dot.green { background:var(--green); }
+  .ring-side .item .dot.red { background:var(--red); }
+  .ring-side .item .dot.gray { background:var(--text-faint); }
+  .ring-side .item b { margin-left:auto; font-weight:900; color:var(--text); }
+
+  .mini-stats { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:7px; }
+  .ms { background:#f7f7f7; border-radius:10px; padding:10px 6px; text-align:center; }
+  .ms .ic { font-size:17px; display:block; margin-bottom:3px; }
+  .ms .val { font-size:16px; font-weight:900; }
+  .ms .val.green { color:var(--green-dark); }
+  .ms .val.orange { color:var(--orange); }
+  .ms .val.gold { color:#c9a000; }
+  .ms .val.purple { color:var(--purple-dark); }
+  .ms .lbl { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  /* ---- Mode selector (mobile) ---- */
+  .mode-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .mode-item {
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:14px 8px; border-radius:13px; background:#f7f7f7;
+    cursor:pointer; text-align:center; border:2px solid transparent;
+    transition:all 0.15s;
+  }
+  .mode-item .ic {
+    width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+  }
+  .mode-item .ic.green { background:var(--green-bg); }
+  .mode-item .ic.blue { background:var(--blue-light); }
+  .mode-item .ic.orange { background:var(--orange-light); }
+  .mode-item .ic.purple { background:var(--purple-light); }
+  .mode-item b { font-size:13px; font-weight:900; }
+  .mode-item small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.3; }
+  .mode-item.active { background:var(--green-bg); border-color:rgba(88,204,2,0.35); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .mode-item .check {
+    position:absolute; top:6px; right:8px;
+    width:18px; height:18px; border-radius:50%; background:var(--green); color:#fff;
+    display:none; align-items:center; justify-content:center; font-size:11px; font-weight:900;
+  }
+  .mode-item { position:relative; }
+  .mode-item.active .check { display:flex; }
+
+  /* ---- Upcoming queue ---- */
+  .queue-scroll {
+    display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    padding:0 14px 14px; scrollbar-width:none;
+  }
+  .queue-scroll::-webkit-scrollbar { display:none; }
+  .chip {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:9px 12px; border-radius:10px; background:var(--panel);
+    font-size:13px; font-weight:800; color:var(--text); flex-shrink:0;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .chip .n { font-size:10px; color:var(--text-faint); font-weight:700; }
+  .chip.active { background:#fff8e6; border:1.5px solid rgba(255,150,0,0.3); color:var(--orange); }
+
+  /* ---- Recent results (mobile list) ---- */
+  .result-list { margin:0 14px 14px; display:flex; flex-direction:column; gap:8px; }
+  .result-item {
+    display:flex; align-items:center; gap:11px;
+    padding:12px 14px; background:var(--panel); border-radius:13px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .result-item .rn {
+    width:28px; height:28px; border-radius:8px; background:#f0f0f0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900; color:var(--text-faint); flex-shrink:0;
+  }
+  .result-item .body { flex:1; min-width:0; }
+  .result-item .word { font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--text); }
+  .result-item .word small { display:block; font-size:11px; font-weight:600; color:var(--text-dim); }
+  .result-item .right-col { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+  .result-item .res { font-size:12px; font-weight:900; }
+  .result-item .res.ok { color:var(--green-dark); }
+  .result-item .res.bad { color:var(--red); }
+  .result-item .a-pill {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:22px; height:20px; padding:0 5px; border-radius:6px;
+    font-size:10px; font-weight:900;
+  }
+  .result-item .a-pill.one { background:var(--green-bg); color:var(--green-dark); }
+  .result-item .a-pill.multi { background:#fff0f0; color:var(--red); }
+  .result-item .time { font-size:11px; font-weight:700; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+
+  /* ---- Today report (mobile) ---- */
+  .report-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .rbox { text-align:center; padding:12px 8px; border-radius:12px; background:#f7f7f7; }
+  .rbox .ic { font-size:20px; display:block; margin-bottom:4px; }
+  .rbox .val { font-size:21px; font-weight:900; }
+  .rbox .val.green { color:var(--green-dark); }
+  .rbox .val.blue { color:var(--blue-dark); }
+  .rbox .val.orange { color:var(--orange); }
+  .rbox .lbl { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  .chart-card-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .chart-card-title .lbl { font-size:12px; font-weight:900; color:var(--text-dim); }
+  .chart-card-title .val { font-size:12px; font-weight:900; color:var(--green-dark); }
+
+  .mini-chart { display:flex; align-items:flex-end; gap:4px; height:54px; padding:0 2px; }
+  .mini-chart .bar { flex:1; border-radius:4px 4px 3px 3px; background:var(--green-light); position:relative; min-width:0; }
+  .mini-chart .bar.today { background:linear-gradient(180deg, var(--green), #6fdd1a); box-shadow:0 2px 5px rgba(88,204,2,0.3); }
+  .mini-chart .bar .v { position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:800; color:var(--text-dim); white-space:nowrap; }
+  .mini-chart .bar.today .v { color:var(--green-dark); }
+  .chart-x { display:flex; gap:4px; padding:5px 2px 0; }
+  .chart-x span { flex:1; text-align:center; font-size:9px; font-weight:700; color:var(--text-faint); }
+  .chart-x span.today { color:var(--green-dark); font-weight:900; }
+
+  /* ---- Shortcuts (mobile) ---- */
+  .sc-list { display:flex; flex-direction:column; gap:8px; }
+  .sc-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--border); }
+  .sc-item:last-child { border-bottom:none; }
+  .sc-item .keys { display:flex; align-items:center; gap:3px; flex-shrink:0; min-width:80px; }
+  .sc-item kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:24px; height:22px; padding:0 6px; border-radius:6px;
+    background:#fff; border:1.5px solid var(--border-strong); border-bottom-width:2px;
+    font-size:10px; font-weight:800; color:var(--text); font-family:'Nunito',sans-serif;
+    box-shadow:0 2px 0 rgba(0,0,0,0.04);
+  }
+  .sc-item .plus { font-size:11px; color:var(--text-faint); font-weight:700; }
+  .sc-item .desc { font-size:12px; font-weight:600; color:var(--text-dim); }
+  .sc-item .desc b { color:var(--text); font-weight:800; }
+
+  .footer-link {
+    display:block; text-align:center; margin:14px 16px 4px;
+    font-size:12px; font-weight:700; color:var(--text-dim); text-decoration:none;
+  }
+  .footer-link:hover { color:var(--green); }
+
+  .bottom-pad { height:24px; }
+</style>
+</head>
+<body>
+<div class="container-mobile phone-frame">
+
+  <!-- ============ Top Bar ============ -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:7px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span>
+        <span>英语听打</span>
+      </div>
+      <span class="topbar-title">· 听打练习</span>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span style="font-size:14px;">🔥</span> 12</div>
+      <div class="stat-item xp"><span style="font-size:14px;">⚡</span> 2,340</div>
+    </div>
+  </div>
+
+  <!-- ============ Session Cockpit ============ -->
+  <div class="cockpit">
+    <div class="cock-top">
+      <div class="mode-tabs">
+        <a class="mode-tab active" href="#"><span class="ic">🔤</span> 单词</a>
+        <a class="mode-tab blue" href="#"><span class="ic">💬</span> 句子</a>
+      </div>
+      <div class="cock-num">17<small> / 30</small></div>
+    </div>
+    <div class="seg-bar">
+      <div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div>
+      <div class="seg bad"></div><div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div>
+      <div class="seg ok"></div><div class="seg ok"></div><div class="seg ok"></div><div class="seg bad"></div><div class="seg ok"></div>
+      <div class="seg ok"></div><div class="seg cur"></div>
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    </div>
+    <div class="cock-ctrls">
+      <div class="seg-toggle">
+        <button class="active">全部</button>
+        <button>已背</button>
+      </div>
+      <button class="speed-btn"><span class="ic">🎚️</span> 1.0x</button>
+      <span class="timer-pill"><span class="ic">⏱️</span> 0:06</span>
+    </div>
+  </div>
+
+  <!-- ============ Arena ============ -->
+  <div class="arena">
+    <div class="arena-topbar"></div>
+    <div class="arena-inner">
+
+      <div class="arena-head">
+        <div class="left">
+          <span class="qnum"><span class="ic">🎯</span> #17</span>
+          <span class="mode-badge">📝 辅助听写</span>
+        </div>
+      </div>
+
+      <div class="audio-row">
+        <button class="play-btn" aria-label="播放音频">
+          <span class="pulse-ring"></span>
+          <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        </button>
+        <div class="audio-meta">
+          <div class="status"><span class="dot"></span> 播放中 · 第 1 遍</div>
+          <div class="sub">
+            <span><span class="ic">🔁</span> 重播2次</span>
+            <span><span class="ic">⏲️</span> 间隔5s</span>
+            <span><span class="ic">🎚️</span> 1.0x</span>
+          </div>
+          <div class="replay-dots">
+            <span class="replay-dot on"></span>
+            <span class="replay-dot on"></span>
+            <span class="replay-dot"></span>
+            <span class="lbl">剩 1 次</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-line">
+        <span class="phonetic">/ədˈventʃər/</span>
+        <span class="divider">·</span>
+        <span class="meaning">冒险 n. 冒险，奇遇</span>
+      </div>
+
+      <div class="cells-wrap">
+        <div class="cells-label">
+          <span class="lbl">🔤 逐字母输入</span>
+          <span class="hint">5 / 9 字母</span>
+        </div>
+        <div class="cells">
+          <div class="cell right">a</div>
+          <div class="cell right">d</div>
+          <div class="cell right">v</div>
+          <div class="cell right">e</div>
+          <div class="cell wrong">m<span class="target">n</span></div>
+          <div class="cell current"><span class="caret"></span><span class="target">t</span></div>
+          <div class="cell empty"><span class="target">u</span></div>
+          <div class="cell empty"><span class="target">r</span></div>
+          <div class="cell empty"><span class="target">e</span></div>
+        </div>
+      </div>
+
+      <div class="feedback">
+        <span class="ic">⚠️</span>
+        <div style="flex:1; min-width:0;">
+          <div class="txt">第5格拼错：应为 "n"，误输 "m"</div>
+          <div class="muted">按 <kbd>Enter</kbd> 重输 · <kbd>Esc</kbd> 重听</div>
+        </div>
+      </div>
+
+      <div class="arena-controls">
+        <button class="btn btn-ghost"><span class="ic">↻</span> 重播</button>
+        <button class="btn btn-ghost"><span class="ic">⏭</span> 跳过</button>
+        <button class="btn btn-primary big">提交 →</button>
+      </div>
+
+      <div class="arena-hint">
+        <span class="ic">💡</span>
+        <span>答对自动下一题 · 答错按 <kbd>Enter</kbd> 重输 · 按住 <kbd>Alt</kbd> 看答案（记为答错）</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Session Stats ============ -->
+  <div class="stat-card">
+    <div class="stat-card-title"><span class="ic">📊</span> 本次练习统计</div>
+    <div class="ring-row">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 36 36">
+          <circle class="ring-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+          <circle class="ring-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dashoffset="18"/>
+        </svg>
+        <div class="ring-center">
+          <span class="pct">82%</span>
+          <span class="sub">正确率</span>
+        </div>
+      </div>
+      <div class="ring-side">
+        <div class="item"><span class="dot green"></span> 一次对 <b>14</b></div>
+        <div class="item"><span class="dot red"></span> 答错 <b>2</b></div>
+        <div class="item"><span class="dot gray"></span> 剩余 <b>13</b></div>
+      </div>
+    </div>
+    <div class="mini-stats">
+      <div class="ms">
+        <span class="ic">🔥</span>
+        <div class="val orange">5</div>
+        <div class="lbl">连对</div>
+      </div>
+      <div class="ms">
+        <span class="ic">⏱️</span>
+        <div class="val">4:32</div>
+        <div class="lbl">用时</div>
+      </div>
+      <div class="ms">
+        <span class="ic">⚡</span>
+        <div class="val gold">+85</div>
+        <div class="lbl">XP</div>
+      </div>
+      <div class="ms">
+        <span class="ic">🎯</span>
+        <div class="val purple">8</div>
+        <div class="lbl">新掌握</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Practice Mode Selector ============ -->
+  <div class="stat-card">
+    <div class="stat-card-title"><span class="ic">🎛️</span> 练习模式</div>
+    <div class="mode-grid">
+      <div class="mode-item active">
+        <span class="check">✓</span>
+        <div class="ic green">🔤</div>
+        <b>单词听打</b>
+        <small>逐字母拼写</small>
+      </div>
+      <div class="mode-item">
+        <div class="ic blue">💬</div>
+        <b>句子听写</b>
+        <small>逐词填格</small>
+      </div>
+      <div class="mode-item">
+        <div class="ic orange">🎵</div>
+        <b>跟打</b>
+        <small>看答案打字</small>
+      </div>
+      <div class="mode-item">
+        <div class="ic purple">🎧</div>
+        <b>纯听写</b>
+        <small>无提示</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Upcoming Queue ============ -->
+  <div class="section-head">
+    <h2>📋 接下来 5 题</h2>
+  </div>
+  <div class="queue-scroll">
+    <span class="chip active"><span class="n">#17</span> adventure</span>
+    <span class="chip"><span class="n">#18</span> beautiful</span>
+    <span class="chip"><span class="n">#19</span> comfortable</span>
+    <span class="chip"><span class="n">#20</span> decision</span>
+    <span class="chip"><span class="n">#21</span> education</span>
+  </div>
+
+  <!-- ============ Recent Results ============ -->
+  <div class="section-head">
+    <h2>📜 最近答题</h2>
+    <a class="more" href="#">全部 30 →</a>
+  </div>
+  <div class="result-list">
+    <div class="result-item">
+      <span class="rn">16</span>
+      <div class="body">
+        <div class="word">hospitality<small>好客 n. 热情款待</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res ok">✓</span>
+        <span class="time">7.1s</span>
+        <span class="a-pill one">1</span>
+      </div>
+    </div>
+    <div class="result-item">
+      <span class="rn">15</span>
+      <div class="body">
+        <div class="word">harmony<small>和谐 n. 和谐，协调</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res ok">✓</span>
+        <span class="time">4.6s</span>
+        <span class="a-pill one">1</span>
+      </div>
+    </div>
+    <div class="result-item">
+      <span class="rn">14</span>
+      <div class="body">
+        <div class="word">guarantee<small>保证 v. 保证，担保</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res bad">✗</span>
+        <span class="time">9.3s</span>
+        <span class="a-pill multi">2</span>
+      </div>
+    </div>
+    <div class="result-item">
+      <span class="rn">13</span>
+      <div class="body">
+        <div class="word">gratitude<small>感激 n. 感激，感谢</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res ok">✓</span>
+        <span class="time">5.9s</span>
+        <span class="a-pill one">1</span>
+      </div>
+    </div>
+    <div class="result-item">
+      <span class="rn">12</span>
+      <div class="body">
+        <div class="word">generous<small>慷慨 adj. 慷慨的</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res ok">✓</span>
+        <span class="time">5.4s</span>
+        <span class="a-pill one">1</span>
+      </div>
+    </div>
+    <div class="result-item">
+      <span class="rn">11</span>
+      <div class="body">
+        <div class="word">foundation<small>基础 n. 基础，地基</small></div>
+      </div>
+      <div class="right-col">
+        <span class="res ok">✓</span>
+        <span class="time">6.7s</span>
+        <span class="a-pill one">1</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Today Report ============ -->
+  <div class="stat-card">
+    <div class="stat-card-title"><span class="ic">📈</span> 今日战报 <small style="font-size:12px; font-weight:700; color:var(--text-dim); margin-left:auto;">9月10日 周三</small></div>
+    <div class="report-row">
+      <div class="rbox">
+        <span class="ic">📝</span>
+        <div class="val green">30</div>
+        <div class="lbl">今日练习</div>
+      </div>
+      <div class="rbox">
+        <span class="ic">🎯</span>
+        <div class="val green">82%</div>
+        <div class="lbl">正确率</div>
+      </div>
+      <div class="rbox">
+        <span class="ic">⏱️</span>
+        <div class="val blue">5.8s</div>
+        <div class="lbl">平均用时</div>
+      </div>
+      <div class="rbox">
+        <span class="ic">🔥</span>
+        <div class="val orange">12</div>
+        <div class="lbl">最高连对</div>
+      </div>
+    </div>
+    <div class="chart-card-title">
+      <span class="lbl">近 7 日练习量</span>
+      <span class="val">↑ 较昨日 +8</span>
+    </div>
+    <div class="mini-chart">
+      <div class="bar" style="height:40%;"><span class="v">15</span></div>
+      <div class="bar" style="height:55%;"><span class="v">21</span></div>
+      <div class="bar" style="height:48%;"><span class="v">18</span></div>
+      <div class="bar" style="height:70%;"><span class="v">26</span></div>
+      <div class="bar" style="height:62%;"><span class="v">23</span></div>
+      <div class="bar" style="height:58%;"><span class="v">22</span></div>
+      <div class="bar today" style="height:90%;"><span class="v">30</span></div>
+    </div>
+    <div class="chart-x">
+      <span>9/4</span><span>9/5</span><span>9/6</span><span>9/7</span><span>9/8</span><span>9/9</span><span class="today">今天</span>
+    </div>
+  </div>
+
+  <!-- ============ Shortcuts ============ -->
+  <div class="stat-card">
+    <div class="stat-card-title"><span class="ic">⌨️</span> 快捷键速查</div>
+    <div class="sc-list">
+      <div class="sc-item">
+        <div class="keys"><kbd>Enter</kbd></div>
+        <div class="desc"><b>提交</b> / 答错重输</div>
+      </div>
+      <div class="sc-item">
+        <div class="keys"><kbd>Esc</kbd></div>
+        <div class="desc"><b>重新播放</b>音频</div>
+      </div>
+      <div class="sc-item">
+        <div class="keys"><kbd>Back</kbd></div>
+        <div class="desc"><b>退格</b>删除上一字母</div>
+      </div>
+      <div class="sc-item">
+        <div class="keys"><kbd>Alt</kbd><span class="plus">按住</span></div>
+        <div class="desc"><b>偷看答案</b>（记为答错）</div>
+      </div>
+      <div class="sc-item">
+        <div class="keys"><kbd>Space</kbd></div>
+        <div class="desc">答对后<b>跳下一题</b></div>
+      </div>
+    </div>
+  </div>
+
+  <a class="footer-link" href="#">返回素材库 · 更换词库 →</a>
+  <div class="bottom-pad"></div>
+</div>
+</body>
+</html>

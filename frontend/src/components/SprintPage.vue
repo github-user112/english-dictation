@@ -181,7 +181,8 @@ function onGlobalKey(ev) {
 }
 
 function onInput(ev) {
-  onCharInput(ev, typeChar, () => phase.value === "run" && !revealing.value && !locked);
+  onCharInput(ev, typeChar, () => phase.value === "run" && !revealing.value && !locked,
+    () => cells.value?.backspace());
 }
 
 function typeChar(ch) {

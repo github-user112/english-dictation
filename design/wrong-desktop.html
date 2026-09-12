@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>错词本 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Hero summary ---- */
+  .wrong-hero {
+    display:grid; grid-template-columns:1fr auto; gap:24px;
+    align-items:center; margin-bottom:22px;
+  }
+  .wh-left { min-width:0; }
+  .wh-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--red); color:#fff;
+    padding:5px 14px; border-radius:20px; font-size:12px; font-weight:900;
+    box-shadow:0 3px 0 var(--red-dark); margin-bottom:10px;
+    letter-spacing:0.3px;
+  }
+  .wh-badge .pulse { width:7px; height:7px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  .wh-title {
+    font-size:28px; font-weight:900; letter-spacing:-0.5px;
+    margin-bottom:6px; color:var(--text);
+  }
+  .wh-title .emoji { font-size:32px; }
+  .wh-desc { font-size:14px; font-weight:700; color:var(--text-dim); line-height:1.5; }
+
+  .wh-right { display:flex; flex-direction:column; align-items:center; gap:10px; flex-shrink:0; }
+  .wh-ring { position:relative; width:140px; height:140px; }
+  .wh-ring svg { width:140px; height:140px; }
+  .wr-bg { fill:none; stroke:#e5e5e5; stroke-width:5; }
+  .wr-fg {
+    fill:none; stroke:var(--red); stroke-width:5; stroke-linecap:round;
+    transform:rotate(-90deg); transform-origin:center;
+    stroke-dasharray:100;
+    filter:drop-shadow(0 0 6px rgba(255,75,75,0.35));
+  }
+  .wr-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .wr-center .wr-big { font-size:32px; font-weight:900; color:var(--red); line-height:1; }
+  .wr-center .wr-sub { font-size:11px; font-weight:800; color:var(--text-dim); margin-top:4px; }
+
+  .wh-actions { display:flex; gap:10px; }
+
+  /* ---- Stats strip ---- */
+  .stats-strip {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+    margin-bottom:22px;
+  }
+  .stat-tile {
+    background:#fff; border-radius:18px; padding:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    text-align:center; position:relative; overflow:hidden;
+    border:2px solid transparent;
+  }
+  .stat-tile::after {
+    content:''; position:absolute; bottom:-20px; right:-15px;
+    width:70px; height:70px; border-radius:50%;
+    opacity:0.08;
+  }
+  .st-red::after { background:var(--red); }
+  .st-orange::after { background:var(--orange); }
+  .st-green::after { background:var(--green); }
+  .st-blue::after { background:var(--blue); }
+
+  .st-emoji { font-size:26px; margin-bottom:4px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.1)); }
+  .st-val { font-size:28px; font-weight:900; line-height:1.1; }
+  .st-val.red { color:var(--red); }
+  .st-val.orange { color:var(--orange); }
+  .st-val.green { color:var(--green); }
+  .st-val.blue { color:var(--blue); }
+  .st-label { font-size:12px; font-weight:800; color:var(--text-dim); margin-top:3px; }
+
+  /* ---- Main grid ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1fr 340px; gap:20px;
+    align-items:start;
+  }
+
+  /* ---- Filter tabs ---- */
+  .filter-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; margin-bottom:18px;
+    background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    overflow-x:auto;
+  }
+  .filter-label {
+    font-size:13px; font-weight:900; color:var(--text-dim);
+    white-space:nowrap; flex-shrink:0;
+  }
+  .tab-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 18px; border-radius:12px; font-weight:800; font-size:14px;
+    cursor:pointer; white-space:nowrap;
+    background:#f0f0f0; color:var(--text-dim);
+    transition:all 0.2s; border:2px solid transparent;
+  }
+  .tab-chip.active {
+    background:var(--red); color:#fff;
+    box-shadow:0 3px 0 var(--red-dark);
+  }
+  .tab-chip .cnt {
+    background:rgba(0,0,0,0.1); padding:1px 8px;
+    border-radius:8px; font-size:12px; font-weight:900;
+  }
+  .tab-chip.active .cnt { background:rgba(255,255,255,0.25); }
+
+  /* ---- Word list ---- */
+  .word-list {
+    background:#fff; border-radius:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    overflow:hidden;
+  }
+  .word-list-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px 14px; border-bottom:1px solid var(--border);
+  }
+  .word-list-head h2 { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .word-list-head small { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .word-list-head .actions { display:flex; gap:8px; }
+
+  .word-row {
+    display:grid; grid-template-columns:52px 1fr auto auto; gap:14px;
+    align-items:center; padding:16px 22px;
+    border-bottom:1px solid #f0f0f0; transition:background 0.15s;
+  }
+  .word-row:last-child { border-bottom:none; }
+  .word-row:hover { background:#fafafa; }
+
+  .wr-rank {
+    width:42px; height:42px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900;
+    background:#f7f7f7; color:var(--text-dim);
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .wr-rank.top1 { background:linear-gradient(135deg, var(--red), var(--red-dark)); color:#fff; box-shadow:0 3px 0 #c41e1e; }
+  .wr-rank.top2 { background:linear-gradient(135deg, var(--orange), var(--orange-dark)); color:#fff; box-shadow:0 3px 0 #b36400; }
+  .wr-rank.top3 { background:linear-gradient(135deg, var(--gold), #e8b000); color:#fff; box-shadow:0 3px 0 #c4a300; }
+
+  .wr-word { min-width:0; }
+  .wr-en {
+    font-size:17px; font-weight:900; color:var(--text);
+    display:flex; align-items:center; gap:8px;
+  }
+  .wr-en .phon {
+    font-size:12px; font-weight:700; color:var(--text-dim);
+    background:#f7f7f7; padding:2px 8px; border-radius:6px;
+  }
+  .wr-en .audio-btn {
+    width:28px; height:28px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 0 var(--blue-dark); cursor:pointer;
+    flex-shrink:0; transition:transform 0.1s;
+  }
+  .wr-en .audio-btn:active { transform:translateY(2px); box-shadow:0 1px 0 var(--blue-dark); }
+  .wr-zh {
+    font-size:13px; font-weight:700; color:var(--text-dim);
+    margin-top:3px; display:flex; align-items:center; gap:10px;
+  }
+  .wr-source {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:11px; font-weight:800; color:var(--text-faint);
+  }
+
+  .wr-times {
+    text-align:center; min-width:70px;
+  }
+  .wr-times-num {
+    font-size:22px; font-weight:900; color:var(--red);
+    line-height:1;
+  }
+  .wr-times-lbl {
+    font-size:10px; font-weight:800; color:var(--text-dim); margin-top:2px;
+  }
+
+  .wr-review {
+    text-align:right; min-width:130px;
+  }
+  .wr-review-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 12px; border-radius:10px;
+    font-size:12px; font-weight:900; margin-bottom:6px;
+  }
+  .wr-review-badge.due {
+    background:var(--red); color:#fff;
+    box-shadow:0 2px 0 var(--red-dark);
+  }
+  .wr-review-badge.soon {
+    background:var(--orange); color:#fff;
+    box-shadow:0 2px 0 var(--orange-dark);
+  }
+  .wr-review-badge.next {
+    background:#fff; color:var(--text-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08); border:1px solid var(--border);
+  }
+  .wr-review-badge.mastered {
+    background:var(--green-bg); color:var(--green-dark);
+    border:1px solid rgba(88,204,2,0.3);
+  }
+  .wr-sched {
+    display:flex; align-items:center; gap:4px;
+  }
+  .ws-dot {
+    width:14px; height:14px; border-radius:50%;
+    background:#e5e5e5; border:2px solid transparent;
+  }
+  .ws-dot.done { background:var(--green); border-color:var(--green-dark); }
+  .ws-dot.active { background:var(--red); border-color:var(--red-dark); box-shadow:0 0 0 3px rgba(255,75,75,0.2); }
+  .ws-dot.pending { background:#f7f7f7; border-color:#ddd; }
+  .ws-line { width:10px; height:2px; background:#e5e5e5; }
+  .ws-line.done { background:var(--green); }
+
+  /* ---- Right sidebar ---- */
+  .sidebar { display:flex; flex-direction:column; gap:16px; }
+
+  /* Review schedule card */
+  .sched-card {
+    background:linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    border-radius:18px; padding:20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    border:2px solid rgba(255,75,75,0.15);
+    position:relative; overflow:hidden;
+  }
+  .sched-card::after {
+    content:''; position:absolute; bottom:-30px; right:-20px;
+    width:100px; height:100px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,75,75,0.06), transparent 70%);
+  }
+  .sc-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px; position:relative; z-index:1;
+  }
+  .sc-head h3 { font-size:15px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .sc-head small { font-size:11px; font-weight:700; color:var(--text-dim); }
+
+  .sched-list { display:flex; flex-direction:column; gap:10px; position:relative; z-index:1; }
+  .sched-row {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-radius:12px;
+    background:#fff; border:1px solid var(--border);
+  }
+  .sched-row.today { border-color:var(--red); background:#fff5f5; box-shadow:0 0 0 2px rgba(255,75,75,0.08); }
+  .sched-row .sd-icon { font-size:22px; flex-shrink:0; }
+  .sched-row .sd-body { flex:1; min-width:0; }
+  .sched-row .sd-body b { font-size:14px; font-weight:900; display:block; }
+  .sched-row .sd-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .sched-row .sd-count {
+    font-size:22px; font-weight:900; color:var(--red);
+    flex-shrink:0;
+  }
+  .sched-row .sd-count.small { font-size:16px; color:var(--text-dim); }
+
+  /* Accuracy card */
+  .acc-card { background:#fff; }
+  .acc-chart {
+    display:flex; align-items:flex-end; gap:6px; height:80px;
+    padding:10px 4px 0; border-bottom:2px solid #f0f0f0;
+    margin-bottom:8px;
+  }
+  .acc-bar {
+    flex:1; border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg, var(--green), var(--green-dark));
+    box-shadow:0 0 6px rgba(88,204,2,0.2);
+    position:relative; min-width:0;
+  }
+  .acc-bar.dim { background:linear-gradient(180deg, #dcdcdc, #c5c5c5); box-shadow:none; }
+  .acc-bar .tip {
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    margin-bottom:4px; font-size:10px; font-weight:900; color:var(--text-dim);
+  }
+  .acc-labels { display:flex; gap:6px; padding:0 4px; }
+  .acc-labels span { flex:1; text-align:center; font-size:10px; font-weight:800; color:var(--text-faint); }
+
+  /* Source breakdown */
+  .source-card { background:#fff; }
+  .src-list { display:flex; flex-direction:column; gap:10px; }
+  .src-row { display:flex; align-items:center; gap:10px; }
+  .src-icon {
+    width:32px; height:32px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; box-shadow:0 2px 0 rgba(0,0,0,0.06);
+  }
+  .src-icon.blue { background:var(--blue-light); color:var(--blue-dark); }
+  .src-icon.orange { background:var(--orange-light); color:var(--orange); }
+  .src-icon.purple { background:var(--purple-light); color:var(--purple-dark); }
+  .src-icon.gold { background:var(--gold-light); color:#b89000; }
+  .src-body { flex:1; min-width:0; }
+  .src-body b { font-size:13px; font-weight:800; display:block; }
+  .src-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .src-bar-wrap { flex:1; height:8px; background:#f0f0f0; border-radius:8px; overflow:hidden; }
+  .src-bar-fill { height:100%; border-radius:8px; }
+  .src-bar-fill.blue { background:var(--blue); }
+  .src-bar-fill.orange { background:var(--orange); }
+  .src-bar-fill.purple { background:var(--purple); }
+  .src-bar-fill.gold { background:var(--gold); }
+  .src-count { font-size:16px; font-weight:900; color:var(--text); flex-shrink:0; min-width:28px; text-align:right; }
+
+  /* Tip strip */
+  .tip-strip {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 20px; margin-top:18px;
+    background:var(--red-light); border-radius:14px;
+    border:1px solid rgba(255,75,75,0.15);
+  }
+  .tip-strip .tip-emoji { font-size:22px; flex-shrink:0; }
+  .tip-strip p { font-size:13px; font-weight:700; color:#8a2020; line-height:1.4; }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">错词本</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Hero summary ===== -->
+  <div class="wrong-hero">
+    <div class="wh-left">
+      <div class="wh-badge"><span class="pulse"></span> 18 个词今日待复习</div>
+      <h1 class="wh-title"><span class="emoji">📕</span> 错词本</h1>
+      <p class="wh-desc">各模式答错的词自动收录于此，按照 1 → 3 → 7 天间隔重复复习。连续答对 3 次即可毕业，标记为已掌握。</p>
+    </div>
+    <div class="wh-right">
+      <div class="wh-ring">
+        <svg viewBox="0 0 36 36" width="140" height="140">
+          <circle class="wr-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+          <circle class="wr-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="100" stroke-dashoffset="72"/>
+        </svg>
+        <div class="wr-center">
+          <span class="wr-big">28</span>
+          <span class="wr-sub">总错词数</span>
+        </div>
+      </div>
+      <div class="wh-actions">
+        <button class="btn btn-primary btn-big">🎯 开始复习</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Stats strip ===== -->
+  <div class="stats-strip">
+    <div class="stat-tile st-red">
+      <div class="st-emoji">📕</div>
+      <div class="st-val red">28</div>
+      <div class="st-label">总收录错词</div>
+    </div>
+    <div class="stat-tile st-orange">
+      <div class="st-emoji">⏰</div>
+      <div class="st-val orange">18</div>
+      <div class="st-label">今日待复习</div>
+    </div>
+    <div class="stat-tile st-green">
+      <div class="st-emoji">✅</div>
+      <div class="st-val green">10</div>
+      <div class="st-label">已毕业掌握</div>
+    </div>
+    <div class="stat-tile st-blue">
+      <div class="st-emoji">📈</div>
+      <div class="st-val blue">76%</div>
+      <div class="st-label">总体正确率</div>
+    </div>
+  </div>
+
+  <!-- ===== Main grid ===== -->
+  <div class="main-grid">
+
+    <!-- ---- Left: word list ---- -->
+    <div>
+
+      <!-- Filter tabs -->
+      <div class="filter-bar">
+        <span class="filter-label">筛选:</span>
+        <div class="tab-chip active">
+          🔥 待复习 <span class="cnt">18</span>
+        </div>
+        <div class="tab-chip">
+          ⏳ 即将到期 <span class="cnt">6</span>
+        </div>
+        <div class="tab-chip">
+          ✅ 已掌握 <span class="cnt">10</span>
+        </div>
+        <div class="tab-chip">
+          📋 全部 <span class="cnt">28</span>
+        </div>
+      </div>
+
+      <!-- Word list -->
+      <div class="word-list">
+        <div class="word-list-head">
+          <div>
+            <h2><span>📕</span> 待复习词表</h2>
+            <small>共 18 个词 · 按复习优先级排序</small>
+          </div>
+          <div class="actions">
+            <button class="btn btn-sm btn-ghost">🗑️ 清空</button>
+          </div>
+        </div>
+
+        <!-- Row 1 -->
+        <div class="word-row">
+          <div class="wr-rank top1">1</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              environment
+              <span class="phon">/ɪnˈvaɪrənmənt/</span>
+            </div>
+            <div class="wr-zh">
+              环境 · 自然 <span class="wr-source">📝 句子听写</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">5</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge due">⏰ 立即</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="word-row">
+          <div class="wr-rank top2">2</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              government
+              <span class="phon">/ˈɡʌvərnmənt/</span>
+            </div>
+            <div class="wr-zh">
+              政府 <span class="wr-source">📝 句子听写</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">4</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge due">⏰ 立即</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3 -->
+        <div class="word-row">
+          <div class="wr-rank top3">3</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              knowledge
+              <span class="phon">/ˈnɒlɪdʒ/</span>
+            </div>
+            <div class="wr-zh">
+              知识 <span class="wr-source">🎧 单词听打</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">4</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge soon">3天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4 -->
+        <div class="word-row">
+          <div class="wr-rank">4</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              necessary
+              <span class="phon">/ˈnesəseri/</span>
+            </div>
+            <div class="wr-zh">
+              必要的 <span class="wr-source">🎧 单词听打</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">3</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge soon">3天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 5 -->
+        <div class="word-row">
+          <div class="wr-rank">5</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              beautiful
+              <span class="phon">/ˈbjuːtɪfl/</span>
+            </div>
+            <div class="wr-zh">
+              美丽的 <span class="wr-source">🎧 单词听打</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">3</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">7天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 6 -->
+        <div class="word-row">
+          <div class="wr-rank">6</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              experience
+              <span class="phon">/ɪkˈspɪriəns/</span>
+            </div>
+            <div class="wr-zh">
+              经验 · 经历 <span class="wr-source">📝 句子听写</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">2</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">7天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 7 -->
+        <div class="word-row">
+          <div class="wr-rank">7</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              technology
+              <span class="phon">/tekˈnɒlədʒi/</span>
+            </div>
+            <div class="wr-zh">
+              技术 · 科技 <span class="wr-source">📝 句子听写</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">2</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">7天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot active"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 8 -->
+        <div class="word-row">
+          <div class="wr-rank">8</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              understand
+              <span class="phon">/ˌʌndəˈstænd/</span>
+            </div>
+            <div class="wr-zh">
+              理解 · 明白 <span class="wr-source">🎧 单词听打</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">1</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">1天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot pending"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 9 -->
+        <div class="word-row">
+          <div class="wr-rank">9</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              different
+              <span class="phon">/ˈdɪfrənt/</span>
+            </div>
+            <div class="wr-zh">
+              不同的 <span class="wr-source">📝 句子听写</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">1</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">1天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot pending"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 10 -->
+        <div class="word-row">
+          <div class="wr-rank">10</div>
+          <div class="wr-word">
+            <div class="wr-en">
+              <span class="audio-btn">🔊</span>
+              important
+              <span class="phon">/ɪmˈpɔːrtənt/</span>
+            </div>
+            <div class="wr-zh">
+              重要的 <span class="wr-source">🎧 单词听打</span>
+            </div>
+          </div>
+          <div class="wr-times">
+            <div class="wr-times-num">1</div>
+            <div class="wr-times-lbl">次错误</div>
+          </div>
+          <div class="wr-review">
+            <div class="wr-review-badge next">1天后</div>
+            <div class="wr-sched">
+              <span class="ws-dot done"></span><span class="ws-line done"></span>
+              <span class="ws-dot pending"></span><span class="ws-line"></span>
+              <span class="ws-dot pending"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ---- Right sidebar ---- -->
+    <div class="sidebar">
+
+      <!-- Review schedule -->
+      <div class="sched-card">
+        <div class="sc-head">
+          <h3><span>📅</span> 复习排期</h3>
+          <small>间隔重复</small>
+        </div>
+        <div class="sched-list">
+          <div class="sched-row today">
+            <span class="sd-icon">🔥</span>
+            <div class="sd-body">
+              <b>今天到期</b>
+              <small>已到期，需要复习</small>
+            </div>
+            <div class="sd-count">18</div>
+          </div>
+          <div class="sched-row">
+            <span class="sd-icon">⏳</span>
+            <div class="sd-body">
+              <b>明天</b>
+              <small>1天后复习</small>
+            </div>
+            <div class="sd-count small">0</div>
+          </div>
+          <div class="sched-row">
+            <span class="sd-icon">📅</span>
+            <div class="sd-body">
+              <b>3天后</b>
+              <small>3天后复习</small>
+            </div>
+            <div class="sd-count small">0</div>
+          </div>
+          <div class="sched-row">
+            <span class="sd-icon">🎯</span>
+            <div class="sd-body">
+              <b>7天后</b>
+              <small>毕业前最后复习</small>
+            </div>
+            <div class="sd-count small">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accuracy chart -->
+      <div class="card acc-card">
+        <div class="card-title"><span class="card-icon">📊</span> 近7天正确率</div>
+        <div class="acc-chart">
+          <div class="acc-bar dim" style="height:60%"><span class="tip">68%</span></div>
+          <div class="acc-bar" style="height:72%"><span class="tip">72%</span></div>
+          <div class="acc-bar dim" style="height:65%"><span class="tip">65%</span></div>
+          <div class="acc-bar" style="height:78%"><span class="tip">78%</span></div>
+          <div class="acc-bar" style="height:70%"><span class="tip">70%</span></div>
+          <div class="acc-bar" style="height:82%"><span class="tip">82%</span></div>
+          <div class="acc-bar" style="height:76%"><span class="tip">76%</span></div>
+        </div>
+        <div class="acc-labels">
+          <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>今</span>
+        </div>
+      </div>
+
+      <!-- Source breakdown -->
+      <div class="card source-card">
+        <div class="card-title"><span class="card-icon">🔍</span> 错词来源</div>
+        <div class="src-list">
+          <div class="src-row">
+            <div class="src-icon blue">🎧</div>
+            <div class="src-body">
+              <b>单词听打</b>
+              <small>32%</small>
+            </div>
+            <div class="src-bar-wrap">
+              <div class="src-bar-fill blue" style="width:32%;"></div>
+            </div>
+            <div class="src-count">9</div>
+          </div>
+          <div class="src-row">
+            <div class="src-icon orange">📝</div>
+            <div class="src-body">
+              <b>句子听写</b>
+              <small>36%</small>
+            </div>
+            <div class="src-bar-wrap">
+              <div class="src-bar-fill orange" style="width:36%;"></div>
+            </div>
+            <div class="src-count">10</div>
+          </div>
+          <div class="src-row">
+            <div class="src-icon purple">🔀</div>
+            <div class="src-body">
+              <b>听音排句</b>
+              <small>18%</small>
+            </div>
+            <div class="src-bar-wrap">
+              <div class="src-bar-fill purple" style="width:18%;"></div>
+            </div>
+            <div class="src-count">5</div>
+          </div>
+          <div class="src-row">
+            <div class="src-icon gold">🎯</div>
+            <div class="src-body">
+              <b>听音选词</b>
+              <small>14%</small>
+            </div>
+            <div class="src-bar-wrap">
+              <div class="src-bar-fill gold" style="width:14%;"></div>
+            </div>
+            <div class="src-count">4</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Tip strip ===== -->
+  <div class="tip-strip">
+    <span class="tip-emoji">💡</span>
+    <p>错词本采用间隔重复算法（1天 → 3天 → 7天），每次复习答对后间隔翻倍。连续答对 3 次即"毕业"，标记为已掌握，不再重复出现。</p>
+  </div>
+
+</div>
+</body>
+</html>

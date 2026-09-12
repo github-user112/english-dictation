@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PK对战 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Battle Arena Hero (head-to-head) ---- */
+  .arena-hero {
+    background:linear-gradient(135deg, #1a1a2e 0%, #16213e 45%, #0f3460 100%);
+    border-radius:22px; padding:28px 32px; color:#fff;
+    box-shadow:0 8px 0 rgba(0,0,0,0.25), 0 14px 40px rgba(0,0,0,0.3);
+    position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .arena-hero::after {
+    content:''; position:absolute; top:-90px; right:-50px;
+    width:320px; height:320px; border-radius:50%;
+    background:radial-gradient(circle, rgba(88,204,2,0.15), transparent 70%);
+  }
+  .arena-hero::before {
+    content:''; position:absolute; bottom:-100px; left:-60px;
+    width:260px; height:260px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.12), transparent 70%);
+  }
+  .arena-glow {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:200px; height:200px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,200,0,0.18), transparent 65%);
+    animation:arena-pulse 2.5s ease-in-out infinite; pointer-events:none;
+  }
+  @keyframes arena-pulse { 0%,100%{opacity:0.5;transform:translate(-50%,-50%) scale(1)} 50%{opacity:1;transform:translate(-50%,-50%) scale(1.12)} }
+
+  .arena-row {
+    display:grid; grid-template-columns:1fr auto 1fr; gap:24px;
+    align-items:center; position:relative; z-index:1;
+  }
+
+  /* Player card (arena) */
+  .player-side { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .player-side.right { text-align:center; }
+
+  .p-avatar-wrap {
+    position:relative; width:108px; height:108px;
+  }
+  .p-avatar-ring {
+    width:100%; height:100%; border-radius:50%; padding:4px;
+    box-shadow:0 0 0 4px rgba(255,255,255,0.06);
+  }
+  .player-side.left .p-avatar-ring {
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    box-shadow:0 0 0 4px rgba(88,204,2,0.22), 0 0 28px rgba(88,204,2,0.32);
+  }
+  .player-side.right .p-avatar-ring {
+    background:linear-gradient(135deg, var(--blue), #4dd0ff);
+    box-shadow:0 0 0 4px rgba(28,176,246,0.22), 0 0 28px rgba(28,176,246,0.32);
+  }
+  .p-avatar-inner {
+    width:100%; height:100%; border-radius:50%; background:#1a1a2e;
+    display:flex; align-items:center; justify-content:center; font-size:54px;
+  }
+  .p-live-dot {
+    position:absolute; bottom:2px; right:2px; width:22px; height:22px;
+    border-radius:50%; background:var(--green); border:3px solid #1a1a2e;
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; font-weight:900; color:#fff;
+    animation:live-pulse 1.5s ease infinite;
+  }
+  .player-side.right .p-live-dot { background:var(--blue); }
+  @keyframes live-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.15);opacity:0.7} }
+
+  .p-name { font-size:20px; font-weight:900; letter-spacing:-0.3px; }
+  .p-meta { display:flex; gap:6px; align-items:center; font-size:12px; font-weight:700; opacity:0.82; }
+  .p-meta .m-item {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 9px; border-radius:8px; background:rgba(255,255,255,0.1);
+  }
+  .p-meta .m-item .mi { font-size:13px; }
+  .player-side.right .p-meta .m-item .lvl { color:var(--purple); }
+  .player-side.left .p-meta .m-item .lvl { color:var(--purple); }
+
+  .p-score {
+    font-size:36px; font-weight:900; font-variant-numeric:tabular-nums;
+    line-height:1; letter-spacing:-1px;
+  }
+  .player-side.left .p-score { color:var(--green); text-shadow:0 2px 8px rgba(88,204,2,0.4); }
+  .player-side.right .p-score { color:var(--blue); text-shadow:0 2px 8px rgba(28,176,246,0.4); }
+  .p-score-lbl { font-size:12px; font-weight:700; opacity:0.7; margin-top:2px; }
+
+  /* VS center */
+  .vs-center {
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .vs-badge {
+    width:84px; height:84px; border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), #ffd84d);
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; font-weight:900; color:#1a1a2e;
+    box-shadow:0 6px 0 #d9a700, 0 10px 28px rgba(255,200,0,0.4);
+    letter-spacing:-1px;
+    animation:vs-breathe 2.2s ease-in-out infinite;
+  }
+  @keyframes vs-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  .vs-round {
+    padding:5px 14px; border-radius:10px;
+    background:rgba(255,255,255,0.12); backdrop-filter:blur(4px);
+    font-size:13px; font-weight:900;
+  }
+  .vs-round .r-dot {
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--green); margin:0 3px; vertical-align:middle;
+    animation:live-pulse 1s ease infinite;
+  }
+  .vs-timer {
+    font-size:30px; font-weight:900; font-variant-numeric:tabular-nums;
+    padding:6px 18px; border-radius:12px;
+    background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1);
+    box-shadow:0 4px 0 rgba(0,0,0,0.3);
+  }
+  .vs-timer.warn { color:var(--orange); }
+  .vs-timer.crit { color:var(--red); animation:timer-flash 0.6s ease infinite; }
+  @keyframes timer-flash { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+  /* Round dots */
+  .round-dots { display:flex; gap:5px; margin-top:2px; }
+  .rdot {
+    width:10px; height:10px; border-radius:50%;
+    background:rgba(255,255,255,0.15);
+  }
+  .rdot.win { background:var(--green); box-shadow:0 0 8px rgba(88,204,2,0.6); }
+  .rdot.lose { background:var(--blue); box-shadow:0 0 8px rgba(28,176,246,0.5); }
+  .rdot.now { background:var(--gold); box-shadow:0 0 10px rgba(255,200,0,0.6); animation:live-pulse 1.2s ease infinite; }
+
+  /* ---- Live Battle Card ---- */
+  .live-card {
+    background:var(--panel); border-radius:18px; padding:0;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 22px rgba(0,0,0,0.05);
+    overflow:hidden; margin-bottom:18px;
+  }
+  .live-card-top { height:5px; background:linear-gradient(90deg, var(--green) 0%, #ffffff 50%, var(--blue) 100%); }
+  .live-inner { padding:18px 22px 16px; }
+
+  .live-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px; gap:12px; flex-wrap:wrap;
+  }
+  .live-head .l { display:flex; align-items:center; gap:10px; }
+  .live-ic { font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12)); }
+  .live-head b { font-size:17px; font-weight:900; }
+  .live-head b small { display:block; font-size:12px; color:var(--text-dim); font-weight:700; margin-top:1px; }
+  .live-tts {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 14px; border-radius:11px;
+    background:var(--blue-light); color:var(--blue-dark);
+    font-size:13px; font-weight:800;
+    box-shadow:0 2px 0 rgba(28,176,246,0.2);
+  }
+  .live-tts .ic { font-size:15px; }
+
+  .word-display {
+    background:#f7f7f7; border-radius:14px; padding:14px 18px;
+    margin-bottom:16px; text-align:center;
+    border:2px solid var(--border);
+  }
+  .word-label {
+    font-size:11px; font-weight:800; color:var(--text-faint);
+    letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;
+  }
+  .word-text {
+    font-size:30px; font-weight:900; letter-spacing:1px;
+    color:var(--text); font-family:'Nunito',sans-serif;
+  }
+  .word-text .typed { color:var(--green); }
+  .word-text .ghost { color:var(--text-faint); }
+  .word-hint {
+    font-size:12px; color:var(--text-dim); font-weight:700; margin-top:6px;
+  }
+
+  /* Dual progress bars */
+  .dual-bars { display:flex; flex-direction:column; gap:14px; }
+  .db-row { display:flex; align-items:center; gap:12px; }
+  .db-avatar {
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.1);
+  }
+  .db-avatar.me { background:var(--green); }
+  .db-avatar.op { background:var(--blue); }
+  .db-info { flex:1; min-width:0; }
+  .db-info-top { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:5px; }
+  .db-name { font-size:14px; font-weight:800; }
+  .db-name .me-tag {
+    display:inline-block; padding:1px 7px; border-radius:6px;
+    background:var(--green); color:#fff; font-size:10px; font-weight:900; margin-left:5px;
+    vertical-align:middle;
+  }
+  .db-score { font-size:18px; font-weight:900; font-variant-numeric:tabular-nums; }
+  .db-score.me { color:var(--green-dark); }
+  .db-score.op { color:var(--blue-dark); }
+  .db-score small { font-size:11px; color:var(--text-dim); font-weight:700; margin-left:2px; }
+  .db-bar { height:14px; background:#e9e9e9; border-radius:10px; overflow:hidden; position:relative; }
+  .db-fill {
+    height:100%; border-radius:10px; transition:width 0.6s ease;
+    position:relative;
+  }
+  .db-fill.me {
+    background:linear-gradient(90deg, var(--green), #6fdd1a);
+    box-shadow:0 0 10px rgba(88,204,2,0.4);
+  }
+  .db-fill.op {
+    background:linear-gradient(90deg, var(--blue), #4dd0ff);
+    box-shadow:0 0 10px rgba(28,176,246,0.4);
+  }
+  .db-fill::after {
+    content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+    background:linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+    border-radius:10px;
+  }
+  .db-status {
+    display:flex; align-items:center; gap:4px;
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    margin-left:8px; flex-shrink:0;
+  }
+  .db-status .s-dot {
+    width:7px; height:7px; border-radius:50%;
+  }
+  .db-status .s-dot.go { background:var(--green); animation:live-pulse 1s ease infinite; }
+  .db-status .s-dot.wait { background:var(--text-faint); }
+
+  /* ---- Main grid (3 columns) ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:18px;
+    align-items:start; margin-bottom:18px;
+  }
+
+  /* ---- Recent battles ---- */
+  .btl-row {
+    display:flex; align-items:center; gap:11px;
+    padding:11px 13px; border-radius:14px; background:#f7f7f7;
+    margin-bottom:8px;
+  }
+  .btl-row:last-child { margin-bottom:0; }
+  .btl-row.win { background:var(--green-bg); border:1.5px solid rgba(88,204,2,0.3); }
+  .btl-row.lose { background:#f7f7f7; }
+  .btl-result {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:900; color:#fff;
+  }
+  .btl-result.win { background:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .btl-result.lose { background:var(--red); box-shadow:0 3px 0 var(--red-dark); }
+  .btl-info { flex:1; min-width:0; }
+  .btl-info b { display:block; font-size:13px; font-weight:800; }
+  .btl-info small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .btl-score {
+    flex-shrink:0; text-align:right; font-size:14px; font-weight:900;
+    font-variant-numeric:tabular-nums;
+  }
+  .btl-score small { font-size:10px; color:var(--text-dim); font-weight:700; }
+  .btl-score.me-win { color:var(--green-dark); }
+  .btl-score.op-win { color:var(--red-dark); }
+  .btl-xp {
+    flex-shrink:0; display:flex; align-items:center; gap:3px;
+    padding:3px 8px; border-radius:7px; font-size:11px; font-weight:900;
+  }
+  .btl-xp.win { background:var(--green-bg); color:var(--green-dark); }
+  .btl-xp.lose { background:var(--red-light); color:var(--red-dark); }
+
+  /* ---- PK lobby / settings ---- */
+  .lobby-card { background:#fff; border-radius:18px; padding:18px 20px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .lobby-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .lobby-desc { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+
+  .setting-item {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 13px; border-radius:13px; background:#f7f7f7;
+    margin-bottom:8px;
+  }
+  .setting-item:last-of-type { margin-bottom:0; }
+  .setting-item.active { background:#fff; border:2px solid var(--green); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .s-icon {
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+    background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .setting-item.active .s-icon { background:var(--green); color:#fff; box-shadow:0 3px 0 var(--green-dark); }
+  .s-body { flex:1; min-width:0; }
+  .s-body b { display:block; font-size:13px; font-weight:800; }
+  .s-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .s-check {
+    width:22px; height:22px; border-radius:7px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:#e5e5e5; color:transparent; font-size:13px; font-weight:900;
+  }
+  .setting-item.active .s-check { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+
+  .cta-row { display:flex; gap:8px; margin-top:14px; }
+  .cta-row .btn { flex:1; }
+
+  /* ---- Leaderboard ---- */
+  .leader-card { background:#fff; border-radius:18px; padding:18px 20px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .leader-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .leader-desc { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+
+  .lb-row {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 11px; border-radius:13px; margin-bottom:7px;
+  }
+  .lb-row:last-child { margin-bottom:0; }
+  .lb-row.me { background:var(--green-bg); border:2px solid rgba(88,204,2,0.3); }
+  .lb-no {
+    width:28px; height:28px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:900; color:#fff; background:#c9c9c9;
+  }
+  .lb-no.p1 { background:var(--gold); box-shadow:0 2px 0 #d9a700; }
+  .lb-no.p2 { background:#c0c0c0; box-shadow:0 2px 0 #9e9e9e; }
+  .lb-no.p3 { background:#cd7f32; box-shadow:0 2px 0 #a5662a; }
+  .lb-avatar { font-size:22px; }
+  .lb-body { flex:1; min-width:0; }
+  .lb-body b { display:block; font-size:13px; font-weight:800; }
+  .lb-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .lb-score { font-size:15px; font-weight:900; color:var(--gold); text-align:right; }
+  .lb-score small { font-size:10px; color:var(--text-dim); font-weight:700; display:block; }
+  .lb-wr { font-size:11px; font-weight:800; color:var(--green-dark); }
+
+  /* ---- Battle log (event stream) ---- */
+  .log-card { background:#fff; border-radius:18px; padding:18px 20px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); margin-bottom:18px; }
+  .log-title { font-size:17px; font-weight:900; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .log-desc { font-size:12px; color:var(--text-dim); font-weight:700; margin-bottom:14px; }
+
+  .log-entry {
+    display:flex; align-items:center; gap:11px;
+    padding:9px 12px; border-radius:12px; background:#f7f7f7;
+    margin-bottom:7px;
+  }
+  .log-entry:last-child { margin-bottom:0; }
+  .log-time {
+    font-size:11px; font-weight:800; color:var(--text-faint);
+    font-variant-numeric:tabular-nums; flex-shrink:0; min-width:36px;
+  }
+  .log-ic {
+    width:30px; height:30px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .log-ic.me { background:var(--green-bg); }
+  .log-ic.op { background:var(--blue-bg); }
+  .log-ic.sys { background:var(--gold-light); }
+  .log-text { flex:1; min-width:0; font-size:13px; font-weight:700; }
+  .log-text b { font-weight:900; }
+  .log-text .hl-g { color:var(--green-dark); font-weight:900; }
+  .log-text .hl-b { color:var(--blue-dark); font-weight:900; }
+  .log-text .hl-r { color:var(--red-dark); font-weight:900; }
+  .log-text small { color:var(--text-dim); font-weight:700; }
+
+  /* ---- Compact overrides ---- */
+  .container { padding-bottom:36px; }
+  .topbar { padding:12px 24px; }
+  .arena-hero { margin-bottom:16px; }
+  .live-card { margin-bottom:16px; }
+  .live-inner { padding:15px 20px 14px; }
+  .live-head { margin-bottom:12px; }
+  .word-display { padding:12px 16px; margin-bottom:14px; }
+  .main-grid { margin-bottom:16px; }
+  .log-card { margin-bottom:16px; }
+  .footer-link { margin:12px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ============ Top Bar ============ -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span>
+        <span>英语听打</span>
+      </div>
+      <div style="font-weight:800; font-size:16px; color:var(--text-dim);">· PK对战</div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,340</div>
+      <div class="stat-item level"><span class="icon">🏆</span> Lv.5</div>
+    </div>
+  </div>
+
+  <!-- ============ Battle Arena Hero ============ -->
+  <div class="arena-hero">
+    <div class="arena-glow"></div>
+    <div class="arena-row">
+
+      <!-- Left player (me) -->
+      <div class="player-side left">
+        <div class="p-avatar-wrap">
+          <div class="p-avatar-ring">
+            <div class="p-avatar-inner">🦉</div>
+          </div>
+          <div class="p-live-dot">LIVE</div>
+        </div>
+        <div class="p-name">🌱 你</div>
+        <div class="p-meta">
+          <span class="m-item"><span class="mi">🏆</span> <span class="lvl">Lv.5</span></span>
+          <span class="m-item"><span class="mi">⚡</span> 2,340 XP</span>
+        </div>
+        <div class="p-score">250</div>
+        <div class="p-score-lbl">当前得分</div>
+        <div class="round-dots">
+          <span class="rdot win"></span>
+          <span class="rdot now"></span>
+          <span class="rdot"></span>
+        </div>
+      </div>
+
+      <!-- VS center -->
+      <div class="vs-center">
+        <div class="vs-badge">VS</div>
+        <div class="vs-round">第 <span style="color:var(--gold);">2</span> / 3 轮 <span class="r-dot"></span></div>
+        <div class="vs-timer warn">⏱️ 0:42</div>
+      </div>
+
+      <!-- Right player (opponent) -->
+      <div class="player-side right">
+        <div class="p-avatar-wrap">
+          <div class="p-avatar-ring">
+            <div class="p-avatar-inner">🐯</div>
+          </div>
+          <div class="p-live-dot">LIVE</div>
+        </div>
+        <div class="p-name">Leo</div>
+        <div class="p-meta">
+          <span class="m-item"><span class="mi">🏆</span> <span class="lvl">Lv.6</span></span>
+          <span class="m-item"><span class="mi">⚡</span> 3,180 XP</span>
+        </div>
+        <div class="p-score">230</div>
+        <div class="p-score-lbl">当前得分</div>
+        <div class="round-dots">
+          <span class="rdot"></span>
+          <span class="rdot now"></span>
+          <span class="rdot lose"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Live Battle Card ============ -->
+  <div class="live-card">
+    <div class="live-card-top"></div>
+    <div class="live-inner">
+
+      <div class="live-head">
+        <div class="l">
+          <span class="live-ic">🎯</span>
+          <b>实时对战<small>CET-4 核心词 · 第 2 轮 · 限时 1:00</small></b>
+        </div>
+        <div class="live-tts"><span class="ic">🔊</span> 播放音频</div>
+      </div>
+
+      <div class="word-display">
+        <div class="word-label">本轮单词</div>
+        <div class="word-text">
+          <span class="typed">dict</span><span class="ghost">ionary</span>
+        </div>
+        <div class="word-hint">🎧 听音后输入英文拼写 · 听三遍</div>
+      </div>
+
+      <div class="dual-bars">
+        <!-- Me -->
+        <div class="db-row">
+          <div class="db-avatar me">🦉</div>
+          <div class="db-info">
+            <div class="db-info-top">
+              <div class="db-name">你 <span class="me-tag">我</span></div>
+              <div class="db-score me">250<small>分</small></div>
+            </div>
+            <div class="db-bar"><div class="db-fill me" style="width:62%"></div></div>
+          </div>
+          <div class="db-status"><span class="s-dot go"></span> 输入中</div>
+        </div>
+        <!-- Opponent -->
+        <div class="db-row">
+          <div class="db-avatar op">🐯</div>
+          <div class="db-info">
+            <div class="db-info-top">
+              <div class="db-name">Leo</div>
+              <div class="db-score op">230<small>分</small></div>
+            </div>
+            <div class="db-bar"><div class="db-fill op" style="width:58%"></div></div>
+          </div>
+          <div class="db-status"><span class="s-dot go"></span> 输入中</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ Main grid: History | Lobby | Leaderboard ============ -->
+  <div class="main-grid">
+
+    <!-- Recent battles -->
+    <div class="card">
+      <div class="card-title"><span class="card-icon">⚔️</span> 对战记录</div>
+      <div class="card-desc">最近 5 场 PK · 胜率 60% · 连胜 3 场</div>
+
+      <div class="btl-row win">
+        <div class="btl-result win">🏆</div>
+        <div class="btl-info">
+          <b>vs Leo</b>
+          <small>5 分钟前 · 3 轮 · CET-4</small>
+        </div>
+        <div class="btl-xp win">⚡ +40</div>
+        <div class="btl-score me-win">250<small> : 230</small></div>
+      </div>
+
+      <div class="btl-row win">
+        <div class="btl-result win">🏆</div>
+        <div class="btl-info">
+          <b>vs 桃子</b>
+          <small>2 小时前 · 3 轮 · 考研</small>
+        </div>
+        <div class="btl-xp win">⚡ +35</div>
+        <div class="btl-score me-win">280<small> : 245</small></div>
+      </div>
+
+      <div class="btl-row win">
+        <div class="btl-result win">🏆</div>
+        <div class="btl-info">
+          <b>vs 阿May</b>
+          <small>昨天 20:15 · 3 轮 · CET-6</small>
+        </div>
+        <div class="btl-xp win">⚡ +50</div>
+        <div class="btl-score me-win">310<small> : 290</small></div>
+      </div>
+
+      <div class="btl-row lose">
+        <div class="btl-result lose">💔</div>
+        <div class="btl-info">
+          <b>vs Leo</b>
+          <small>昨天 14:30 · 5 轮 · 托福</small>
+        </div>
+        <div class="btl-xp lose">⚡ +10</div>
+        <div class="btl-score op-win">180<small> : 260</small></div>
+      </div>
+
+      <div class="btl-row win">
+        <div class="btl-result win">🏆</div>
+        <div class="btl-info">
+          <b>vs 小宇</b>
+          <small>3 天前 · 3 轮 · CET-4</small>
+        </div>
+        <div class="btl-xp win">⚡ +30</div>
+        <div class="btl-score me-win">220<small> : 195</small></div>
+      </div>
+    </div>
+
+    <!-- PK Lobby / Settings -->
+    <div class="lobby-card">
+      <div class="lobby-title">⚔️ 对战大厅</div>
+      <div class="lobby-desc">选择词库和轮数，发起新一场对战</div>
+
+      <div class="setting-item active">
+        <div class="s-icon">📚</div>
+        <div class="s-body">
+          <b>CET-4 核心词</b>
+          <small>1,800 词 · 常用</small>
+        </div>
+        <div class="s-check">✓</div>
+      </div>
+      <div class="setting-item">
+        <div class="s-icon">🌿</div>
+        <div class="s-body">
+          <b>CET-6 词汇</b>
+          <small>2,600 词</small>
+        </div>
+        <div class="s-check"></div>
+      </div>
+      <div class="setting-item">
+        <div class="s-icon">🍀</div>
+        <div class="s-body">
+          <b>考研大纲词</b>
+          <small>5,500 词</small>
+        </div>
+        <div class="s-check"></div>
+      </div>
+      <div class="setting-item">
+        <div class="s-icon">🌲</div>
+        <div class="s-body">
+          <b>我的错词本</b>
+          <small>128 词</small>
+        </div>
+        <div class="s-check"></div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="btn btn-primary btn-sm" style="flex:1;"><span>🎮</span> 匹配对手</button>
+        <button class="btn btn-blue btn-sm" style="flex:1;"><span>👥</span> 邀请好友</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="leader-card">
+      <div class="leader-title">🥇 PK 排行榜</div>
+      <div class="leader-desc">本周 PK 总榜 · Top 5</div>
+
+      <div class="lb-row">
+        <div class="lb-no p1">1</div>
+        <div class="lb-avatar">🐯</div>
+        <div class="lb-body"><b>Leo</b><small>12 胜 2 负 · 胜率 86%</small></div>
+        <div class="lb-score">1,240<small>总得分</small></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-no p2">2</div>
+        <div class="lb-avatar">🦊</div>
+        <div class="lb-body"><b>阿May</b><small>10 胜 3 负 · 胜率 77%</small></div>
+        <div class="lb-score">1,080<small>总得分</small></div>
+      </div>
+      <div class="lb-row me">
+        <div class="lb-no p3">3</div>
+        <div class="lb-avatar">🦉</div>
+        <div class="lb-body"><b>你</b><small>9 胜 4 负 · 胜率 69%</small></div>
+        <div class="lb-score">980<small>总得分</small></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-no">4</div>
+        <div class="lb-avatar">🐰</div>
+        <div class="lb-body"><b>桃子</b><small>7 胜 5 负 · 胜率 58%</small></div>
+        <div class="lb-score">720<small>总得分</small></div>
+      </div>
+      <div class="lb-row">
+        <div class="lb-no">5</div>
+        <div class="lb-avatar">🐸</div>
+        <div class="lb-body"><b>小宇</b><small>6 胜 6 负 · 胜率 50%</small></div>
+        <div class="lb-score">640<small>总得分</small></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ Battle Log ============ -->
+  <div class="log-card">
+    <div class="log-title">📋 对战日志</div>
+    <div class="log-desc">第 2 轮实时事件流 · 实时同步</div>
+
+    <div class="log-entry">
+      <div class="log-time">0:52</div>
+      <div class="log-ic sys">🎯</div>
+      <div class="log-text"><b>第 2 轮开始</b> · 本轮单词 <b>dictionary</b> · 限时 1:00</div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">0:45</div>
+      <div class="log-ic me">🦉</div>
+      <div class="log-text">你 完成输入 <b>"dictionary"</b> <small>✓ 正确 · <span class="hl-g">+50 分</span></small></div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">0:38</div>
+      <div class="log-ic op">🐯</div>
+      <div class="log-text">Leo 完成输入 <b>"dictionar"</b> <small>✗ 拼写错误 · <span class="hl-r">+0 分</span></small></div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">0:30</div>
+      <div class="log-ic sys">⚡</div>
+      <div class="log-text">Leo 触发补时 <b>+10秒</b> · 当前剩余 <span class="hl-b">0:42</span></div>
+    </div>
+    <div class="log-entry">
+      <div class="log-time">0:25</div>
+      <div class="log-ic op">🐯</div>
+      <div class="log-text">Leo 重新输入 <b>"dictionary"</b> <small>⏳ 进行中...</small></div>
+    </div>
+  </div>
+
+  <a class="footer-link" href="#">🦉 英语听打 · PK对战 · 设计稿 v1</a>
+
+</div>
+</body>
+</html>

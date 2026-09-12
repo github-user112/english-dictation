@@ -44,14 +44,21 @@ const ROUTES = {
   wordtest: WordTestPage,
   shadow: ShadowPage,
 };
-const view = ref(TodayPage);
-const params = ref(new URLSearchParams());
-const hashKey = ref("");
+/* 用当前 hash 直接初始化，避免「默认 TodayPage + 空 key → route() 改 key → 重挂载」
+   导致首屏页面组件 mounted 两次、/api/today 打两次 */
+function currentRoute() {
+  const h = location.hash.replace(/^#\/?/, "") || "catalog";
+  const [page, qs] = h.split("?");
+  return { comp: ROUTES[page] || TodayPage, qs: qs || "", hash: location.hash };
+}
+const init = currentRoute();
+const view = ref(init.comp);
+const params = ref(new URLSearchParams(init.qs));
+const hashKey = ref(init.hash);
 const APP_VERSION = __APP_VERSION__;
 
 onMounted(async () => {
   window.addEventListener("hashchange", route);
-  route();
   try {
     const account = await refreshAccount();
     if (account.accountProtected && !account.authenticated) location.hash = "#/account";
@@ -60,11 +67,10 @@ onMounted(async () => {
 
 function route() {
   stopAudio();
-  const h = location.hash.replace(/^#\/?/, "") || "catalog";
-  const [page, qs] = h.split("?");
-  params.value = new URLSearchParams(qs || "");
-  view.value = ROUTES[page] || TodayPage;
-  hashKey.value = location.hash;
+  const r = currentRoute();
+  params.value = new URLSearchParams(r.qs);
+  view.value = r.comp;
+  hashKey.value = r.hash;
   window.scrollTo(0, 0);
 }
 </script>

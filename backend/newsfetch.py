@@ -19,6 +19,7 @@ from html import unescape
 from pathlib import Path
 
 from .db import db
+from .misc import local_today
 
 FEED_URL = os.environ.get(
     "ENGLISH_DICTATION_NEWS_FEED", "https://www.newsinlevels.com/feed/")
@@ -136,7 +137,7 @@ def refresh():
 def maybe_refresh():
     """每日一轮：push_meta.last_news 认领防多 worker 重跑；成功后 HUP 重载素材缓存。"""
     from datetime import date
-    today = date.today().isoformat()
+    today = local_today().isoformat()
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT value FROM push_meta WHERE name='last_news'").fetchone()

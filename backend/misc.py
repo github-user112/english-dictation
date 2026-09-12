@@ -6,10 +6,10 @@ import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import edge_tts
-from flask import Blueprint, abort, jsonify, request, send_from_directory
+from flask import Blueprint, abort, has_request_context, jsonify, request, send_from_directory
 
 from .auth import get_user, resp
 from .config import AUDIO, CONFIG
@@ -108,6 +108,40 @@ def api_wrong():
     return resp({"items": items})
 
 
+@bp.get("/api/wrong/today")
+def api_wrong_today():
+    """今日错词回收题组：今天答错过、且仍在错词本的单词优先，不够 10 个按到期从错词本补满。
+    与 today.py 的错词回收步同口径（target = min(10, 错词池)）。"""
+    u = get_user()
+    today = local_today().isoformat()
+    with db() as conn:
+        picked = [(r["list"], r["item_id"]) for r in conn.execute(
+            """SELECT DISTINCT s.list, i.item_id FROM study_session s
+               JOIN study_session_item i ON i.session_id=s.id
+               JOIN word_state w ON w.user=s.user AND w.list=s.list AND w.item_id=i.item_id
+               WHERE s.user=? AND s.assigned_day=? AND i.first_right=0
+               AND w.wrong_count>0 AND w.kind='word' LIMIT 10""", (u, today)).fetchall()]
+        if len(picked) < 10:
+            have = set(picked)
+            for r in conn.execute(
+                    "SELECT list, item_id FROM word_state "
+                    "WHERE user=? AND wrong_count>0 AND kind='word' "
+                    "ORDER BY next_review IS NULL, next_review, wrong_count DESC LIMIT 20",
+                    (u,)).fetchall():
+                key = (r["list"], r["item_id"])
+                if key not in have:
+                    picked.append(key)
+                    if len(picked) >= 10:
+                        break
+    items = []
+    for list_key, item_id in picked:
+        m = find_item(list_key, item_id)
+        if m:
+            items.append({**m, "list": list_key, "phase": "review",
+                          "audio": audio_url(list_key, item_id, m["text"])})
+    return resp({"items": items})
+
+
 @bp.post("/api/wrong/remove")
 def api_wrong_remove():
     u = get_user()
@@ -118,10 +152,27 @@ def api_wrong_remove():
     return resp({"ok": True})
 
 
+def local_today():
+    """用户本地的「今天」：客户端经 X-Tz-Offset 头传 JS getTimezoneOffset（分钟，西正东负），
+    用 UTC 时刻减偏移得到用户本地日期；无请求上下文（定时任务）或头缺失/非法时退回
+    date.today()（服务器本地）——与改动前的行为完全一致，老测试/非 UTC 部署不受影响。
+    返回 date 对象，调用处的减法/isoformat/weekday 用法与 date.today() 完全一致。"""
+    off = None
+    if has_request_context():
+        raw = request.headers.get("X-Tz-Offset", "")
+        try:
+            off = max(-840, min(840, int(raw)))   # 合法时区范围 UTC-12..+14
+        except (TypeError, ValueError):
+            off = None
+    if off is None:
+        return date.today()
+    return (datetime.now(timezone.utc) - timedelta(minutes=off)).date()
+
+
 def day_streak(days):
     """连续打卡天数：days 为 ISO 日期字符串可迭代；今天还没练则从昨天起算。"""
     known = set(days)
-    d = date.today()
+    d = local_today()
     if d.isoformat() not in known:
         d -= timedelta(days=1)
     n = 0
@@ -136,7 +187,7 @@ def api_stats():
     u = get_user()
     # 报告口径是"这一年"（ReportPage 文案），速度/时段统计同样只扫近一年，
     # 避免 study_session_item 全历史随练习量线性拖慢每次请求
-    since = (date.today() - timedelta(days=370)).isoformat()
+    since = (local_today() - timedelta(days=370)).isoformat()
     with db() as conn:
         rows = conn.execute("SELECT * FROM daily_log WHERE user=? ORDER BY day", (u,)).fetchall()
         mode_rows = conn.execute(
@@ -190,7 +241,7 @@ def api_stats():
 def api_report_weekly():
     """周报分享卡数据：本周（周一起）听打/背诵汇总 + 与上周的首答正确率差。"""
     u = get_user()
-    monday = date.today() - timedelta(days=date.today().weekday())
+    monday = local_today() - timedelta(days=local_today().weekday())
     week_end = (monday + timedelta(days=7)).isoformat()
     this_week, last_week = monday.isoformat(), (monday - timedelta(days=7)).isoformat()
 
@@ -219,7 +270,7 @@ def api_report_weekly():
     # 上周没练过时不显示增量（+100% 之类的数字没有意义）
     delta = round((acc - prev_acc) * 100) if prev["fr"] + prev["fw"] > 0 else None
     return resp({
-        "week_start": this_week, "week_end": (date.today()).isoformat(),
+        "week_start": this_week, "week_end": (local_today()).isoformat(),
         "items": cur["items"], "accuracy": round(acc * 100), "accuracy_delta": delta,
         "memorize_right": mem["mr"] or 0, "days_active": days_active, "streak": streak,
     })
@@ -234,8 +285,8 @@ def api_stats_typing():
     （改对重输后等于正确文本），不反查素材文件。
     """
     u = get_user()
-    since30 = (date.today() - timedelta(days=29)).isoformat()
-    since90 = (date.today() - timedelta(days=89)).isoformat()
+    since30 = (local_today() - timedelta(days=29)).isoformat()
+    since90 = (local_today() - timedelta(days=89)).isoformat()
     with db() as conn:
         curve = [{"day": r["d"],
                   "wpm": round(r["chars"] / 5 / (r["ms"] / 60000), 1) if r["ms"] else 0,
@@ -283,7 +334,7 @@ def api_stats_typing():
              "got": [{"key": t, "count": n} for t, n in c.most_common(3)]}
             for e, c in sorted(by_char.items(), key=lambda kv: -sum(kv[1].values()))[:12]]
 
-    recent7 = [p["wpm"] for p in curve if p["day"] >= (date.today() - timedelta(days=6)).isoformat()]
+    recent7 = [p["wpm"] for p in curve if p["day"] >= (local_today() - timedelta(days=6)).isoformat()]
     wpm7 = round(sum(recent7) / len(recent7), 1) if recent7 else 0
     tier = next((label for limit, label in
                  [(45, "钻石"), (35, "铂金"), (25, "黄金"), (15, "白银"), (0, "青铜")] if wpm7 >= limit))
@@ -292,7 +343,7 @@ def api_stats_typing():
 
 def _due_soon_count(user, conn, within_days=2):
     """未来 N 天内（含已逾期）到期的复习词数量，用于遗忘预警。复用调用方的连接。"""
-    cutoff = (date.today() + timedelta(days=within_days)).isoformat()
+    cutoff = (local_today() + timedelta(days=within_days)).isoformat()
     return conn.execute(
         "SELECT COUNT(*) c FROM word_state WHERE user=? AND status IN ('learning','known') "
         "AND next_review IS NOT NULL AND next_review<=?", (user, cutoff)).fetchone()["c"]

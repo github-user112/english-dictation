@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>背单词 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Session header with ring ---- */
+  .session-header {
+    display:grid; grid-template-columns:1fr auto; gap:20px;
+    margin-bottom:22px; align-items:center;
+  }
+  .sess-ring { position:relative; width:130px; height:130px; flex-shrink:0; }
+  .sess-ring svg { width:130px; height:130px; }
+  .sr-bg { fill:none; stroke:#e5e5e5; stroke-width:5; }
+  .sr-fg {
+    fill:none; stroke:var(--green); stroke-width:5; stroke-linecap:round;
+    transform:rotate(-90deg); transform-origin:center;
+    stroke-dasharray:100; stroke-dashoffset:50;
+    filter:drop-shadow(0 0 6px rgba(88,204,2,0.35));
+  }
+  .sr-center {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .sr-center .pct { font-weight:900; font-size:28px; color:var(--green-dark); }
+  .sr-center .sub { font-size:11px; font-weight:800; color:var(--text-dim); margin-top:2px; }
+
+  .sess-body { flex:1; min-width:0; }
+  .sess-eyebrow {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--green); color:#fff; padding:4px 12px;
+    border-radius:20px; font-size:12px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark); margin-bottom:10px;
+  }
+  .sess-eyebrow .pulse { width:7px; height:7px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  .sess-body h1 { font-size:26px; font-weight:900; letter-spacing:-0.5px; margin-bottom:8px; }
+  .sess-meta { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .sess-meta .item { display:flex; align-items:center; gap:5px; font-size:14px; font-weight:800; }
+  .sess-meta .item .ic { font-size:18px; }
+  .sess-meta .item.green { color:var(--green-dark); }
+  .sess-meta .item.orange { color:var(--orange); }
+  .sess-meta .item.blue { color:var(--blue-dark); }
+  .sess-meta .sep { color:var(--text-faint); font-weight:600; }
+
+  /* ---- Phase strip ---- */
+  .phase-strip {
+    display:flex; align-items:center; gap:0;
+    padding:16px 24px; margin-bottom:22px;
+    background:#fff; border-radius:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .phase-step {
+    display:flex; align-items:center; gap:12px; flex:1;
+    padding:10px 14px; border-radius:12px; transition:all 0.2s;
+  }
+  .phase-step.active { background:var(--green-bg); }
+  .phase-step.locked { opacity:0.4; }
+  .phase-num {
+    width:40px; height:40px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+    background:#e5e5e5; color:var(--text-dim);
+    box-shadow:0 3px 0 rgba(0,0,0,0.08);
+  }
+  .phase-step.done .phase-num { background:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .phase-step.active .phase-num { background:var(--green); box-shadow:0 3px 0 var(--green-dark), 0 0 0 6px rgba(88,204,2,0.15); }
+  .phase-body { flex:1; min-width:0; }
+  .phase-body b { font-size:15px; font-weight:900; display:block; }
+  .phase-body small { font-size:11px; color:var(--text-dim); font-weight:700; }
+  .phase-connector { width:36px; height:2px; background:repeating-linear-gradient(90deg, #ccc 0, #ccc 6px, transparent 6px, transparent 12px); flex-shrink:0; }
+
+  /* ---- Main grid ---- */
+  .main-grid {
+    display:grid; grid-template-columns:1fr 340px; gap:20px;
+    align-items:start;
+  }
+
+  /* ---- Flashcard ---- */
+  .flashcard {
+    background:#fff; border-radius:22px; padding:28px 30px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+    margin-bottom:18px; position:relative; overflow:hidden;
+    border:2px solid rgba(88,204,2,0.2);
+  }
+  .flashcard::before {
+    content:''; position:absolute; top:-60px; right:-40px;
+    width:200px; height:200px; border-radius:50%;
+    background:radial-gradient(circle, rgba(88,204,2,0.06), transparent 70%);
+  }
+  .flashcard::after {
+    content:''; position:absolute; bottom:-40px; left:-30px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.04), transparent 70%);
+  }
+
+  .fc-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px; position:relative; z-index:1;
+  }
+  .fc-word-num {
+    display:flex; align-items:center; gap:8px;
+    font-weight:900; font-size:14px; color:var(--green-dark);
+  }
+  .fc-word-num .badge {
+    background:var(--green); color:#fff; padding:4px 12px;
+    border-radius:10px; font-size:13px; font-weight:900;
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+  .fc-word-num small { font-size:12px; color:var(--text-dim); font-weight:800; }
+  .fc-audio {
+    width:44px; height:44px; border-radius:50%; border:none;
+    background:var(--blue); color:#fff; font-size:18px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 var(--blue-dark); cursor:pointer;
+    transition:transform 0.1s;
+  }
+  .fc-audio:active { transform:translateY(3px); box-shadow:0 1px 0 var(--blue-dark); }
+
+  .fc-word {
+    text-align:center; margin-bottom:22px; position:relative; z-index:1;
+  }
+  .fc-en {
+    font-size:48px; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg, var(--green-dark), var(--green));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:8px;
+  }
+  .fc-phonetic {
+    font-size:16px; font-weight:700; color:var(--text-dim);
+    display:inline-block; padding:4px 14px; background:#f7f7f7; border-radius:10px;
+  }
+
+  .fc-meaning {
+    background:linear-gradient(135deg, var(--blue-bg), #f0f9ff);
+    border-radius:16px; padding:18px 22px;
+    border:2px solid rgba(28,176,246,0.2);
+    margin-bottom:20px; position:relative; z-index:1;
+  }
+  .fc-meaning-label {
+    display:flex; align-items:center; gap:8px;
+    font-size:12px; font-weight:900; color:var(--blue-dark);
+    margin-bottom:8px;
+  }
+  .fc-zh {
+    font-size:30px; font-weight:900; color:var(--text); margin-bottom:12px;
+  }
+  .fc-example {
+    font-size:14px; font-weight:700; color:var(--text-dim);
+    line-height:1.6; padding:10px 14px; background:#fff; border-radius:10px;
+    border:1px dashed rgba(28,176,246,0.3);
+  }
+  .fc-example .en { color:var(--blue-dark); font-weight:800; }
+  .fc-example .zh { color:var(--text-dim); }
+
+  .fc-actions {
+    display:flex; gap:12px; position:relative; z-index:1;
+  }
+  .fc-btn {
+    flex:1; padding:16px; border:none; border-radius:14px;
+    font-family:inherit; font-weight:900; font-size:16px; cursor:pointer;
+    transition:transform 0.1s; text-align:center;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .fc-btn:active { transform:translateY(3px); }
+  .fc-btn.dontknow {
+    background:#fff; color:var(--red-dark);
+    box-shadow:0 4px 0 var(--red); border:2px solid var(--red);
+  }
+  .fc-btn.dontknow:active { box-shadow:0 1px 0 var(--red); }
+  .fc-btn.know {
+    background:var(--green); color:#fff;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .fc-btn.know:active { box-shadow:0 1px 0 var(--green-dark); }
+
+  /* ---- Word queue ---- */
+  .word-queue {
+    background:#fff; border-radius:18px; padding:20px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .wq-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .wq-head h2 { font-size:16px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .wq-head small { font-size:12px; color:var(--text-dim); font-weight:700; }
+
+  .wq-list { display:flex; flex-direction:column; gap:8px; }
+  .wq-item {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px; border-radius:12px;
+    background:#f7f7f7; border:2px solid transparent;
+    font-size:14px; font-weight:800;
+  }
+  .wq-item.current {
+    background:var(--green-bg); border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.1);
+  }
+  .wq-item.done { opacity:0.55; }
+  .wq-num {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900;
+    background:#fff; color:var(--text-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .wq-item.current .wq-num { background:var(--green); color:#fff; }
+  .wq-item.done .wq-num { background:var(--green); color:#fff; }
+  .wq-en { flex:1; min-width:0; }
+  .wq-zh { font-size:12px; color:var(--text-dim); font-weight:700; }
+  .wq-status { font-size:18px; flex-shrink:0; width:24px; text-align:center; }
+
+  /* ---- Right sidebar ---- */
+  .sidebar { display:flex; flex-direction:column; gap:16px; }
+
+  /* Stats card */
+  .stats-card {
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    border-radius:20px; padding:22px; color:#fff;
+    box-shadow:0 6px 0 var(--green-dark), 0 10px 28px rgba(88,204,2,0.2);
+    text-align:center; position:relative; overflow:hidden;
+  }
+  .stats-card::after {
+    content:''; position:absolute; top:-40px; right:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .stats-card .sc-label { font-size:13px; font-weight:800; opacity:0.9; margin-bottom:6px; position:relative; z-index:1; }
+  .stats-card .sc-val { font-size:44px; font-weight:900; letter-spacing:-1px; position:relative; z-index:1; }
+  .stats-card .sc-sub { font-size:13px; font-weight:700; opacity:0.85; margin-top:4px; position:relative; z-index:1; }
+  .stats-card .sc-bar-wrap { display:flex; gap:5px; margin-top:14px; position:relative; z-index:1; }
+  .stats-card .sc-seg { flex:1; height:8px; border-radius:4px; background:rgba(255,255,255,0.2); }
+  .stats-card .sc-seg.filled { background:#fff; }
+
+  /* Stats mini grid */
+  .stats-mini {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .stats-mini .sm {
+    text-align:center; padding:14px 10px;
+    background:#fff; border-radius:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+  }
+  .stats-mini .sm .v { font-size:24px; font-weight:900; }
+  .stats-mini .sm .v.green { color:var(--green); }
+  .stats-mini .sm .v.blue { color:var(--blue); }
+  .stats-mini .sm .v.orange { color:var(--orange); }
+  .stats-mini .sm .v.red { color:var(--red); }
+  .stats-mini .sm .l { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:3px; }
+
+  /* Accuracy chart */
+  .accuracy-card { background:#fff; }
+  .acc-chart {
+    display:flex; align-items:flex-end; gap:6px; height:72px;
+    padding:10px 4px 0; border-bottom:2px solid #f0f0f0;
+    margin-bottom:8px;
+  }
+  .acc-bar {
+    flex:1; border-radius:6px 6px 0 0;
+    background:linear-gradient(180deg, var(--green), var(--green-dark));
+    box-shadow:0 0 6px rgba(88,204,2,0.2);
+    position:relative; min-width:0;
+  }
+  .acc-bar.dim { background:linear-gradient(180deg, #dcdcdc, #c5c5c5); box-shadow:none; }
+  .acc-bar .tip {
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    margin-bottom:4px; font-size:10px; font-weight:900; color:var(--text-dim);
+  }
+  .acc-labels {
+    display:flex; gap:6px; padding:0 4px;
+  }
+  .acc-labels span {
+    flex:1; text-align:center; font-size:10px; font-weight:800; color:var(--text-faint);
+  }
+
+  /* Today goal */
+  .goal-card {
+    background:linear-gradient(135deg, #fff 0%, var(--orange-light) 100%);
+    border-radius:18px; padding:18px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    border:2px solid rgba(255,150,0,0.2);
+    position:relative; overflow:hidden;
+  }
+  .goal-card::after {
+    content:''; position:absolute; bottom:-30px; right:-20px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,150,0,0.1), transparent 70%);
+  }
+  .goal-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; position:relative; z-index:1; }
+  .goal-icon { font-size:32px; flex-shrink:0; }
+  .goal-body { flex:1; }
+  .goal-body b { font-size:14px; font-weight:900; display:block; }
+  .goal-body small { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .goal-pct { font-size:24px; font-weight:900; color:var(--orange); flex-shrink:0; }
+  .goal-bar { height:10px; background:#fff; border-radius:10px; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.05); position:relative; z-index:1; }
+  .goal-fill { height:100%; background:linear-gradient(90deg, var(--orange), #ffb347); border-radius:10px; box-shadow:0 0 6px rgba(255,150,0,0.4); }
+  .goal-sub { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; font-weight:800; color:var(--text-dim); position:relative; z-index:1; }
+
+  /* Recent mastered */
+  .recent-mastered { background:#fff; }
+  .rm-list { display:flex; flex-direction:column; gap:8px; }
+  .rm-item {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:10px;
+    background:#f7f7f7; font-size:13px; font-weight:700;
+  }
+  .rm-check {
+    width:24px; height:24px; border-radius:50%; flex-shrink:0;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+  .rm-en { flex:1; min-width:0; }
+  .rm-zh { font-size:11px; color:var(--text-dim); }
+  .rm-xp {
+    font-size:11px; font-weight:900; color:var(--gold);
+    background:var(--gold-light); padding:2px 8px; border-radius:8px;
+    flex-shrink:0;
+  }
+
+  /* ---- Self-test preview ---- */
+  .st-preview {
+    background:linear-gradient(135deg, #fff 0%, var(--purple-light) 100%);
+    border:2px solid rgba(206,130,255,0.2);
+    border-radius:18px; padding:22px 24px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06);
+    margin-top:20px;
+    position:relative; overflow:hidden;
+  }
+  .st-preview::after {
+    content:''; position:absolute; bottom:-40px; right:-30px;
+    width:160px; height:160px; border-radius:50%;
+    background:radial-gradient(circle, rgba(206,130,255,0.08), transparent 70%);
+  }
+  .stp-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; position:relative; z-index:1;
+  }
+  .stp-title { display:flex; align-items:center; gap:12px; }
+  .stp-icon {
+    font-size:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    width:52px; height:52px; border-radius:14px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; box-shadow:0 3px 0 rgba(0,0,0,0.08);
+  }
+  .stp-title b { font-size:16px; font-weight:900; display:block; }
+  .stp-title small { font-size:12px; color:var(--text-dim); font-weight:700; }
+  .stp-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:5px 12px; border-radius:10px;
+    background:var(--purple); color:#fff;
+    font-size:12px; font-weight:900;
+    box-shadow:0 3px 0 var(--purple-dark);
+  }
+  .stp-preview-row {
+    display:flex; align-items:center; gap:16px;
+    padding:14px 18px; background:#fff;
+    border-radius:14px; border:1px solid rgba(206,130,255,0.2);
+    position:relative; z-index:1; flex-wrap:wrap;
+  }
+  .stp-chinese {
+    text-align:center; flex-shrink:0;
+    padding:10px 22px;
+    background:var(--blue-bg); border-radius:12px;
+    border:2px solid rgba(28,176,246,0.2);
+  }
+  .stp-zh-label { font-size:10px; font-weight:900; color:var(--blue-dark); margin-bottom:4px; }
+  .stp-zh-word { font-size:26px; font-weight:900; color:var(--text); }
+  .stp-arrow { font-size:28px; font-weight:900; color:var(--purple); flex-shrink:0; }
+  .stp-input-preview { flex:1; min-width:0; }
+  .stp-en-label { font-size:10px; font-weight:900; color:var(--purple-dark); margin-bottom:8px; }
+  .stp-letters { display:flex; gap:5px; flex-wrap:wrap; }
+  .sl {
+    width:32px; height:40px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900; flex-shrink:0;
+  }
+  .sl.filled {
+    background:var(--green-bg); color:var(--green-dark);
+    border:2px solid rgba(88,204,2,0.3);
+  }
+  .sl.empty {
+    background:#f7f7f7; color:var(--text-faint);
+    border:2px dashed #ccc;
+  }
+
+  /* ---- Tip strip ---- */
+  .tip-strip {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 20px; margin-top:20px;
+    background:var(--orange-light); border-radius:14px;
+    border:1px solid rgba(255,150,0,0.2);
+  }
+  .tip-strip .tip-emoji { font-size:22px; flex-shrink:0; }
+  .tip-strip p { font-size:13px; font-weight:700; color:#8a5500; line-height:1.4; }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:20px;">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div style="font-weight:900; font-size:18px; color:var(--text);">
+        <span style="color:var(--text-faint); font-size:14px; margin-right:4px;">›</span>
+        <span style="color:var(--text-dim); font-weight:700;">背单词</span>
+      </div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 12天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480 XP</div>
+      <div class="stat-item level"><span class="icon">💎</span> Lv.7</div>
+    </div>
+  </div>
+
+  <!-- ===== Session Header with progress ring ===== -->
+  <div class="session-header">
+    <div class="sess-body">
+      <div class="sess-eyebrow"><span class="pulse"></span> 第 8 课 · CET-4 核心词汇</div>
+      <h1>📖 英→中 翻卡学习</h1>
+      <div class="sess-meta">
+        <span class="item green"><span class="ic">📚</span> 本课 <b>12</b> 词</span>
+        <span class="sep">·</span>
+        <span class="item blue"><span class="ic">🎯</span> 正确率 <b>83%</b></span>
+        <span class="sep">·</span>
+        <span class="item orange"><span class="ic">⏱</span> 用时 <b>6:42</b></span>
+      </div>
+    </div>
+    <div class="sess-ring">
+      <svg viewBox="0 0 36 36" width="130" height="130">
+        <circle class="sr-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
+        <circle class="sr-fg" cx="18" cy="18" r="15.9155" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/>
+      </svg>
+      <div class="sr-center">
+        <span class="pct">50%</span>
+        <span class="sub">6 / 12 词</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Phase strip ===== -->
+  <div class="phase-strip">
+    <div class="phase-step active">
+      <div class="phase-num">📖</div>
+      <div class="phase-body">
+        <b>学习</b>
+        <small>英→中 翻卡</small>
+      </div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-step locked">
+      <div class="phase-num">📝</div>
+      <div class="phase-body">
+        <b>自测</b>
+        <small>中→英 拼写</small>
+      </div>
+    </div>
+    <div class="phase-connector"></div>
+    <div class="phase-step locked">
+      <div class="phase-num">🏆</div>
+      <div class="phase-body">
+        <b>完成</b>
+        <small>统计回顾</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Main grid ===== -->
+  <div class="main-grid">
+
+    <!-- ---- Left column: flashcard + word queue ---- -->
+    <div>
+
+      <!-- Flashcard -->
+      <div class="flashcard">
+        <div class="fc-header">
+          <div class="fc-word-num">
+            <span class="badge">词 7 / 12</span>
+            <small>第 2 轮复习</small>
+          </div>
+          <button class="fc-audio" title="听发音">🔊</button>
+        </div>
+
+        <div class="fc-word">
+          <div class="fc-en">adventure</div>
+          <div class="fc-phonetic">/ədˈvɛntʃər/</div>
+        </div>
+
+        <div class="fc-meaning">
+          <div class="fc-meaning-label"><span>🇨🇳</span> 中文释义</div>
+          <div class="fc-zh">冒险 · 奇遇</div>
+          <div class="fc-example">
+            <span class="en">Life is a series of adventures.</span><br>
+            <span class="zh">生活是一连串的冒险。</span>
+          </div>
+        </div>
+
+        <div class="fc-actions">
+          <button class="fc-btn dontknow">😵 不认识</button>
+          <button class="fc-btn know">👍 知道</button>
+        </div>
+      </div>
+
+      <!-- Word queue -->
+      <div class="word-queue">
+        <div class="wq-head">
+          <h2><span>📚</span> 本课词表</h2>
+          <small>已完成 6 / 12</small>
+        </div>
+        <div class="wq-list">
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">dictionary</div>
+            <div class="wq-zh">字典/词典</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">beautiful</div>
+            <div class="wq-zh">美丽的</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">challenge</div>
+            <div class="wq-zh">挑战</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">courage</div>
+            <div class="wq-zh">勇气</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">discover</div>
+            <div class="wq-zh">发现</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item done">
+            <div class="wq-num">✓</div>
+            <div class="wq-en">elephant</div>
+            <div class="wq-zh">大象</div>
+            <div class="wq-status">✓</div>
+          </div>
+          <div class="wq-item current">
+            <div class="wq-num">7</div>
+            <div class="wq-en">adventure</div>
+            <div class="wq-zh">冒险/奇遇</div>
+            <div class="wq-status">▶</div>
+          </div>
+          <div class="wq-item">
+            <div class="wq-num">8</div>
+            <div class="wq-en">forest</div>
+            <div class="wq-zh">森林</div>
+            <div class="wq-status"></div>
+          </div>
+          <div class="wq-item">
+            <div class="wq-num">9</div>
+            <div class="wq-en">garden</div>
+            <div class="wq-zh">花园</div>
+            <div class="wq-status"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ---- Right sidebar ---- -->
+    <div class="sidebar">
+
+      <!-- Session accuracy -->
+      <div class="stats-card">
+        <div class="sc-label">🎯 当前正确率</div>
+        <div class="sc-val">83%</div>
+        <div class="sc-sub">5 知道 · 1 不认识</div>
+        <div class="sc-bar-wrap">
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg filled"></div>
+          <div class="sc-seg"></div>
+        </div>
+      </div>
+
+      <!-- Stats mini -->
+      <div class="stats-mini">
+        <div class="sm">
+          <div class="v green">✓ 6</div>
+          <div class="l">已学习</div>
+        </div>
+        <div class="sm">
+          <div class="v blue">📖 6</div>
+          <div class="l">剩余</div>
+        </div>
+        <div class="sm">
+          <div class="v orange">🔥 12</div>
+          <div class="l">连续天数</div>
+        </div>
+        <div class="sm">
+          <div class="v red">✕ 1</div>
+          <div class="l">今日错词</div>
+        </div>
+      </div>
+
+      <!-- Accuracy chart -->
+      <div class="card accuracy-card">
+        <div class="card-title"><span class="card-icon">📊</span> 近 7 天正确率</div>
+        <div class="acc-chart">
+          <div class="acc-bar dim" style="height:60%"><span class="tip">68%</span></div>
+          <div class="acc-bar" style="height:75%"><span class="tip">75%</span></div>
+          <div class="acc-bar dim" style="height:70%"><span class="tip">72%</span></div>
+          <div class="acc-bar" style="height:80%"><span class="tip">81%</span></div>
+          <div class="acc-bar" style="height:72%"><span class="tip">76%</span></div>
+          <div class="acc-bar" style="height:85%"><span class="tip">85%</span></div>
+          <div class="acc-bar" style="height:83%"><span class="tip">83%</span></div>
+        </div>
+        <div class="acc-labels">
+          <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>今</span>
+        </div>
+      </div>
+
+      <!-- Today goal -->
+      <div class="goal-card">
+        <div class="goal-top">
+          <span class="goal-icon">🎯</span>
+          <div class="goal-body">
+            <b>今日目标</b>
+            <small>完成 12 个新词</small>
+          </div>
+          <div class="goal-pct">50%</div>
+        </div>
+        <div class="goal-bar">
+          <div class="goal-fill" style="width:50%;"></div>
+        </div>
+        <div class="goal-sub">
+          <span>已完成 6 词</span>
+          <span>剩余 6 词</span>
+        </div>
+      </div>
+
+      <!-- Recent mastered -->
+      <div class="card recent-mastered">
+        <div class="card-title"><span class="card-icon">🏆</span> 已掌握</div>
+        <div class="rm-list">
+          <div class="rm-item">
+            <div class="rm-check">✓</div>
+            <span class="rm-en">dictionary</span>
+            <span class="rm-zh">字典</span>
+            <span class="rm-xp">+5 XP</span>
+          </div>
+          <div class="rm-item">
+            <div class="rm-check">✓</div>
+            <span class="rm-en">courage</span>
+            <span class="rm-zh">勇气</span>
+            <span class="rm-xp">+5 XP</span>
+          </div>
+          <div class="rm-item">
+            <div class="rm-check">✓</div>
+            <span class="rm-en">discover</span>
+            <span class="rm-zh">发现</span>
+            <span class="rm-xp">+5 XP</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Self-test preview ===== -->
+  <div class="st-preview">
+    <div class="stp-header">
+      <div class="stp-title">
+        <span class="stp-icon">📝</span>
+        <div>
+          <b>下一步: 中→英 拼写自测</b>
+          <small>完成学习阶段后自动进入 · 根据中文释义拼写英文</small>
+        </div>
+      </div>
+      <span class="stp-badge">🔒 即将解锁</span>
+    </div>
+    <div class="stp-preview-row">
+      <div class="stp-chinese">
+        <div class="stp-zh-label">🇨🇳 中文释义</div>
+        <div class="stp-zh-word">冒险</div>
+      </div>
+      <div class="stp-arrow">→</div>
+      <div class="stp-input-preview">
+        <div class="stp-en-label">🇬🇧 拼写英文</div>
+        <div class="stp-letters">
+          <span class="sl filled">a</span>
+          <span class="sl empty"></span>
+          <span class="sl filled">d</span>
+          <span class="sl filled">v</span>
+          <span class="sl empty"></span>
+          <span class="sl empty"></span>
+          <span class="sl filled">n</span>
+          <span class="sl empty"></span>
+          <span class="sl empty"></span>
+          <span class="sl filled">r</span>
+          <span class="sl empty"></span>
+          <span class="sl filled">e</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tip strip ===== -->
+  <div class="tip-strip">
+    <span class="tip-emoji">💡</span>
+    <p>连对 2 次即可将该词标记为"已掌握"，7 天后会再次复习巩固。答错的词会自动进入错词本进行间隔重复。</p>
+  </div>
+
+</div>
+</body>
+</html>

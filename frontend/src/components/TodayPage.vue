@@ -6,6 +6,7 @@ import { Profile, refreshProfile } from "../lib/profile";
 
 const data = ref(null);
 const loading = ref(true);
+const refreshing = ref(false);   // 切换路线/课时的局部刷新：保留页面，只过渡旅程区
 const error = ref("");
 let mounted = true;
 
@@ -13,17 +14,25 @@ onMounted(load);
 onUnmounted(() => { mounted = false; });
 
 async function load() {
-  loading.value = true;
+  if (data.value) refreshing.value = true;   // 已有数据 → 局部刷新，不整页闪
+  else loading.value = true;
   error.value = "";
   try {
-    await refreshProfile(true).catch(() => {});   // 先拿打卡状态，庆祝卡文案才不闪
+    const params = [];
     const want = localStorage.getItem("dict_today_list");
-    const d = await api("/today" + (want ? `?list=${encodeURIComponent(want)}` : ""));
+    if (want) params.push(`list=${encodeURIComponent(want)}`);
+    const ls = localStorage.getItem("dict_today_lesson");
+    if (ls) params.push(`lesson=${encodeURIComponent(ls)}`);
+    // profile 与任务卡并行拉：两请求都回来再渲染，庆祝卡文案不闪、首屏少等一个 RTT
+    const [d] = await Promise.all([
+      api("/today" + (params.length ? "?" + params.join("&") : "")),
+      refreshProfile(true).catch(() => {}),
+    ]);
     if (mounted) data.value = d;
   } catch (err) {
     if (mounted) error.value = err.message || "加载失败";
   } finally {
-    if (mounted) loading.value = false;
+    if (mounted) { loading.value = false; refreshing.value = false; }
   }
 }
 
@@ -32,14 +41,31 @@ function pickList(ev) {
   const v = ev.target.value;
   if (v) localStorage.setItem("dict_today_list", v);
   else localStorage.removeItem("dict_today_list");
+  localStorage.removeItem("dict_today_lesson");   // 换词库后课号体系不同，清掉旧课号
+  load();
+}
+
+/* 课程选择：记住选择，换课后重新拉任务卡。已学过的课全部环节可自由练习。 */
+function pickLesson(ev) {
+  const v = ev.target.value;
+  if (v) localStorage.setItem("dict_today_lesson", String(v));
+  else localStorage.removeItem("dict_today_lesson");
   load();
 }
 
 const steps = computed(() => data.value?.steps || []);
 const nextIdx = computed(() => steps.value.findIndex((s) => !s.done));
-/* 切换器回显：localStorage 里的选择，或后端推导出的当前词库 */
-const currentList = computed(() =>
-  localStorage.getItem("dict_today_list") || data.value?.word_list?.key || "");
+/* 切换器回显：以服务端返回为准（服务端已校验 localStorage 传的 list/lesson 并回传生效值），
+   别在 computed 里读 localStorage——非响应式，命中分支时不挂依赖，值会永久卡住 */
+const currentList = computed(() => data.value?.word_list?.key || data.value?.word_options?.[0]?.key || "");
+const currentLesson = computed(() => {
+  const lesson = data.value?.lesson;
+  return (typeof lesson === "number" && lesson > 0) ? lesson : 1;
+});
+/* 课程列表：安全访问，兜底空数组 */
+const lessonOptions = computed(() => data.value?.lesson_options || []);
+/* 复习模式：选了已学过的课 → 所有环节可自由练习，不锁定 */
+const isReview = computed(() => data.value?.review_mode === true);
 const ringPct = computed(() => {
   if (!data.value || !steps.value.length) return 0;
   return Math.round(data.value.done_count / steps.value.length * 100);
@@ -115,27 +141,35 @@ function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }
           <span class="sh-count">{{ data.done_count }}/{{ steps.length }} 完成</span>
         </div>
 
-        <!-- 主线词库切换 -->
+        <!-- 主线词库切换 + 课程选择 -->
         <div class="list-picker">
           <span class="list-picker-label">📚 学习路线</span>
           <select class="list-picker-select" :value="currentList" aria-label="切换主线词库" @change="pickList">
             <option v-for="o in data.word_options" :key="o.key" :value="o.key">{{ o.title }}</option>
           </select>
-          <span v-if="data.lesson_mode && data.lesson" class="list-picker-lesson">
-            第 {{ data.lesson }}<small v-if="data.lesson_total">/{{ data.lesson_total }}</small> 课
-          </span>
+          <template v-if="data.lesson_mode">
+            <span class="list-picker-sep">/</span>
+            <select class="list-picker-select" :value="currentLesson" aria-label="选择课程" @change="pickLesson">
+              <option v-for="lo in lessonOptions" :key="lo.n" :value="lo.n">
+                第{{ lo.n }}课{{ lo.done_today ? " · 今日已练" : lo.done_ever ? " · 已学" : "" }}
+              </option>
+            </select>
+            <span class="list-picker-total">/ {{ data.lesson_total }} 课</span>
+          </template>
         </div>
 
         <!-- 五环旅程 -->
-        <div class="journey" :class="{ 'pad-first': nextIdx === 0 }" role="list" aria-label="今日学习路径">
+        <div class="journey" :class="{ 'pad-first': !isReview && nextIdx === 0 }" role="list" aria-label="今日学习路径"
+             :aria-busy="refreshing"
+             :style="refreshing ? 'opacity:.45;pointer-events:none;transition:opacity .15s' : 'transition:opacity .15s'">
           <div class="journey-line"></div>
 
           <div v-for="(s, i) in steps" :key="s.key" class="step"
-               :class="{ done: s.done, current: i === nextIdx, locked: nextIdx >= 0 && i > nextIdx }"
+               :class="{ done: s.done, current: !isReview && i === nextIdx, locked: !isReview && nextIdx >= 0 && i > nextIdx }"
                :style="{ '--off': nodeOffset(i) + 'px' }"
                role="listitem">
             <div class="step-node">
-              <span v-if="i === nextIdx" class="node-pulse" aria-hidden="true"></span>
+              <span v-if="!isReview && i === nextIdx" class="node-pulse" aria-hidden="true"></span>
               <span class="step-em" aria-hidden="true">{{ s.done ? "✓" : STEP_ICONS[s.key] || "⭐" }}</span>
               <span v-if="s.done" class="node-tick" aria-hidden="true">✓</span>
             </div>
@@ -144,22 +178,27 @@ function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }
               <div class="step-head">
                 <span class="step-title" :class="{ dim: s.done }">{{ s.title }}</span>
                 <span class="step-status"
-                      :class="{ done: s.done, current: i === nextIdx, locked: nextIdx >= 0 && i > nextIdx }">
-                  {{ s.done ? "已完成" : (i === nextIdx ? "进行中" : "🔒 待开始") }}
+                      :class="{ done: s.done, current: !isReview && i === nextIdx, locked: !isReview && nextIdx >= 0 && i > nextIdx }">
+                  {{ s.done ? "已完成"
+                    : (!isReview && i === nextIdx ? "进行中"
+                    : (!isReview && nextIdx >= 0 && i > nextIdx ? "🔒 待开始"
+                    : "可练习")) }}
                 </span>
               </div>
               <div class="step-desc">
                 <span v-if="!s.done && s.target > 0" class="lesson-tag">{{ s.progress }}/{{ s.target }}</span>
                 {{ s.desc }}
               </div>
-              <div class="step-foot" :class="{ 'with-cta': i === nextIdx && !s.done }">
+              <div class="step-foot" :class="{ 'with-cta': (isReview || i === nextIdx) && !s.done }">
                 <div class="step-bar">
-                  <i :class="i === nextIdx ? 'fill-blue' : 'fill-green'"
+                  <i :class="!isReview && i === nextIdx ? 'fill-blue' : 'fill-green'"
                      :style="{ width: (s.target > 0 ? s.progress / s.target * 100 : 0) + '%' }"></i>
                 </div>
                 <span class="step-count">{{ s.progress }}/{{ s.target }}</span>
                 <span class="step-time">⏱ {{ s.minutes }}'</span>
-                <span v-if="i === nextIdx && !s.done" class="step-cta">继续 ▶</span>
+                <span v-if="(isReview || i === nextIdx) && !s.done" class="step-cta">
+                  {{ isReview ? "练习 ▶" : "继续 ▶" }}
+                </span>
               </div>
             </a>
           </div>
@@ -180,6 +219,32 @@ function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }
 
       <!-- ===== 右 · 侧栏 ===== -->
       <div class="sidebar">
+
+        <!-- 下一步 Hero（非复习模式下显示） -->
+        <div v-if="!isReview && nextIdx >= 0 && steps[nextIdx]" class="next-hero">
+          <div class="next-node">{{ STEP_ICONS[steps[nextIdx].key] || "⭐" }}</div>
+          <div class="next-body">
+            <div class="next-tag"><span class="pulse-dot"></span> 下一步 · 约 {{ steps[nextIdx].minutes }} 分钟</div>
+            <div class="next-title">{{ steps[nextIdx].title }}</div>
+            <div class="next-desc">{{ steps[nextIdx].desc }}</div>
+            <div class="next-prog-row">
+              <div class="next-prog">
+                <i :style="{ width: (steps[nextIdx].target > 0 ? steps[nextIdx].progress / steps[nextIdx].target * 100 : 0) + '%' }"></i>
+              </div>
+              <span class="next-prog-lbl">进度 {{ steps[nextIdx].progress }}/{{ steps[nextIdx].target }}</span>
+            </div>
+          </div>
+          <a class="next-btn" :href="steps[nextIdx].link">开始练习 →</a>
+        </div>
+
+        <!-- 复习模式 banner -->
+        <div v-if="isReview" class="review-banner">
+          <span class="rb-icon">📖</span>
+          <div class="rb-body">
+            <div class="rb-title">复习模式</div>
+            <div class="rb-desc">第 {{ data.lesson }} 课已完成，所有环节均可自由练习</div>
+          </div>
+        </div>
 
         <!-- 词汇量测试（未测时显示） -->
         <a v-if="!data.has_wordtest" class="side-test" href="#/wordtest">
@@ -212,23 +277,6 @@ function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }
         </a>
       </div>
 
-    </div>
-
-    <!-- ===== 下一步 Hero ===== -->
-    <div v-if="nextIdx >= 0 && steps[nextIdx]" class="next-hero">
-      <div class="next-node">{{ STEP_ICONS[steps[nextIdx].key] || "⭐" }}</div>
-      <div class="next-body">
-        <div class="next-tag"><span class="pulse-dot"></span> 下一步 · 约 {{ steps[nextIdx].minutes }} 分钟</div>
-        <div class="next-title">{{ steps[nextIdx].title }}</div>
-        <div class="next-desc">{{ steps[nextIdx].desc }}</div>
-        <div class="next-prog-row">
-          <div class="next-prog">
-            <i :style="{ width: (steps[nextIdx].target > 0 ? steps[nextIdx].progress / steps[nextIdx].target * 100 : 0) + '%' }"></i>
-          </div>
-          <span class="next-prog-lbl">进度 {{ steps[nextIdx].progress }}/{{ steps[nextIdx].target }}</span>
-        </div>
-      </div>
-      <a class="next-btn" :href="steps[nextIdx].link">开始练习 →</a>
     </div>
 
     <!-- ===== 全部完成庆祝卡 ===== -->

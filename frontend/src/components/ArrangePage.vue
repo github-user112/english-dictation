@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, playUrl, sndRight, sndWrong, stopAudio } from "../lib/core";
+import { api, playUrl, sndRight, sndWrong, stopAudio, todayNextStep, goTodayStep } from "../lib/core";
 
 const phase = ref("start");    // start | play | done
 const sentLists = ref([]);
@@ -13,6 +13,8 @@ const feedback = ref(null);    // { right, text }
 const score = ref(0);
 const loadError = ref("");
 const submitting = ref(false);
+const fromToday = ref(false);   // 今日动线入口带 from=today：自动开跑，结算页给"下一关"
+const nextLoading = ref(false);
 let mounted = true;
 let advanceTimer = null;
 
@@ -28,6 +30,7 @@ const props = defineProps({ params: { type: Object, default: null } });
 onMounted(async () => {
   list.value = props.params?.get("list") || list.value;
   lesson.value = props.params?.get("lesson") || "";
+  fromToday.value = props.params?.get("from") === "today";
   try {
     const d = await api("/lists");
     if (!mounted) return;
@@ -36,6 +39,7 @@ onMounted(async () => {
       list.value = sentLists.value[0]?.key || "nc1";
     }
   } catch { /* 开始时再试 */ }
+  if (fromToday.value) start();   // 动线串联：参数已带齐，跳过开始页
 });
 
 onUnmounted(() => {
@@ -73,6 +77,7 @@ function replay() {
 function pick(i) {
   if (feedback.value || placed.value.includes(i)) return;
   placed.value = [...placed.value, i];
+  if (complete.value) submit();   // 词块放满即判对错，不用再点提交
 }
 
 function unpick(pos) {
@@ -120,6 +125,12 @@ function next() {
 }
 
 function goCatalog() { location.hash = "#/catalog"; }
+async function goNextStep() {
+  if (nextLoading.value) return;
+  nextLoading.value = true;
+  const s = await todayNextStep("arrange");
+  if (mounted) goTodayStep(s);
+}
 </script>
 
 <template>
@@ -151,7 +162,7 @@ function goCatalog() { location.hash = "#/catalog"; }
             </div>
             <div class="rule-item">
               <span class="rule-ic" aria-hidden="true">✅</span>
-              <div class="rule-body"><b>检查后自动前进</b><small>拼对进下一句，拼错看原句</small></div>
+              <div class="rule-body"><b>放满自动判对错</b><small>拼对进下一句，拼错看原句</small></div>
             </div>
           </div>
 
@@ -276,7 +287,7 @@ function goCatalog() { location.hash = "#/catalog"; }
                       aria-label="提交这句" @click="submit">✓ 提交这句</button>
             </div>
 
-            <div class="hint">🔊 随时可重播 · 点答案区里的词块可以取回 · 拼对自动下一句</div>
+            <div class="hint">🔊 随时可重播 · 点答案区里的词块可以取回 · 词块放满自动判对错，拼对自动下一句</div>
           </div>
         </div>
 
@@ -365,8 +376,14 @@ function goCatalog() { location.hash = "#/catalog"; }
         </div>
 
         <div class="controls done-controls">
-          <button class="btn primary big" @click="start">🔁 再来一组</button>
-          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+          <template v-if="fromToday">
+            <button class="btn primary big" :disabled="nextLoading" @click="goNextStep">下一关 →</button>
+            <button class="btn ghost big" @click="goCatalog">返回今日动线</button>
+          </template>
+          <template v-else>
+            <button class="btn primary big" @click="start">🔁 再来一组</button>
+            <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+          </template>
         </div>
       </div>
     </div>

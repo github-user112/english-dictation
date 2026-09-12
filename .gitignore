@@ -34,3 +34,9 @@ design/shots/report.txt
 # 前端本地字体（Noto Sans SC 可变字体 + Noto Color Emoji，共 43MB，不入库）
 # 从 design/fonts/ 复制：bash scripts/copy_fonts.sh
 frontend/public/fonts/*.ttf
+
+# 设计稿字体源文件（与 design/mockups/fonts 同策略：体积大，不入 git；bash scripts/copy_fonts.sh 装配）
+design/fonts/
+
+# 截图产物（scripts/screenshot.sh 生成，用于对照设计稿自检）
+shots/

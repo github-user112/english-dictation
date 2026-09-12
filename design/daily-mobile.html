@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日挑战 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles (mobile) ============ */
+
+  body { background:#f0f0f0; }
+
+  /* ---- Top bar (mobile simplified) ---- */
+  .topbar { padding:12px 16px; }
+  .topbar-stats { gap:14px; }
+  .stat-item { font-size:14px; }
+  .stat-item .icon { font-size:16px; }
+
+  /* ---- Arena Hero ---- */
+  .arena-card {
+    background:linear-gradient(135deg, #58cc02 0%, #46a302 55%, #2e7d00 100%);
+    border-radius:20px; padding:22px 20px; color:#fff;
+    box-shadow:0 5px 0 #2e7d00, 0 10px 28px rgba(88,204,2,0.28);
+    position:relative; overflow:hidden; margin:0 0 14px;
+  }
+  .arena-card::after {
+    content:''; position:absolute; top:-60px; right:-30px;
+    width:190px; height:190px; border-radius:50%;
+    background:rgba(255,255,255,0.1);
+  }
+  .arena-card::before {
+    content:''; position:absolute; bottom:-70px; left:-40px;
+    width:150px; height:150px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .arena-live {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.2); backdrop-filter:blur(4px);
+    padding:5px 11px; border-radius:20px; font-size:11px; font-weight:900;
+    margin-bottom:10px; letter-spacing:0.5px; position:relative; z-index:1;
+  }
+  .arena-live .pulse-dot { width:7px; height:7px; }
+  .arena-title { font-size:23px; font-weight:900; letter-spacing:-0.5px; margin-bottom:3px; position:relative; z-index:1; }
+  .arena-sub { font-size:13px; font-weight:800; opacity:0.92; margin-bottom:2px; position:relative; z-index:1; }
+  .arena-meta { font-size:11px; font-weight:700; opacity:0.78; position:relative; z-index:1; }
+  .arena-mid {
+    display:flex; align-items:center; gap:16px;
+    margin:16px 0; position:relative; z-index:1;
+  }
+  .arena-ring { position:relative; width:92px; height:92px; flex-shrink:0; }
+  .arena-ring-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .arena-ring-center .arc-num { font-size:22px; font-weight:900; letter-spacing:-0.5px; line-height:1; }
+  .arena-ring-center .arc-lbl { font-size:9px; font-weight:800; opacity:0.85; margin-top:2px; }
+  .arena-mid-stats { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .am-stat {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    padding:7px 11px; border-radius:11px;
+  }
+  .am-stat .am-em { font-size:16px; }
+  .am-stat .am-txt { flex:1; min-width:0; }
+  .am-stat .am-l { font-size:10px; font-weight:700; opacity:0.85; }
+  .am-stat .am-v { font-size:14px; font-weight:900; }
+  .arena-rewards { display:flex; gap:7px; margin-top:14px; flex-wrap:wrap; position:relative; z-index:1; }
+  .arena-reward {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    padding:5px 10px; border-radius:10px; font-size:11px; font-weight:900;
+  }
+  .arena-btn {
+    width:100%; background:#fff; color:var(--green-dark); border:none; cursor:pointer;
+    padding:14px; border-radius:13px; font-family:inherit;
+    font-weight:900; font-size:16px; letter-spacing:0.5px; margin-top:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.2); transition:transform 0.1s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    position:relative; z-index:1;
+  }
+  .arena-btn:active { transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.2); }
+  .arena-subbtns { display:flex; gap:8px; margin-top:8px; position:relative; z-index:1; }
+  .arena-subbtn {
+    flex:1; background:rgba(255,255,255,0.18); color:#fff; border:none; cursor:pointer;
+    padding:10px; border-radius:11px; font-family:inherit; font-weight:800; font-size:12px;
+    backdrop-filter:blur(4px); box-shadow:0 3px 0 rgba(0,0,0,0.15);
+    display:flex; align-items:center; justify-content:center; gap:5px;
+  }
+  .arena-subbtn:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+
+  /* ---- Section title ---- */
+  .sec-title {
+    display:flex; align-items:center; gap:8px;
+    margin:18px 2px 10px;
+  }
+  .sec-title .st-em { font-size:18px; }
+  .sec-title .st-txt { font-size:16px; font-weight:900; flex:1; }
+  .sec-title .st-tag {
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    background:#fff; padding:4px 10px; border-radius:10px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.06);
+  }
+
+  /* ---- Question Slots (5 x 2) ---- */
+  .qcard { background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .qhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .qhead-left { display:flex; align-items:center; gap:8px; }
+  .qhead-title { font-size:15px; font-weight:900; }
+  .qhead-sub { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:1px; }
+  .qhead-count {
+    background:var(--green); color:#fff; padding:5px 10px; border-radius:9px;
+    font-weight:900; font-size:12px; box-shadow:0 2px 0 var(--green-dark);
+  }
+  .qslot-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; }
+  .qslot {
+    aspect-ratio:1; border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:900; position:relative; background:#f0f0f0; color:var(--text-faint);
+  }
+  .qslot .qn { font-size:10px; opacity:0.75; line-height:1; margin-bottom:3px; }
+  .qslot .qm { font-size:20px; line-height:1; }
+  .qslot.correct { background:var(--green-bg); color:var(--green-dark); border:2px solid rgba(88,204,2,0.35); }
+  .qslot.wrong { background:var(--red-light); color:var(--red-dark); border:2px solid rgba(255,75,75,0.3); }
+  .qslot.current {
+    background:#fff; color:var(--green-dark); border:2px solid var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.15), 0 4px 0 var(--green-dark);
+    transform:translateY(-3px);
+  }
+  .qslot.current .qm { animation:q-bob 1.4s ease-in-out infinite; }
+  @keyframes q-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .qslot .pulse-dot { position:absolute; top:5px; right:5px; width:6px; height:6px; background:var(--green); }
+
+  .qlegend {
+    display:flex; align-items:center; gap:12px; margin-top:14px;
+    padding-top:12px; border-top:1px solid #f0f0f0;
+    font-size:11px; font-weight:800; color:var(--text-dim);
+    flex-wrap:wrap;
+  }
+  .qlegend-item { display:flex; align-items:center; gap:4px; }
+  .qlegend-swatch { width:12px; height:12px; border-radius:4px; }
+  .qlegend-stats { margin-left:auto; display:flex; gap:10px; }
+  .qlegend-stat { display:flex; align-items:center; gap:3px; }
+  .qlegend-stat b { font-size:13px; }
+  .qlegend-stat.green b { color:var(--green); }
+  .qlegend-stat.red b { color:var(--red); }
+  .qlegend-stat.gray b { color:var(--text-faint); }
+
+  /* ---- Wordle Share Card ---- */
+  .share-card {
+    background:linear-gradient(135deg, #1c1c2e 0%, #16203a 100%);
+    border-radius:16px; padding:16px; color:#fff;
+    box-shadow:0 5px 0 rgba(0,0,0,0.18), 0 9px 22px rgba(0,0,0,0.18);
+    position:relative; overflow:hidden;
+  }
+  .share-card::after {
+    content:''; position:absolute; top:-36px; right:-26px;
+    width:130px; height:130px; border-radius:50%;
+    background:rgba(88,204,2,0.12);
+  }
+  .share-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; position:relative; z-index:1; }
+  .share-head-left { display:flex; align-items:center; gap:9px; }
+  .share-head-emoji { font-size:22px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+  .share-head-title { font-size:14px; font-weight:900; }
+  .share-head-sub { font-size:10px; font-weight:700; opacity:0.65; margin-top:2px; }
+  .share-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(255,200,0,0.18); color:var(--gold);
+    padding:4px 9px; border-radius:9px; font-size:10px; font-weight:900;
+  }
+  .share-grid {
+    display:grid; grid-template-columns:repeat(10, 1fr); gap:3px;
+    position:relative; z-index:1;
+  }
+  .share-cell { aspect-ratio:1; border-radius:3px; }
+  .share-cell.c { background:#58cc02; box-shadow:0 0 4px rgba(88,204,2,0.4); }
+  .share-cell.w { background:#ff4b4b; }
+  .share-cell.p { background:#33334d; }
+  .share-cell.today-c { background:#58cc02; box-shadow:0 0 5px rgba(88,204,2,0.6); outline:1px solid rgba(255,255,255,0.4); }
+  .share-cell.today-w { background:#ff4b4b; outline:1px solid rgba(255,255,255,0.4); }
+  .share-cell.today-p { background:#33334d; outline:1px solid rgba(255,255,255,0.25); }
+  .share-dates {
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:4px;
+    margin-top:10px; position:relative; z-index:1;
+  }
+  .share-date {
+    text-align:center; font-size:9px; font-weight:800; opacity:0.6;
+  }
+  .share-date.today { color:var(--gold); opacity:1; }
+  .share-stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:14px; position:relative; z-index:1;
+  }
+  .ss-cell {
+    background:rgba(255,255,255,0.08); border-radius:10px;
+    padding:9px 6px; text-align:center;
+  }
+  .ss-cell .ss-l { font-size:9px; font-weight:700; opacity:0.7; display:block; }
+  .ss-cell .ss-v { font-size:14px; font-weight:900; margin-top:3px; display:block; }
+  .ss-cell .ss-v.green { color:var(--green); }
+  .ss-cell .ss-v.gold { color:var(--gold); }
+  .ss-cell .ss-v.orange { color:var(--orange); }
+  .share-code {
+    background:rgba(255,255,255,0.06); border:1px dashed rgba(255,255,255,0.2);
+    border-radius:11px; padding:10px 12px; margin-top:12px;
+    font-family:'Courier New', monospace; font-size:11.5px; line-height:1.75;
+    color:#e0e0e0; letter-spacing:0.5px; position:relative; z-index:1;
+  }
+  .share-code .sh-line { display:block; }
+  .share-code .sh-today { color:var(--green); }
+  .share-actions { display:flex; flex-direction:column; gap:8px; margin-top:12px; position:relative; z-index:1; }
+  .share-btn {
+    background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.15);
+    padding:11px; border-radius:11px; font-family:inherit; font-weight:800;
+    font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .share-btn:active { transform:translateY(2px); }
+  .share-btn.primary { background:var(--green); border-color:var(--green); box-shadow:0 3px 0 var(--green-dark); }
+  .share-btn.primary:active { box-shadow:0 1px 0 var(--green-dark); }
+  .share-btn-row { display:flex; gap:8px; }
+  .share-btn-row .share-btn { flex:1; }
+
+  /* ---- Word Power Card ---- */
+  .wp-card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .wp-head { display:flex; align-items:center; gap:14px; margin:14px 0 14px; }
+  .wp-ring { position:relative; width:88px; height:88px; flex-shrink:0; }
+  .wp-ring-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .wp-ring-center .wr-lv { font-size:19px; font-weight:900; color:var(--purple); letter-spacing:-0.5px; }
+  .wp-ring-center .wr-ttl { font-size:8px; font-weight:800; color:var(--text-dim); text-align:center; line-height:1.2; margin-top:1px; }
+  .wp-info { flex:1; min-width:0; }
+  .wp-power { font-size:26px; font-weight:900; color:var(--gold); letter-spacing:-1px; line-height:1; }
+  .wp-power small { font-size:12px; font-weight:800; color:var(--text-dim); }
+  .wp-today {
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--gold-light); color:#b8860b;
+    padding:4px 10px; border-radius:10px; font-size:11px; font-weight:900;
+    margin-top:7px;
+  }
+  .wp-xp-row {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:11px; font-weight:800; margin-bottom:5px;
+  }
+  .wp-xp-row .wpr-l { color:var(--purple-dark); }
+  .wp-xp-row .wpr-r { color:var(--text-dim); }
+  .wp-xp-note { font-size:11px; font-weight:700; color:var(--text-dim); margin-top:7px; line-height:1.5; }
+  .wp-xp-note b { color:var(--purple); }
+  .wp-ladder { display:flex; align-items:center; gap:6px; margin-top:14px; padding-top:14px; border-top:1px solid #f0f0f0; }
+  .wp-step {
+    flex:1; text-align:center; padding:7px 3px; border-radius:10px;
+    background:#f7f7f7;
+  }
+  .wp-step .ws-lv { font-size:11px; font-weight:900; display:block; }
+  .wp-step .ws-ttl { font-size:8px; font-weight:700; color:var(--text-dim); display:block; margin-top:2px; }
+  .wp-step.past { background:var(--green-bg); }
+  .wp-step.past .ws-lv { color:var(--green-dark); }
+  .wp-step.active { background:var(--purple); color:#fff; box-shadow:0 3px 0 var(--purple-dark); transform:translateY(-2px); }
+  .wp-step.active .ws-lv { color:#fff; }
+  .wp-step.active .ws-ttl { color:rgba(255,255,255,0.85); }
+  .wp-step.locked .ws-lv { color:var(--text-faint); }
+  .wp-step.locked .ws-ttl { color:var(--text-faint); }
+
+  /* ---- Leaderboard ---- */
+  .lb-card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .lb-list { display:flex; flex-direction:column; gap:7px; margin-top:14px; }
+  .lb-item {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 11px; border-radius:11px; background:#f7f7f7;
+  }
+  .lb-rank {
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; background:#fff; box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .lb-rank.gold { background:var(--gold); color:#fff; box-shadow:0 2px 0 #d4a800; }
+  .lb-rank.silver { background:#c0c0c0; color:#fff; box-shadow:0 2px 0 #8a8a8a; }
+  .lb-rank.bronze { background:#cd7f32; color:#fff; box-shadow:0 2px 0 #9c6224; }
+  .lb-rank.num { color:var(--text-dim); font-size:13px; }
+  .lb-avatar {
+    width:32px; height:32px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; background:var(--blue-light);
+  }
+  .lb-body { flex:1; min-width:0; }
+  .lb-name { font-size:13px; font-weight:800; display:block; }
+  .lb-name small { font-weight:700; color:var(--text-dim); font-size:10px; margin-left:4px; }
+  .lb-bar { height:5px; background:#e5e5e5; border-radius:5px; overflow:hidden; margin-top:5px; }
+  .lb-bar-fill { height:100%; border-radius:5px; background:var(--green); }
+  .lb-score { font-size:13px; font-weight:900; flex-shrink:0; color:var(--text); }
+  .lb-score small { font-size:10px; color:var(--text-dim); font-weight:700; display:block; text-align:right; }
+  .lb-me {
+    background:linear-gradient(135deg, var(--green-bg), #e8ffd0);
+    border:2px solid rgba(88,204,2,0.3); box-shadow:0 3px 0 rgba(88,204,2,0.15);
+  }
+  .lb-me .lb-rank { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .lb-me .lb-name { color:var(--green-dark); }
+  .lb-divider {
+    display:flex; align-items:center; gap:8px; margin:3px 0;
+    font-size:10px; font-weight:800; color:var(--text-faint);
+  }
+  .lb-divider::before, .lb-divider::after { content:''; flex:1; height:1px; background:#eee; }
+
+  /* ---- Calendar ---- */
+  .cal-card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-streak-num {
+    background:var(--orange); color:#fff; padding:5px 11px; border-radius:10px;
+    font-weight:900; font-size:13px; box-shadow:0 2px 0 var(--orange-dark);
+  }
+  .cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:5px; }
+  .cal-cell {
+    aspect-ratio:1; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:800; background:#f0f0f0; color:var(--text-faint);
+  }
+  .cal-cell.done { background:var(--green); color:#fff; box-shadow:0 2px 0 var(--green-dark); }
+  .cal-cell.miss { background:var(--red-light); color:var(--red-dark); }
+  .cal-cell.today {
+    background:var(--blue); color:#fff; box-shadow:0 2px 0 var(--blue-dark);
+    outline:2px solid rgba(28,176,246,0.3); outline-offset:1px;
+  }
+  .cal-dates {
+    display:flex; justify-content:space-between; margin-top:10px;
+    font-size:9px; font-weight:800; color:var(--text-faint);
+  }
+  .cal-legend {
+    display:flex; align-items:center; gap:12px; margin-top:12px;
+    padding-top:12px; border-top:1px solid #f0f0f0;
+    font-size:10px; font-weight:800; color:var(--text-dim);
+    flex-wrap:wrap;
+  }
+  .cal-legend-item { display:flex; align-items:center; gap:4px; }
+  .cal-legend-dot { width:11px; height:11px; border-radius:4px; }
+  .cal-record { margin-left:auto; }
+  .cal-record b { color:var(--gold); }
+
+  /* ---- Question Review ---- */
+  .review-card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+  .review-list { display:flex; flex-direction:column; gap:7px; margin-top:12px; }
+  .review-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:11px; background:#f7f7f7;
+  }
+  .review-item.correct { background:var(--green-bg); }
+  .review-item.wrong { background:var(--red-light); }
+  .review-item.current { background:#fff; border:2px solid var(--green); box-shadow:0 0 0 3px rgba(88,204,2,0.1); }
+  .review-icon {
+    width:32px; height:32px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:900; color:#fff;
+  }
+  .review-icon.green { background:var(--green); box-shadow:0 2px 0 var(--green-dark); }
+  .review-icon.red { background:var(--red); box-shadow:0 2px 0 var(--red-dark); }
+  .review-icon.gray { background:#d0d0d0; }
+  .review-icon.blue { background:var(--blue); box-shadow:0 2px 0 var(--blue-dark); animation:pulse 1.5s ease infinite; }
+  .review-body { flex:1; min-width:0; }
+  .review-body .rw { font-size:14px; font-weight:900; display:block; }
+  .review-body .rp { font-size:10px; font-weight:700; color:var(--text-faint); display:block; }
+  .review-body .rc { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .review-body .rw small { font-weight:800; color:var(--text-dim); font-size:11px; }
+  .review-tag {
+    font-size:9px; font-weight:900; padding:3px 8px; border-radius:8px;
+    flex-shrink:0;
+  }
+  .review-tag.mastered { background:var(--green); color:#fff; }
+  .review-tag.wrong { background:var(--red); color:#fff; }
+  .review-tag.pending { background:#e5e5e5; color:var(--text-dim); }
+  .review-tag.current { background:var(--blue); color:#fff; }
+  .review-play {
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    background:#fff; border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; cursor:pointer;
+  }
+  .review-play:active { border-color:var(--green); background:var(--green-bg); }
+
+  /* ---- Stats Strip (2x2) ---- */
+  .stat-strip { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 14px; }
+  .stat-pill {
+    background:#fff; border-radius:14px; padding:13px 14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    display:flex; align-items:center; gap:10px;
+  }
+  .stat-pill .sp-emoji {
+    font-size:22px; flex-shrink:0;
+    width:42px; height:42px; border-radius:11px;
+    display:flex; align-items:center; justify-content:center;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.12));
+  }
+  .stat-pill .sp-body { flex:1; min-width:0; }
+  .stat-pill .sp-val { font-size:18px; font-weight:900; line-height:1.1; }
+  .stat-pill .sp-lbl { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .stat-pill.orange .sp-val { color:var(--orange); }
+  .stat-pill.gold .sp-val { color:var(--gold); }
+  .stat-pill.green .sp-val { color:var(--green); }
+  .stat-pill.purple .sp-val { color:var(--purple); }
+  .stat-pill.orange .sp-emoji { background:var(--orange-light); }
+  .stat-pill.gold .sp-emoji { background:var(--gold-light); }
+  .stat-pill.green .sp-emoji { background:var(--green-bg); }
+  .stat-pill.purple .sp-emoji { background:var(--purple-light); }
+
+  .footer-link { display:block; text-align:center; margin:6px 0 14px; font-size:12px; font-weight:700; color:var(--text-dim); padding:0 4px; line-height:1.6; }
+
+</style>
+</head>
+<body>
+<div class="container-mobile">
+
+  <!-- ===== Top Bar (simplified) ===== -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span> 英语听打
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak"><span class="icon">🔥</span> 33天</div>
+      <div class="stat-item xp"><span class="icon">⚡</span> 2,480</div>
+    </div>
+  </div>
+
+  <!-- ===== Arena Hero ===== -->
+  <div class="arena-card">
+    <div class="arena-live"><span class="pulse-dot"></span> LIVE · 全站同题进行中</div>
+    <div class="arena-title">今日挑战 · 第 1,024 期</div>
+    <div class="arena-sub">10 道全站同题 · 所有人做同一份卷子</div>
+    <div class="arena-meta">👥 3,482 人已完成 · 距结束 23:14:09</div>
+    <div class="arena-mid">
+      <div class="arena-ring">
+        <svg width="92" height="92" viewBox="0 0 92 92">
+          <circle cx="46" cy="46" r="38" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="8"/>
+          <circle cx="46" cy="46" r="38" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="238.76" stroke-dashoffset="71.63"
+            transform="rotate(-90 46 46)" style="filter:drop-shadow(0 0 5px rgba(255,255,255,0.4));"/>
+        </svg>
+        <div class="arena-ring-center">
+          <div class="arc-num">7/10</div>
+          <div class="arc-lbl">已答 70%</div>
+        </div>
+      </div>
+      <div class="arena-mid-stats">
+        <div class="am-stat">
+          <span class="am-em">✓</span>
+          <div class="am-txt"><div class="am-l">答对</div><div class="am-v">6 题</div></div>
+        </div>
+        <div class="am-stat">
+          <span class="am-em">✗</span>
+          <div class="am-txt"><div class="am-l">答错</div><div class="am-v">1 题</div></div>
+        </div>
+        <div class="am-stat">
+          <span class="am-em">⚡</span>
+          <div class="am-txt"><div class="am-l">今日词力</div><div class="am-v">+120</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arena-rewards">
+      <div class="arena-reward">🎁 +200 词力</div>
+      <div class="arena-reward">✅ 打卡成功</div>
+      <div class="arena-reward">🎖️ 解锁成就</div>
+    </div>
+    <button class="arena-btn">▶ 继续挑战</button>
+    <div class="arena-subbtns">
+      <button class="arena-subbtn">📋 生成分享码</button>
+      <button class="arena-subbtn">📊 查看排名</button>
+    </div>
+  </div>
+
+  <!-- ===== Question Slots ===== -->
+  <div class="sec-title">
+    <span class="st-em">🎯</span>
+    <span class="st-txt">挑战答题进度</span>
+    <span class="st-tag">✓6 ✗1 ○3</span>
+  </div>
+  <div class="qcard">
+    <div class="qslot-grid">
+      <div class="qslot correct"><span class="qn">Q1</span><span class="qm">✅</span></div>
+      <div class="qslot correct"><span class="qn">Q2</span><span class="qm">✅</span></div>
+      <div class="qslot wrong"><span class="qn">Q3</span><span class="qm">❌</span></div>
+      <div class="qslot correct"><span class="qn">Q4</span><span class="qm">✅</span></div>
+      <div class="qslot correct"><span class="qn">Q5</span><span class="qm">✅</span></div>
+      <div class="qslot correct"><span class="qn">Q6</span><span class="qm">✅</span></div>
+      <div class="qslot correct"><span class="qn">Q7</span><span class="qm">✅</span></div>
+      <div class="qslot current"><span class="pulse-dot"></span><span class="qn">Q8</span><span class="qm">🎧</span></div>
+      <div class="qslot"><span class="qn">Q9</span><span class="qm">🔒</span></div>
+      <div class="qslot"><span class="qn">Q10</span><span class="qm">🔒</span></div>
+    </div>
+    <div class="qlegend">
+      <div class="qlegend-item"><span class="qlegend-swatch" style="background:var(--green-bg); border:1px solid rgba(88,204,2,0.35);"></span> 正确</div>
+      <div class="qlegend-item"><span class="qlegend-swatch" style="background:var(--red-light);"></span> 错误</div>
+      <div class="qlegend-item"><span class="qlegend-swatch" style="background:#fff; border:1px solid var(--green);"></span> 当前</div>
+      <div class="qlegend-item"><span class="qlegend-swatch" style="background:#f0f0f0;"></span> 未答</div>
+      <div class="qlegend-stats">
+        <span class="qlegend-stat green">✓<b>6</b></span>
+        <span class="qlegend-stat red">✗<b>1</b></span>
+        <span class="qlegend-stat gray">○<b>3</b></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Wordle Share Card ===== -->
+  <div class="sec-title">
+    <span class="st-em">📋</span>
+    <span class="st-txt">Wordle 式分享码</span>
+    <span class="st-tag">近 7 天</span>
+  </div>
+  <div class="share-card">
+    <div class="share-head">
+      <div class="share-head-left">
+        <span class="share-head-emoji">📋</span>
+        <div>
+          <div class="share-head-title">英语听打 · 1024 期</div>
+          <div class="share-head-sub">复制发给好友 PK 成绩</div>
+        </div>
+      </div>
+      <div class="share-badge">⚡ 一键复制</div>
+    </div>
+    <div class="share-grid">
+      <!-- Today -->
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-w"></div>
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-c"></div>
+      <div class="share-cell today-p"></div>
+      <div class="share-cell today-p"></div>
+      <div class="share-cell today-p"></div>
+      <!-- 9/9 -->
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <!-- 9/8 -->
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <!-- 9/7 -->
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <!-- 9/6 -->
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <!-- 9/5 -->
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <!-- 9/4 -->
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell w"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+      <div class="share-cell c"></div>
+    </div>
+    <div class="share-dates">
+      <span class="share-date today">9/10</span>
+      <span class="share-date">9/9</span>
+      <span class="share-date">9/8</span>
+      <span class="share-date">9/7</span>
+      <span class="share-date">9/6</span>
+      <span class="share-date">9/5</span>
+      <span class="share-date">9/4</span>
+    </div>
+    <div class="share-stats">
+      <div class="ss-cell"><span class="ss-l">今日得分</span><span class="ss-v green">✓ 6/10</span></div>
+      <div class="ss-cell"><span class="ss-l">7 日均分</span><span class="ss-v gold">8.1</span></div>
+      <div class="ss-cell"><span class="ss-l">全站排名</span><span class="ss-v orange">#23</span></div>
+    </div>
+    <div class="share-code">
+      <span class="sh-today">英语听打 1024期</span>
+      <span class="sh-line">🟩🟩🟥🟩🟩🟩🟩⬜⬜⬜</span>
+      <span class="sh-line">🟩🟩🟩🟩🟩🟩🟩🟩🟩🟥</span>
+      <span class="sh-line">🟩🟩🟩🟩🟩🟥🟩🟩🟩🟥</span>
+      <span class="sh-line">🟩🟩🟥🟩🟩🟩🟥🟩🟥🟩</span>
+      <span class="sh-line">🟩🟩🟩🟩🟥🟩🟩🟥🟩🟩</span>
+      <span class="sh-line">🟩🟩🟩🟩🟩🟩🟩🟥🟩🟥</span>
+      <span class="sh-line">🟥🟩🟩🟥🟩🟩🟥🟩🟩🟩</span>
+    </div>
+    <div class="share-actions">
+      <button class="share-btn primary">📋 复制分享码</button>
+      <div class="share-btn-row">
+        <button class="share-btn">🖼️ 生成图片</button>
+        <button class="share-btn">📱 分享好友</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Word Power ===== -->
+  <div class="sec-title">
+    <span class="st-em">💪</span>
+    <span class="st-txt">每日词力</span>
+    <span class="st-tag">Lv.7 词典守护者</span>
+  </div>
+  <div class="wp-card">
+    <div class="wp-head">
+      <div class="wp-ring">
+        <svg width="88" height="88" viewBox="0 0 88 88">
+          <circle cx="44" cy="44" r="35" fill="none" stroke="#ececec" stroke-width="7"/>
+          <circle cx="44" cy="44" r="35" fill="none" stroke="url(#wp-grad-m)" stroke-width="7" stroke-linecap="round"
+            stroke-dasharray="219.9" stroke-dashoffset="16"
+            transform="rotate(-90 44 44)" style="filter:drop-shadow(0 0 4px rgba(206,130,255,0.3));"/>
+          <defs>
+            <linearGradient id="wp-grad-m" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#ce82ff"/>
+              <stop offset="100%" style="stop-color:#ffc800"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="wp-ring-center">
+          <div class="wr-lv">Lv.7</div>
+          <div class="wr-ttl">词典守护者</div>
+        </div>
+      </div>
+      <div class="wp-info">
+        <div class="wp-power">2,480 <small>词力</small></div>
+        <div class="wp-today">⚡ 今日 +120 词力</div>
+      </div>
+    </div>
+    <div class="wp-xp-row">
+      <span class="wpr-l">Lv.7 词典守护者</span>
+      <span class="wpr-r">2,480 / 2,660</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill gold" style="width:93%;"></div></div>
+    <div class="wp-xp-note">距 Lv.8「词汇大师」还差 <b>180</b> 词力 · 完成今日挑战 +200 即可升级！</div>
+    <div class="wp-ladder">
+      <div class="wp-step past">
+        <span class="ws-lv">Lv.6</span>
+        <span class="ws-ttl">拼写能手</span>
+      </div>
+      <div class="wp-step active">
+        <span class="ws-lv">Lv.7</span>
+        <span class="ws-ttl">词典守护者</span>
+      </div>
+      <div class="wp-step locked">
+        <span class="ws-lv">Lv.8</span>
+        <span class="ws-ttl">词汇大师</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Leaderboard ===== -->
+  <div class="sec-title">
+    <span class="st-em">🏆</span>
+    <span class="st-txt">今日全站排行</span>
+    <span class="st-tag">3,482 人完成</span>
+  </div>
+  <div class="lb-card">
+    <div class="lb-list">
+      <div class="lb-item">
+        <div class="lb-rank gold">🥇</div>
+        <div class="lb-avatar">🦊</div>
+        <div class="lb-body">
+          <span class="lb-name">王小明 <small>B2 · Lv.9</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:100%;"></div></div>
+        </div>
+        <div class="lb-score">10/10<small>+200</small></div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank silver">🥈</div>
+        <div class="lb-avatar">🐰</div>
+        <div class="lb-body">
+          <span class="lb-name">林小雨 <small>B2 · Lv.8</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:90%;"></div></div>
+        </div>
+        <div class="lb-score">9/10<small>+180</small></div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank bronze">🥉</div>
+        <div class="lb-avatar">🐯</div>
+        <div class="lb-body">
+          <span class="lb-name">陈思远 <small>B1 · Lv.7</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:90%;"></div></div>
+        </div>
+        <div class="lb-score">9/10<small>+180</small></div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank num">4</div>
+        <div class="lb-avatar">🐱</div>
+        <div class="lb-body">
+          <span class="lb-name">赵雅婷 <small>B1 · Lv.6</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:90%;"></div></div>
+        </div>
+        <div class="lb-score">9/10<small>+170</small></div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank num">5</div>
+        <div class="lb-avatar">🐻</div>
+        <div class="lb-body">
+          <span class="lb-name">李昊然 <small>B1 · Lv.6</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:80%;"></div></div>
+        </div>
+        <div class="lb-score">8/10<small>+160</small></div>
+      </div>
+      <div class="lb-divider">··· 你的排名 ···</div>
+      <div class="lb-item lb-me">
+        <div class="lb-rank">23</div>
+        <div class="lb-avatar">🦉</div>
+        <div class="lb-body">
+          <span class="lb-name">你 <small>B1 · Lv.7</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:60%;"></div></div>
+        </div>
+        <div class="lb-score">6/10<small>+120</small></div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank num">40</div>
+        <div class="lb-avatar">🐸</div>
+        <div class="lb-body">
+          <span class="lb-name">刘一诺 <small>A2 · Lv.5</small></span>
+          <div class="lb-bar"><div class="lb-bar-fill" style="width:50%;"></div></div>
+        </div>
+        <div class="lb-score">5/10<small>+100</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Calendar ===== -->
+  <div class="sec-title">
+    <span class="st-em">📅</span>
+    <span class="st-txt">打卡日历</span>
+    <span class="cal-streak-num">🔥 33天</span>
+  </div>
+  <div class="cal-card">
+    <div class="cal-grid">
+      <div class="cal-cell miss">✗</div>
+      <div class="cal-cell miss">✗</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell done">✓</div>
+      <div class="cal-cell today">🔥</div>
+    </div>
+    <div class="cal-dates">
+      <span>8/6</span><span>8/13</span><span>8/20</span><span>8/27</span><span>9/3</span><span>9/10</span>
+    </div>
+    <div class="cal-legend">
+      <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green);"></span> 已打卡</div>
+      <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--red-light);"></span> 未完成</div>
+      <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--blue);"></span> 今天</div>
+      <div class="cal-record">🏆 最长连击 <b>47天</b></div>
+    </div>
+  </div>
+
+  <!-- ===== Question Review ===== -->
+  <div class="sec-title">
+    <span class="st-em">📝</span>
+    <span class="st-txt">今日 10 题回顾</span>
+    <span class="st-tag">错词自动入本</span>
+  </div>
+  <div class="review-card">
+    <div class="review-list">
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">vocabulary <small>词汇</small></span>
+          <span class="rp">/vəˈkæbjələrɪ/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">ambitious <small>雄心勃勃的</small></span>
+          <span class="rp">/æmˈbɪʃəs/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item wrong">
+        <div class="review-icon red">✗</div>
+        <div class="review-body">
+          <span class="rw">resilient <small>有韧性的</small></span>
+          <span class="rp">/rɪˈzɪliənt/</span>
+          <span class="rc">✍️ 你答了 resiliant · 已收入错词本</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag wrong">已收错词本</span>
+      </div>
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">meticulous <small>一丝不苟的</small></span>
+          <span class="rp">/məˈtɪkjələs/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">profound <small>深刻的</small></span>
+          <span class="rp">/prəˈfaʊnd/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">eloquent <small>雄辩的</small></span>
+          <span class="rp">/ˈeləkwənt/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item correct">
+        <div class="review-icon green">✓</div>
+        <div class="review-body">
+          <span class="rw">diligent <small>勤奋的</small></span>
+          <span class="rp">/ˈdɪlɪdʒənt/</span>
+          <span class="rc">📖 连对 3 次 · 已掌握</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag mastered">已掌握</span>
+      </div>
+      <div class="review-item current">
+        <div class="review-icon blue">8</div>
+        <div class="review-body">
+          <span class="rw">spontaneous <small>自发的</small></span>
+          <span class="rp">/spɒnˈteɪniəs/</span>
+          <span class="rc">🔔 当前题目 · 正在听音…</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag current">进行中</span>
+      </div>
+      <div class="review-item">
+        <div class="review-icon gray">9</div>
+        <div class="review-body">
+          <span class="rw">negligible <small>可忽略的</small></span>
+          <span class="rp">/ˈneɡlɪdʒəbl/</span>
+          <span class="rc">🔒 完成 Q8 后解锁</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag pending">待完成</span>
+      </div>
+      <div class="review-item">
+        <div class="review-icon gray">10</div>
+        <div class="review-body">
+          <span class="rw">ubiquitous <small>无处不在的</small></span>
+          <span class="rp">/juːˈbiːkwɪtəs/</span>
+          <span class="rc">🔒 完成 Q8 后解锁</span>
+        </div>
+        <button class="review-play">🔊</button>
+        <span class="review-tag pending">待完成</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Stats Strip ===== -->
+  <div class="stat-strip">
+    <div class="stat-pill orange">
+      <div class="sp-emoji">🔥</div>
+      <div class="sp-body">
+        <div class="sp-val">33 天</div>
+        <div class="sp-lbl">连续打卡</div>
+      </div>
+    </div>
+    <div class="stat-pill gold">
+      <div class="sp-emoji">⚡</div>
+      <div class="sp-body">
+        <div class="sp-val">+480</div>
+        <div class="sp-lbl">本周词力</div>
+      </div>
+    </div>
+    <div class="stat-pill green">
+      <div class="sp-emoji">📈</div>
+      <div class="sp-body">
+        <div class="sp-val">#23</div>
+        <div class="sp-lbl">今日全站排名</div>
+      </div>
+    </div>
+    <div class="stat-pill purple">
+      <div class="sp-emoji">🎖️</div>
+      <div class="sp-body">
+        <div class="sp-val">3 / 12</div>
+        <div class="sp-lbl">解锁成就</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    💡 每日挑战 10 道全站同题，所有人做同一份卷子，成绩可直接比较。答错的词会自动收入错词本，完成打卡可浇水给单词树。
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小组 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+  }
+
+  /* Top Bar (mobile compact) */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:12px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:14px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+
+  /* Hero card */
+  .hero-card {
+    margin:14px 14px 14px;
+    background:linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
+    border-radius:18px; padding:18px;
+    color:#fff;
+    box-shadow:0 5px 0 var(--blue-dark), 0 8px 22px rgba(28,176,246,0.25);
+    position:relative; overflow:hidden;
+  }
+  .hero-card::after {
+    content:''; position:absolute; top:-30px; right:-20px;
+    width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.15), transparent 70%);
+  }
+  .hero-card::before {
+    content:''; position:absolute; bottom:-40px; left:-30px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.08), transparent 70%);
+  }
+  .hero-top { display:flex; align-items:center; gap:14px; margin-bottom:14px; position:relative; z-index:1; }
+  .hero-emoji {
+    font-size:48px; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.18));
+    flex-shrink:0;
+    animation:hero-float 3s ease-in-out infinite;
+  }
+  @keyframes hero-float {
+    0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)}
+  }
+  .hero-body { flex:1; min-width:0; }
+  .hero-eyebrow {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:3px 10px; border-radius:16px; font-size:11px; font-weight:900;
+    margin-bottom:6px;
+  }
+  .hero-eyebrow .pulse { width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .hero-body h1 { font-size:20px; font-weight:900; letter-spacing:-0.3px; margin-bottom:2px; line-height:1.3; }
+  .hero-body p { font-size:12px; font-weight:700; opacity:0.9; line-height:1.4; }
+
+  .hero-stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+    position:relative; z-index:1;
+  }
+  .hero-stat {
+    text-align:center; background:rgba(255,255,255,0.18);
+    backdrop-filter:blur(4px); border-radius:12px; padding:10px 6px;
+  }
+  .hero-stat .val { font-size:24px; font-weight:900; line-height:1; }
+  .hero-stat .lbl { font-size:10px; font-weight:800; opacity:0.88; margin-top:3px; }
+
+  /* Action cards */
+  .action-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    margin:0 14px 14px;
+  }
+  .action-card {
+    border-radius:16px; padding:16px; position:relative; overflow:hidden;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    transition:transform 0.1s; cursor:pointer;
+  }
+  .action-card:active { transform:translateY(2px); }
+  .action-card.create {
+    background:linear-gradient(135deg, var(--orange), #ffb347);
+    box-shadow:0 4px 0 var(--orange-dark), 0 6px 16px rgba(255,150,0,0.2);
+    color:#fff;
+  }
+  .action-card.join {
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    box-shadow:0 4px 0 var(--green-dark), 0 6px 16px rgba(88,204,2,0.2);
+    color:#fff;
+  }
+  .action-card::after {
+    content:''; position:absolute; top:-15px; right:-8px;
+    width:60px; height:60px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .action-card .ac-emoji {
+    font-size:30px; margin-bottom:8px;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    display:block; position:relative; z-index:1;
+  }
+  .action-card h3 { font-size:15px; font-weight:900; margin-bottom:3px; position:relative; z-index:1; }
+  .action-card p { font-size:11px; font-weight:700; opacity:0.9; margin-bottom:10px; line-height:1.4; position:relative; z-index:1; }
+  .action-card .ac-cta {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.25); backdrop-filter:blur(4px);
+    padding:7px 14px; border-radius:10px;
+    font-weight:900; font-size:12px;
+    position:relative; z-index:1;
+  }
+
+  /* Join code */
+  .join-card {
+    margin:0 14px 14px;
+    background:var(--panel); border-radius:16px; padding:14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    display:flex; align-items:center; gap:12px;
+    border:2px solid var(--border);
+  }
+  .join-card .join-icon {
+    font-size:28px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    width:46px; height:46px; border-radius:14px;
+    background:var(--green-light); display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .join-card .join-body { flex:1; min-width:0; }
+  .join-card .join-body b { display:block; font-size:13px; font-weight:900; margin-bottom:1px; }
+  .join-card .join-body small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+  .join-card .join-input-wrap {
+    display:flex; gap:6px; align-items:center; flex-shrink:0;
+  }
+  .join-card .join-input {
+    padding:8px 12px; border:2px solid var(--border); border-radius:10px;
+    font-family:inherit; font-size:13px; font-weight:700;
+    width:100px; background:#fff; letter-spacing:2px; text-align:center;
+  }
+  .join-card .join-input:focus { outline:none; border-color:var(--green); }
+  .join-btn {
+    padding:8px 16px; border:none; border-radius:10px;
+    background:var(--green); color:#fff; font-family:inherit;
+    font-weight:900; font-size:13px; box-shadow:0 4px 0 var(--green-dark);
+    cursor:pointer; text-decoration:none; white-space:nowrap;
+    transition:transform 0.1s; flex-shrink:0;
+  }
+  .join-btn:active { transform:translateY(3px); box-shadow:0 1px 0 var(--green-dark); }
+
+  /* Section header */
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px 10px;
+  }
+  .section-head h2 { font-size:17px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .section-head .count { font-size:12px; font-weight:700; color:var(--text-dim); }
+  .section-head .more {
+    font-size:12px; font-weight:800; color:var(--green-dark); text-decoration:none;
+    display:flex; align-items:center; gap:3px;
+  }
+
+  /* Group card (mobile) */
+  .group-card {
+    margin:0 14px 12px;
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+    position:relative; overflow:hidden;
+    border:2px solid transparent;
+  }
+  .group-card.active {
+    border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(88,204,2,0.12), 0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .group-card::after {
+    content:''; position:absolute; top:-25px; right:-15px;
+    width:100px; height:100px; border-radius:50%;
+    background:radial-gradient(circle, rgba(28,176,246,0.04), transparent 70%);
+  }
+  .gc-top { display:flex; align-items:center; gap:12px; margin-bottom:12px; position:relative; z-index:1; }
+  .gc-avatar {
+    width:48px; height:48px; border-radius:14px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.15), inset 0 -3px 0 rgba(0,0,0,0.08);
+    position:relative; overflow:hidden;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }
+  .gc-avatar::after {
+    content:''; position:absolute; top:0; left:0; width:100%; height:100%;
+    background:linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 40%);
+  }
+  .gc-avatar.blue { background:linear-gradient(135deg, var(--blue), #4dd0ff); }
+  .gc-avatar.green { background:linear-gradient(135deg, var(--green), #6fdd1a); }
+  .gc-avatar.purple { background:linear-gradient(135deg, var(--purple), #e0aaff); }
+  .gc-avatar.orange { background:linear-gradient(135deg, var(--orange), #ffb347); }
+
+  .gc-info { flex:1; min-width:0; }
+  .gc-info .row1 { display:flex; align-items:center; gap:6px; margin-bottom:2px; flex-wrap:wrap; }
+  .gc-info h3 { font-size:15px; font-weight:900; }
+  .gc-info .type-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:8px; font-size:9px; font-weight:900;
+    background:#f0f0f0; color:var(--text-dim); letter-spacing:0.5px;
+  }
+  .gc-info .type-badge.green { background:var(--green-light); color:var(--green-dark); }
+  .gc-info .type-badge.blue { background:var(--blue-light); color:var(--blue-dark); }
+  .gc-info .type-badge.purple { background:var(--purple-light); color:var(--purple-dark); }
+  .gc-info .type-badge.orange { background:var(--orange-light); color:var(--orange-dark); }
+  .gc-info .active-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:8px; font-size:9px; font-weight:900;
+    background:var(--green); color:#fff;
+  }
+  .gc-info .active-tag .dot { width:5px; height:5px; border-radius:50%; background:#fff; animation:pulse 1.5s ease infinite; }
+  .gc-info small { font-size:11px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+
+  /* Stats row */
+  .gc-stats {
+    display:flex; align-items:center; gap:8px; padding:8px 0;
+    border-top:1px dashed var(--border); border-bottom:1px dashed var(--border);
+    margin-bottom:10px; position:relative; z-index:1;
+  }
+  .gc-stat { flex:1; text-align:center; }
+  .gc-stat .val { font-size:16px; font-weight:900; color:var(--text); }
+  .gc-stat .val.green { color:var(--green-dark); }
+  .gc-stat .val.orange { color:var(--orange); }
+  .gc-stat .val.blue { color:var(--blue-dark); }
+  .gc-stat .lbl { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:1px; }
+  .gc-stat-divider { width:1px; height:22px; background:var(--border); }
+
+  /* Member avatars */
+  .gc-members {
+    display:flex; align-items:center; gap:8px; margin-bottom:10px;
+    position:relative; z-index:1;
+  }
+  .gc-member-avatars { display:flex; align-items:center; }
+  .gc-member {
+    width:26px; height:26px; border-radius:50%;
+    border:2px solid #fff; margin-left:-7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; background:#f0f0f0;
+    box-shadow:0 1px 2px rgba(0,0,0,0.1);
+    position:relative;
+  }
+  .gc-member:first-child { margin-left:0; }
+  .gc-member.online::after {
+    content:''; position:absolute; bottom:0; right:0;
+    width:7px; height:7px; border-radius:50%;
+    background:var(--green); border:2px solid #fff;
+  }
+  .gc-member.more { font-size:9px; font-weight:900; color:var(--text-dim); }
+  .gc-members .cnt { font-size:11px; font-weight:800; color:var(--text-dim); }
+  .gc-members .cnt b { color:var(--text); }
+
+  /* Activity bar */
+  .gc-activity {
+    margin-bottom:10px; position:relative; z-index:1;
+  }
+  .gc-activity .act-head {
+    display:flex; justify-content:space-between; margin-bottom:4px;
+    font-size:11px; font-weight:800;
+  }
+  .gc-activity .act-head .pct { color:var(--green-dark); }
+  .gc-activity .act-head .pct.blue { color:var(--blue-dark); }
+  .gc-activity .act-head .pct.orange { color:var(--orange-dark); }
+  .gc-activity .act-head .pct.purple { color:var(--purple-dark); }
+  .gc-activity .act-bar { height:7px; background:#ececec; border-radius:7px; overflow:hidden; }
+  .gc-activity .act-fill { height:100%; border-radius:7px; box-shadow:0 0 5px rgba(88,204,2,0.3); }
+  .gc-activity .act-fill.green { background:linear-gradient(90deg, var(--green), #7ae002); box-shadow:0 0 5px rgba(88,204,2,0.3); }
+  .gc-activity .act-fill.blue { background:linear-gradient(90deg, var(--blue), #4dd0ff); box-shadow:0 0 5px rgba(28,176,246,0.3); }
+  .gc-activity .act-fill.purple { background:linear-gradient(90deg, var(--purple), #e0aaff); box-shadow:0 0 5px rgba(206,130,255,0.3); }
+  .gc-activity .act-fill.orange { background:linear-gradient(90deg, var(--orange), #ffb347); box-shadow:0 0 5px rgba(255,150,0,0.3); }
+
+  /* Group buttons */
+  .gc-actions {
+    display:flex; gap:8px; position:relative; z-index:1;
+  }
+  .gc-btn {
+    flex:1; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    padding:11px 14px; border:none; border-radius:11px;
+    font-family:inherit; font-weight:900; font-size:13px;
+    cursor:pointer; text-decoration:none; white-space:nowrap;
+    transition:transform 0.1s;
+  }
+  .gc-btn:active { transform:translateY(3px); }
+  .gc-btn.green { background:var(--green); color:#fff; box-shadow:0 4px 0 var(--green-dark); }
+  .gc-btn.green:active { box-shadow:0 1px 0 var(--green-dark); }
+  .gc-btn.blue { background:var(--blue); color:#fff; box-shadow:0 4px 0 var(--blue-dark); }
+  .gc-btn.blue:active { box-shadow:0 1px 0 var(--blue-dark); }
+  .gc-btn.purple { background:var(--purple); color:#fff; box-shadow:0 4px 0 var(--purple-dark); }
+  .gc-btn.purple:active { box-shadow:0 1px 0 var(--purple-dark); }
+  .gc-btn.orange { background:var(--orange); color:#fff; box-shadow:0 4px 0 var(--orange-dark); }
+  .gc-btn.orange:active { box-shadow:0 1px 0 var(--orange-dark); }
+  .gc-btn.ghost { background:#fff; color:var(--text-dim); box-shadow:0 4px 0 rgba(0,0,0,0.1); }
+  .gc-btn.ghost:active { box-shadow:0 1px 0 rgba(0,0,0,0.1); }
+
+  /* Weekly chart card */
+  .chart-card {
+    margin:0 14px 14px;
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .chart-card .chart-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .chart-card .chart-head h3 { font-size:14px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .chart-card .chart-legend {
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;
+  }
+  .chart-card .chart-legend .lg { display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--text-dim); }
+  .chart-card .chart-legend .lg .dot { width:8px; height:8px; border-radius:2px; }
+  .chart-card .chart-legend .lg .dot.blue { background:var(--blue); }
+  .chart-card .chart-legend .lg .dot.green { background:var(--green); }
+  .chart-card .chart-legend .lg .dot.orange { background:var(--orange); }
+
+  .chart-area {
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:6px;
+    align-items:end; height:90px; padding:0 4px;
+  }
+  .chart-col {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    height:100%; justify-content:flex-end;
+  }
+  .chart-bars {
+    display:flex; align-items:flex-end; gap:2px; height:75px; width:100%;
+    justify-content:center;
+  }
+  .chart-bar {
+    width:10px; border-radius:3px 3px 1px 1px;
+  }
+  .chart-bar.blue { background:linear-gradient(180deg, var(--blue), #4dd0ff); }
+  .chart-bar.green { background:linear-gradient(180deg, var(--green), #7ae002); }
+  .chart-bar.orange { background:linear-gradient(180deg, var(--orange), #ffb347); }
+  .chart-day {
+    font-size:9px; font-weight:800; color:var(--text-dim); text-align:center;
+  }
+  .chart-day.today { color:var(--green-dark); }
+
+  /* Footer link */
+  .footer-link {
+    display:block; text-align:center; margin:14px 16px 12px;
+    font-size:12px; font-weight:700; color:var(--text-dim); text-decoration:none;
+  }
+  .footer-link:hover { color:var(--green); }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span> 英语听打 · 小组
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">🔥 12</div>
+      <div class="stat-item xp">⚡ 2,340</div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero-card">
+    <div class="hero-top">
+      <div class="hero-emoji">👥</div>
+      <div class="hero-body">
+        <div class="hero-eyebrow"><span class="pulse"></span> 我的小组</div>
+        <h1>和小伙伴一起，进步更快！</h1>
+        <p>组队听打 · 组队 PK · 排行榜，让学习不再孤单</p>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="val">3</div>
+        <div class="lbl">我的小组</div>
+      </div>
+      <div class="hero-stat">
+        <div class="val">47</div>
+        <div class="lbl">团队成员</div>
+      </div>
+      <div class="hero-stat">
+        <div class="val">5</div>
+        <div class="lbl">本周活跃</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Cards -->
+  <div class="action-grid">
+    <div class="action-card create">
+      <span class="ac-emoji">🛠️</span>
+      <h3>创建新小组</h3>
+      <p>组建专属学习小组，定制目标与每日任务</p>
+      <div class="ac-cta">开始创建 →</div>
+    </div>
+    <div class="action-card join">
+      <span class="ac-emoji">🤝</span>
+      <h3>加入小组</h3>
+      <p>加入公开小组，或输入邀请码</p>
+      <div class="ac-cta">浏览加入 →</div>
+    </div>
+  </div>
+
+  <!-- Join Code -->
+  <div class="join-card">
+    <div class="join-icon">🔑</div>
+    <div class="join-body">
+      <b>通过邀请码加入</b>
+      <small>输入 6 位邀请码</small>
+    </div>
+    <div class="join-input-wrap">
+      <input type="text" class="join-input" placeholder="ABC123" maxlength="6" value="KX7M2F">
+      <button class="join-btn">加入</button>
+    </div>
+  </div>
+
+  <!-- Section: My Groups -->
+  <div class="section-head">
+    <h2>⭐ 我的小组</h2>
+    <span class="count">3 个</span>
+    <a class="more" href="#">全部 →</a>
+  </div>
+
+  <!-- Group 1: CET-4 冲刺队 (active) -->
+  <div class="group-card active">
+    <div class="gc-top">
+      <div class="gc-avatar green">📖</div>
+      <div class="gc-info">
+        <div class="row1">
+          <h3>CET-4 冲刺队</h3>
+          <span class="active-tag"><span class="dot"></span> 活跃中</span>
+        </div>
+        <small>目标：通过 CET-4 · 每日打卡 + 组队 PK</small>
+      </div>
+    </div>
+    <div class="gc-stats">
+      <div class="gc-stat"><div class="val green">18</div><div class="lbl">成员</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val orange">14</div><div class="lbl">今日活跃</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val blue">1,284</div><div class="lbl">小组 XP</div></div>
+    </div>
+    <div class="gc-members">
+      <div class="gc-member-avatars">
+        <div class="gc-member online" style="background:#ffd9d9;">🧑</div>
+        <div class="gc-member online" style="background:#ddf4ff;">👩</div>
+        <div class="gc-member" style="background:#d7ffb8;">🧔</div>
+        <div class="gc-member" style="background:#f3e5ff;">👧</div>
+        <div class="gc-member" style="background:#fff0d1;">👦</div>
+        <div class="gc-member more">+13</div>
+      </div>
+      <span class="cnt">共 <b>18</b> 人 · 14 人在线</span>
+    </div>
+    <div class="gc-activity">
+      <div class="act-head">
+        <span>小组活跃度</span>
+        <span class="pct">78%</span>
+      </div>
+      <div class="act-bar"><div class="act-fill green" style="width:78%"></div></div>
+    </div>
+    <div class="gc-actions">
+      <a class="gc-btn green" href="#">进入小组 →</a>
+      <button class="gc-btn ghost">邀请成员</button>
+    </div>
+  </div>
+
+  <!-- Group 2: 考研词汇营 -->
+  <div class="group-card">
+    <div class="gc-top">
+      <div class="gc-avatar purple">🎯</div>
+      <div class="gc-info">
+        <div class="row1">
+          <h3>2027 考研词汇营</h3>
+          <span class="type-badge purple">考研</span>
+        </div>
+        <small>目标：每日 15 词 · 每周组队 PK</small>
+      </div>
+    </div>
+    <div class="gc-stats">
+      <div class="gc-stat"><div class="val green">15</div><div class="lbl">成员</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val orange">9</div><div class="lbl">今日活跃</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val blue">962</div><div class="lbl">小组 XP</div></div>
+    </div>
+    <div class="gc-members">
+      <div class="gc-member-avatars">
+        <div class="gc-member online" style="background:#fff8d1;">👨</div>
+        <div class="gc-member" style="background:#ffd9d9;">👩‍🦰</div>
+        <div class="gc-member online" style="background:#ddf4ff;">🧑‍🦱</div>
+        <div class="gc-member" style="background:#d7ffb8;">👦</div>
+        <div class="gc-member more">+11</div>
+      </div>
+      <span class="cnt">共 <b>15</b> 人 · 6 人在线</span>
+    </div>
+    <div class="gc-activity">
+      <div class="act-head">
+        <span>小组活跃度</span>
+        <span class="pct purple">60%</span>
+      </div>
+      <div class="act-bar"><div class="act-fill purple" style="width:60%"></div></div>
+    </div>
+    <div class="gc-actions">
+      <a class="gc-btn purple" href="#">进入小组 →</a>
+      <button class="gc-btn ghost">邀请成员</button>
+    </div>
+  </div>
+
+  <!-- Group 3: 每日听打 PK -->
+  <div class="group-card">
+    <div class="gc-top">
+      <div class="gc-avatar orange">⚔️</div>
+      <div class="gc-info">
+        <div class="row1">
+          <h3>每日听打 PK 战队</h3>
+          <span class="type-badge orange">竞技</span>
+        </div>
+        <small>目标：每日组队 PK · 实时对战</small>
+      </div>
+    </div>
+    <div class="gc-stats">
+      <div class="gc-stat"><div class="val green">14</div><div class="lbl">成员</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val orange">11</div><div class="lbl">今日活跃</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val blue">2,106</div><div class="lbl">小组 XP</div></div>
+    </div>
+    <div class="gc-members">
+      <div class="gc-member-avatars">
+        <div class="gc-member online" style="background:#f3e5ff;">🧑</div>
+        <div class="gc-member online" style="background:#fff8d1;">👩</div>
+        <div class="gc-member online" style="background:#d7ffb8;">👦</div>
+        <div class="gc-member" style="background:#ddf4ff;">🧔</div>
+        <div class="gc-member more">+10</div>
+      </div>
+      <span class="cnt">共 <b>14</b> 人 · 9 人在线</span>
+    </div>
+    <div class="gc-activity">
+      <div class="act-head">
+        <span>小组活跃度</span>
+        <span class="pct orange">79%</span>
+      </div>
+      <div class="act-bar"><div class="act-fill orange" style="width:79%"></div></div>
+    </div>
+    <div class="gc-actions">
+      <a class="gc-btn orange" href="#">进入小组 →</a>
+      <button class="gc-btn ghost">邀请成员</button>
+    </div>
+  </div>
+
+  <!-- Recommended Group -->
+  <div class="group-card">
+    <div class="gc-top">
+      <div class="gc-avatar blue">🌍</div>
+      <div class="gc-info">
+        <div class="row1">
+          <h3>新概念学习圈</h3>
+          <span class="type-badge blue">公开</span>
+          <span class="type-badge green">推荐</span>
+        </div>
+        <small>公开小组 · 89 人 · NCE 句库联动</small>
+      </div>
+    </div>
+    <div class="gc-stats">
+      <div class="gc-stat"><div class="val green">89</div><div class="lbl">成员</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val orange">67</div><div class="lbl">今日活跃</div></div>
+      <div class="gc-stat-divider"></div>
+      <div class="gc-stat"><div class="val blue">8,420</div><div class="lbl">小组 XP</div></div>
+    </div>
+    <div class="gc-members">
+      <div class="gc-member-avatars">
+        <div class="gc-member" style="background:#ffd9d9;">👩</div>
+        <div class="gc-member online" style="background:#ddf4ff;">🧑</div>
+        <div class="gc-member" style="background:#d7ffb8;">👦</div>
+        <div class="gc-member online" style="background:#f3e5ff;">👧</div>
+        <div class="gc-member online" style="background:#fff0d1;">👨</div>
+        <div class="gc-member more">+84</div>
+      </div>
+      <span class="cnt">共 <b>89</b> 人 · 67 人今日活跃</span>
+    </div>
+    <div class="gc-activity">
+      <div class="act-head">
+        <span>小组活跃度</span>
+        <span class="pct blue">75%</span>
+      </div>
+      <div class="act-bar"><div class="act-fill blue" style="width:75%"></div></div>
+    </div>
+    <div class="gc-actions">
+      <a class="gc-btn blue" href="#">加入小组 →</a>
+      <button class="gc-btn ghost">查看详情</button>
+    </div>
+  </div>
+
+  <!-- Weekly Activity -->
+  <div class="section-head">
+    <h2>📊 小组活跃度</h2>
+    <span class="count">近 7 天</span>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-head">
+      <h3>📈 周活跃度趋势</h3>
+      <div class="chart-legend">
+        <div class="lg"><span class="dot blue"></span> CET-4</div>
+        <div class="lg"><span class="dot green"></span> PK 战队</div>
+        <div class="lg"><span class="dot orange"></span> 考研</div>
+      </div>
+    </div>
+    <div class="chart-area">
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:50%;"></div>
+          <div class="chart-bar green" style="height:60%;"></div>
+          <div class="chart-bar orange" style="height:35%;"></div>
+        </div>
+        <div class="chart-day">一</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:60%;"></div>
+          <div class="chart-bar green" style="height:70%;"></div>
+          <div class="chart-bar orange" style="height:45%;"></div>
+        </div>
+        <div class="chart-day">二</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:75%;"></div>
+          <div class="chart-bar green" style="height:80%;"></div>
+          <div class="chart-bar orange" style="height:55%;"></div>
+        </div>
+        <div class="chart-day">三</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:55%;"></div>
+          <div class="chart-bar green" style="height:65%;"></div>
+          <div class="chart-bar orange" style="height:40%;"></div>
+        </div>
+        <div class="chart-day">四</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:70%;"></div>
+          <div class="chart-bar green" style="height:85%;"></div>
+          <div class="chart-bar orange" style="height:50%;"></div>
+        </div>
+        <div class="chart-day">五</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:40%;"></div>
+          <div class="chart-bar green" style="height:45%;"></div>
+          <div class="chart-bar orange" style="height:25%;"></div>
+        </div>
+        <div class="chart-day">六</div>
+      </div>
+      <div class="chart-col">
+        <div class="chart-bars">
+          <div class="chart-bar blue" style="height:80%;"></div>
+          <div class="chart-bar green" style="height:88%;"></div>
+          <div class="chart-bar orange" style="height:58%;"></div>
+        </div>
+        <div class="chart-day today">今</div>
+      </div>
+    </div>
+  </div>
+
+  <a class="footer-link" href="#">全部小组与排行榜 →</a>
+</div>
+</body>
+</html>

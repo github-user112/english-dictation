@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导入词库 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden; padding-bottom:40px;
+  }
+
+  /* ---- Topbar (mobile compact) ---- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:10px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:13px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+  .stat-item.level { color:var(--purple); }
+  .stat-item .icon { font-size:15px; }
+
+  /* ---- Import Hero (Mobile) ---- */
+  .m-hero {
+    margin:12px 14px; padding:20px 18px;
+    background:linear-gradient(135deg, var(--blue) 0%, #4dd0ff 45%, var(--green) 100%);
+    border-radius:18px; color:#fff;
+    box-shadow:0 5px 0 var(--green-dark), 0 8px 24px rgba(28,176,246,0.25);
+    position:relative; overflow:hidden;
+  }
+  .m-hero::after {
+    content:''; position:absolute; top:-30px; right:-20px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.1);
+  }
+  .m-hero::before {
+    content:''; position:absolute; bottom:-40px; left:-20px;
+    width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .m-hero-sparkles {
+    position:absolute; top:12px; right:16px;
+    font-size:14px; opacity:0.5; z-index:0;
+    animation:m-sparkle-bob 2.5s ease-in-out infinite;
+  }
+  @keyframes m-sparkle-bob { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-4px) rotate(6deg)} }
+  .m-hero-top { display:flex; align-items:center; gap:12px; position:relative; z-index:1; margin-bottom:12px; }
+  .m-hero-icon {
+    font-size:44px; flex-shrink:0;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,0.2));
+    animation:m-hero-pop 0.5s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  @keyframes m-hero-pop { 0%{transform:scale(0.5) rotate(-8deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+  .m-hero-text { flex:1; min-width:0; }
+  .m-hero-text h1 { font-size:19px; font-weight:900; letter-spacing:-0.3px; margin-bottom:2px; }
+  .m-hero-text .m-sub { font-size:12px; font-weight:800; opacity:0.9; }
+  .m-hero-text .m-sub2 { font-size:10px; font-weight:700; opacity:0.75; margin-top:1px; }
+  .m-hero-stats { display:flex; gap:8px; position:relative; z-index:1; }
+  .mhs {
+    flex:1; text-align:center; padding:10px 8px;
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    border-radius:12px;
+  }
+  .mhs .mv { font-size:20px; font-weight:900; letter-spacing:-0.5px; }
+  .mhs .ml { font-size:10px; font-weight:800; opacity:0.85; margin-top:1px; }
+
+  /* ---- Section Title (Mobile) ---- */
+  .m-section { margin:0 14px 12px; }
+  .m-section-title {
+    display:flex; align-items:center; gap:6px;
+    font-size:14px; font-weight:900; margin-bottom:8px;
+    padding:0 2px;
+  }
+  .m-section-title .msi { font-size:18px; }
+  .m-section-desc {
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    margin-bottom:8px; padding:0 2px;
+  }
+
+  /* ---- Import Pipeline (Mobile) ---- */
+  .m-pipeline-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:14px 16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-pipeline { display:flex; align-items:stretch; gap:4px; }
+  .m-pipe-step {
+    flex:1; text-align:center;
+    padding:8px 4px 6px; border-radius:10px;
+    background:#f7f7f7; border:2px solid transparent;
+    position:relative;
+  }
+  .m-pipe-step .mps-emoji { font-size:18px; display:block; margin-bottom:1px; }
+  .m-pipe-step .mps-title { font-size:10px; font-weight:900; display:block; }
+  .m-pipe-step .mps-desc { font-size:8px; font-weight:700; color:var(--text-dim); display:block; margin-top:1px; }
+  .m-pipe-step.done {
+    background:var(--green-bg); border-color:rgba(88,204,2,0.3);
+  }
+  .m-pipe-step.done .mps-title { color:var(--green-dark); }
+  .m-pipe-step.done::after {
+    content:'✓'; position:absolute; top:2px; right:4px;
+    font-size:8px; font-weight:900; color:var(--green);
+  }
+  .m-pipe-step.active {
+    background:var(--blue); color:#fff;
+    border-color:var(--blue-dark);
+    box-shadow:0 3px 0 var(--blue-dark);
+    transform:translateY(-2px);
+  }
+  .m-pipe-step.active .mps-title { color:#fff; }
+  .m-pipe-step.active .mps-desc { color:rgba(255,255,255,0.85); }
+  .m-pipe-step.active .mps-emoji { animation:m-pipe-pulse 1.5s ease-in-out infinite; }
+  @keyframes m-pipe-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+  .m-pipe-step.pending { opacity:0.55; }
+  .m-pipe-arrow {
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-size:12px; font-weight:900; flex-shrink:0;
+  }
+
+  /* ---- Method Tabs (Mobile) ---- */
+  .m-method-tabs { margin:0 14px 14px; display:flex; gap:10px; }
+  .m-method-tab {
+    flex:1; padding:14px 12px; border-radius:14px;
+    background:#fff; border:2px solid var(--border);
+    text-align:center; cursor:pointer; transition:all 0.2s;
+    position:relative;
+  }
+  .m-method-tab .mmt-emoji { font-size:30px; display:block; margin-bottom:4px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+  .m-method-tab .mmt-title { font-size:14px; font-weight:900; display:block; }
+  .m-method-tab .mmt-desc { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .m-method-tab.active {
+    border-color:var(--blue); background:var(--blue-bg);
+    box-shadow:0 3px 0 rgba(28,176,246,0.2);
+  }
+  .m-method-tab.active .mmt-title { color:var(--blue-dark); }
+  .m-method-tab .mmt-badge {
+    position:absolute; top:8px; right:8px;
+    background:var(--blue); color:#fff;
+    padding:2px 7px; border-radius:8px;
+    font-size:9px; font-weight:900;
+  }
+  .m-method-tab .mmt-check {
+    position:absolute; top:8px; left:8px;
+    width:20px; height:20px; border-radius:50%;
+    background:var(--blue); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900;
+    box-shadow:0 2px 0 var(--blue-dark);
+  }
+
+  /* ---- Content Type (Mobile) ---- */
+  .m-ctype-row {
+    margin:0 14px 14px;
+    display:flex; gap:8px;
+  }
+  .m-ctype-label { font-size:12px; font-weight:800; color:var(--text-dim); margin-right:4px; align-self:center; }
+  .m-ctype-opt {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:10px 12px; border-radius:10px;
+    background:#fff; border:2px solid var(--border);
+    font-size:13px; font-weight:800; color:var(--text-dim);
+    cursor:pointer; transition:all 0.2s;
+  }
+  .m-ctype-opt.active {
+    background:var(--green); color:#fff;
+    border-color:var(--green-dark);
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+
+  /* ---- Paste Zone (Mobile) ---- */
+  .m-paste-zone {
+    margin:0 14px 14px;
+    background:#fff; border:2px solid var(--blue); border-radius:14px;
+    padding:14px 16px;
+    box-shadow:0 4px 0 rgba(28,176,246,0.15);
+    position:relative; overflow:hidden;
+  }
+  .m-paste-zone::before {
+    content:''; position:absolute; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, transparent 0%, rgba(28,176,246,0.5) 50%, transparent 100%);
+    animation:m-scan-line 3s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes m-scan-line { 0%{top:0} 100%{top:100%} }
+  .m-paste-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px; gap:8px;
+  }
+  .m-paste-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:var(--green); color:#fff;
+    padding:4px 10px; border-radius:8px;
+    font-size:10px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+    flex-shrink:0;
+  }
+  .m-paste-badge .mpb-dot {
+    width:6px; height:6px; border-radius:50%; background:#fff;
+    animation:pulse 1.5s ease infinite;
+  }
+  .m-paste-count {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:900; color:var(--gold);
+    background:var(--gold-light); padding:4px 10px; border-radius:8px;
+    flex-shrink:0;
+  }
+  .m-paste-text {
+    font-family:'SF Mono','Consolas','Monaco','Courier New',monospace;
+    font-size:10px; line-height:1.7;
+    background:#f9fbfe; border-radius:10px; padding:10px 12px;
+    border:1px solid rgba(28,176,246,0.15);
+    max-height:160px; overflow:hidden; position:relative;
+  }
+  .m-paste-text::after {
+    content:''; position:absolute; bottom:0; left:0; right:0;
+    height:30px;
+    background:linear-gradient(transparent, #f9fbfe);
+  }
+  .m-pt-line { display:block; padding:1px 0; }
+  .m-pt-word { color:#1a1a1a; font-weight:700; }
+  .m-pt-phonetic { color:#888; font-style:italic; }
+  .m-pt-pos { color:var(--purple); font-weight:700; }
+  .m-pt-meaning { color:var(--green-dark); font-weight:700; }
+  .m-pt-more {
+    text-align:center; font-size:10px; font-weight:800;
+    color:var(--text-faint); padding:5px 0 2px;
+  }
+  .m-paste-footer {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:8px; padding-top:8px;
+    border-top:1px dashed var(--border);
+    font-size:10px; font-weight:700; color:var(--text-dim);
+    gap:8px;
+  }
+  .m-pf-link { color:var(--blue); font-weight:800; cursor:pointer; }
+
+  /* ---- Live Preview (Mobile) ---- */
+  .m-preview-section { margin:0 14px 14px; }
+  .m-preview-header {
+    display:flex; align-items:center; gap:6px;
+    margin-bottom:10px;
+  }
+  .m-preview-header .mph-emoji { font-size:18px; }
+  .m-preview-header b { font-size:14px; font-weight:900; flex:1; }
+  .m-preview-header .mph-count {
+    font-size:10px; font-weight:900; color:var(--green-dark);
+    background:var(--green-bg); padding:3px 8px; border-radius:6px;
+  }
+  .m-preview-cards {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  }
+  .m-preview-card {
+    background:var(--green-bg); border:2px solid rgba(88,204,2,0.25);
+    border-radius:12px; padding:10px 12px;
+    position:relative; overflow:hidden;
+    animation:m-card-enter 0.4s ease backwards;
+  }
+  .m-preview-card:nth-child(1) { animation-delay:0.05s; }
+  .m-preview-card:nth-child(2) { animation-delay:0.1s; }
+  .m-preview-card:nth-child(3) { animation-delay:0.15s; }
+  .m-preview-card:nth-child(4) { animation-delay:0.2s; }
+  @keyframes m-card-enter { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }
+  .m-preview-card::before {
+    content:'✨'; position:absolute; top:4px; right:6px;
+    font-size:10px; opacity:0.4;
+  }
+  .m-pc-word { font-size:15px; font-weight:900; color:#1a1a1a; letter-spacing:-0.2px; margin-bottom:1px; }
+  .m-pc-phonetic { font-size:9px; font-weight:600; color:#888; font-family:'SF Mono','Consolas',monospace; margin-bottom:4px; }
+  .m-pc-meaning { font-size:13px; font-weight:900; color:var(--green-dark); margin-bottom:6px; }
+  .m-pc-actions { display:flex; align-items:center; justify-content:space-between; }
+  .m-pc-pos {
+    font-size:9px; font-weight:900; color:var(--purple);
+    background:var(--purple-light); padding:2px 7px; border-radius:5px;
+  }
+  .m-pc-play {
+    width:22px; height:22px; border-radius:50%;
+    background:var(--green); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; box-shadow:0 2px 0 var(--green-dark);
+  }
+
+  /* ---- Options Card (Mobile) ---- */
+  .m-options-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px 14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-oc-title { font-size:14px; font-weight:900; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .m-option-row {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .m-option-row:last-child { border-bottom:none; }
+  .m-or-body { flex:1; min-width:0; }
+  .m-or-body b { font-size:12px; font-weight:800; display:block; margin-bottom:1px; }
+  .m-or-body small { font-size:10px; font-weight:600; color:var(--text-dim); line-height:1.4; }
+  .m-toggle {
+    width:40px; height:22px; border-radius:11px;
+    background:#d0d0d0; position:relative; flex-shrink:0;
+    cursor:pointer; transition:background 0.2s;
+  }
+  .m-toggle::after {
+    content:''; position:absolute; top:2px; left:2px;
+    width:18px; height:18px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+    transition:transform 0.2s;
+  }
+  .m-toggle.on { background:var(--green); }
+  .m-toggle.on::after { transform:translateX(18px); }
+
+  /* ---- Format Spec (Mobile) ---- */
+  .m-format-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px 14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-fc-title { font-size:14px; font-weight:900; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .m-fc-tabs { display:flex; gap:5px; margin-bottom:10px; }
+  .m-fc-tab {
+    padding:5px 12px; border-radius:7px;
+    background:#f0f0f0; font-size:11px; font-weight:900;
+    color:var(--text-dim); cursor:pointer; transition:all 0.2s;
+  }
+  .m-fc-tab.active { background:var(--blue); color:#fff; box-shadow:0 2px 0 var(--blue-dark); }
+  .m-fc-code {
+    background:#f9fbfe; border-radius:10px; padding:10px 12px;
+    font-family:'SF Mono','Consolas','Monaco','Courier New',monospace;
+    font-size:10px; line-height:1.7;
+    border:1px solid rgba(28,176,246,0.15);
+    margin-bottom:8px;
+  }
+  .m-fcc-line { display:block; }
+  .m-fcc-word { color:#1a1a1a; font-weight:700; }
+  .m-fcc-phonetic { color:#888; font-style:italic; }
+  .m-fcc-pos { color:var(--purple); font-weight:700; }
+  .m-fcc-meaning { color:var(--green-dark); font-weight:700; }
+  .m-fcc-comment { color:#aaa; font-style:italic; }
+  .m-fc-hint {
+    font-size:10px; font-weight:700; color:var(--text-dim);
+    display:flex; align-items:center; gap:4px;
+  }
+
+  /* ---- Import History (Mobile) ---- */
+  .m-history-card {
+    margin:0 14px 14px;
+    background:#fff; border-radius:16px; padding:16px 14px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .m-hc-title {
+    font-size:14px; font-weight:900; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .m-hc-title .mhc-left { display:flex; align-items:center; gap:6px; }
+  .m-hc-title .mhc-count { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .m-hc-list { display:flex; flex-direction:column; }
+  .m-history-item {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .m-history-item:last-child { border-bottom:none; padding-bottom:2px; }
+  .m-history-item:first-child { padding-top:2px; }
+  .m-hi-emoji { font-size:22px; flex-shrink:0; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1)); }
+  .m-hi-body { flex:1; min-width:0; }
+  .m-hi-body b { font-size:12px; font-weight:800; display:block; margin-bottom:1px; }
+  .m-hi-body small { font-size:10px; font-weight:600; color:var(--text-dim); }
+  .m-hi-count {
+    font-size:11px; font-weight:900; color:var(--green-dark);
+    flex-shrink:0; min-width:50px; text-align:right;
+  }
+  .m-hi-status {
+    width:20px; height:20px; border-radius:50%;
+    background:var(--green); color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:900;
+    box-shadow:0 2px 0 var(--green-dark);
+  }
+
+  /* ---- Tips Banner (Mobile) ---- */
+  .m-tips {
+    margin:0 14px 14px;
+    display:flex; align-items:flex-start; gap:10px;
+    padding:12px 14px; border-radius:12px;
+    background:var(--orange-light);
+    border:1px solid rgba(255,150,0,0.25);
+  }
+  .m-tb-emoji { font-size:18px; flex-shrink:0; margin-top:1px; }
+  .m-tb-body { flex:1; min-width:0; }
+  .m-tb-body b { font-size:12px; font-weight:900; color:#8a5500; display:block; margin-bottom:2px; }
+  .m-tb-body p { font-size:10px; font-weight:600; color:#8a5500; line-height:1.5; }
+
+  /* ---- Action Bar (Mobile) ---- */
+  .m-action {
+    margin:0 14px 14px;
+  }
+  .m-action-info {
+    display:flex; align-items:center; gap:6px;
+    padding:8px 12px; border-radius:10px;
+    background:var(--green-bg); border:1px solid rgba(88,204,2,0.2);
+    font-size:11px; font-weight:800; color:var(--green-dark);
+    margin-bottom:8px;
+  }
+  .m-action-info .mai-dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:pulse 1.5s ease infinite; }
+  .m-action-btns { display:flex; gap:8px; }
+  .m-action-btn {
+    flex:1; padding:12px 14px; font-size:13px; border-radius:14px;
+    font-family:inherit; font-weight:900; cursor:pointer; text-decoration:none;
+    text-align:center; border:none; transition:transform 0.1s;
+    white-space:nowrap;
+  }
+  .m-action-btn:active { transform:translateY(3px); }
+  .m-action-btn.primary {
+    background:var(--green); color:#fff;
+    box-shadow:0 4px 0 var(--green-dark);
+  }
+  .m-action-btn.primary:active { box-shadow:0 1px 0 var(--green-dark); }
+  .m-action-btn.ghost {
+    background:#fff; color:var(--text-dim);
+    box-shadow:0 4px 0 rgba(0,0,0,0.08);
+  }
+  .m-action-btn.ghost:active { box-shadow:0 1px 0 rgba(0,0,0,0.08); }
+  .m-action-btn.white {
+    background:#fff; color:var(--green);
+    box-shadow:0 4px 0 rgba(0,0,0,0.12);
+  }
+  .m-action-btn.white:active { box-shadow:0 1px 0 rgba(0,0,0,0.12); }
+
+  /* ---- Footer (Mobile) ---- */
+  .m-footer {
+    margin:16px 14px 8px;
+    text-align:center;
+    font-size:11px; font-weight:700; color:var(--text-dim);
+    line-height:1.5;
+  }
+
+</style>
+</head>
+<body>
+<div class="container-mobile">
+  <div class="phone-frame">
+
+    <!-- ===== Topbar ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <span class="owl">🦉</span> 英语听打
+      </div>
+      <div class="topbar-stats">
+        <div class="stat-item streak"><span class="icon">🔥</span> 12</div>
+        <div class="stat-item xp"><span class="icon">⚡</span> 2,480</div>
+        <div class="stat-item level"><span class="icon">💎</span> 7</div>
+      </div>
+    </div>
+
+    <!-- ===== Import Hero ===== -->
+    <div class="m-hero">
+      <span class="m-hero-sparkles">✨📥✨</span>
+      <div class="m-hero-top">
+        <div class="m-hero-icon">📥</div>
+        <div class="m-hero-text">
+          <h1>导入自定义词库 / 句库</h1>
+          <div class="m-sub">粘贴文本或上传文件</div>
+          <div class="m-sub2">TXT / CSV / JSON · 自动识别 · 智能去重</div>
+        </div>
+      </div>
+      <div class="m-hero-stats">
+        <div class="mhs">
+          <div class="mv">8</div>
+          <div class="ml">已导入</div>
+        </div>
+        <div class="mhs">
+          <div class="mv">12,570</div>
+          <div class="ml">总条目</div>
+        </div>
+        <div class="mhs">
+          <div class="mv">3</div>
+          <div class="ml">本月新增</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Import Pipeline ===== -->
+    <div class="m-pipeline-card">
+      <div class="m-pipeline">
+        <div class="m-pipe-step done">
+          <span class="mps-emoji">📋</span>
+          <span class="mps-title">粘贴</span>
+          <span class="mps-desc">输入文本</span>
+        </div>
+        <div class="m-pipe-arrow">→</div>
+        <div class="m-pipe-step done">
+          <span class="mps-emoji">🔍</span>
+          <span class="mps-title">解析</span>
+          <span class="mps-desc">识别格式</span>
+        </div>
+        <div class="m-pipe-arrow">→</div>
+        <div class="m-pipe-step done">
+          <span class="mps-emoji">🧹</span>
+          <span class="mps-title">清洗</span>
+          <span class="mps-desc">去重格式化</span>
+        </div>
+        <div class="m-pipe-arrow">→</div>
+        <div class="m-pipe-step active">
+          <span class="mps-emoji">✨</span>
+          <span class="mps-title">生成</span>
+          <span class="mps-desc">生成学卡</span>
+        </div>
+        <div class="m-pipe-arrow">→</div>
+        <div class="m-pipe-step pending">
+          <span class="mps-emoji">✅</span>
+          <span class="mps-title">完成</span>
+          <span class="mps-desc">开始练习</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Method Tabs ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📥</span> 导入方式</div>
+    </div>
+    <div class="m-method-tabs">
+      <div class="m-method-tab active">
+        <span class="mmt-check">✓</span>
+        <span class="mmt-badge">当前</span>
+        <span class="mmt-emoji">📋</span>
+        <span class="mmt-title">粘贴文本</span>
+        <span class="mmt-desc">复制内容粘贴</span>
+      </div>
+      <div class="m-method-tab">
+        <span class="mmt-emoji">📤</span>
+        <span class="mmt-title">上传文件</span>
+        <span class="mmt-desc">TXT/CSV/JSON</span>
+      </div>
+    </div>
+
+    <!-- ===== Content Type ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📚</span> 导入类型</div>
+    </div>
+    <div class="m-ctype-row">
+      <div class="m-ctype-opt active">📚 词库</div>
+      <div class="m-ctype-opt">💬 句库</div>
+    </div>
+
+    <!-- ===== Paste Zone ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📋</span> 粘贴内容</div>
+      <div class="m-section-desc">每行一条 · # 注释行自动忽略</div>
+    </div>
+    <div class="m-paste-zone">
+      <div class="m-paste-header">
+        <div class="m-paste-badge">
+          <span class="mpb-dot"></span>
+          ✅ 检测到 英语词库
+        </div>
+        <div class="m-paste-count">✨ 10 条词汇</div>
+      </div>
+      <div class="m-paste-text">
+        <div class="m-pt-line"><span class="m-pt-word">environment</span> <span class="m-pt-phonetic">/ɪnˈvaɪrənmənt/</span> <span class="m-pt-pos">n.</span> <span class="m-pt-meaning">环境</span></div>
+        <div class="m-pt-line"><span class="m-pt-word">economy</span> <span class="m-pt-phonetic">/ɪˈkɒnəmi/</span> <span class="m-pt-pos">n.</span> <span class="m-pt-meaning">经济</span></div>
+        <div class="m-pt-line"><span class="m-pt-word">technology</span> <span class="m-pt-phonetic">/tekˈnɒlədʒi/</span> <span class="m-pt-pos">n.</span> <span class="m-pt-meaning">技术</span></div>
+        <div class="m-pt-line"><span class="m-pt-word">education</span> <span class="m-pt-phonetic">/ˌedʒuˈkeɪʃn/</span> <span class="m-pt-pos">n.</span> <span class="m-pt-meaning">教育</span></div>
+        <div class="m-pt-line"><span class="m-pt-word">development</span> <span class="m-pt-phonetic">/dɪˈveləpmənt/</span> <span class="m-pt-pos">n.</span> <span class="m-pt-meaning">发展</span></div>
+        <div class="m-pt-more">··· 还有 5 条待生成</div>
+      </div>
+      <div class="m-paste-footer">
+        <span>📝 自动识别格式</span>
+        <span class="m-pf-link">📤 或拖拽文件</span>
+      </div>
+    </div>
+
+    <!-- ===== Live Preview ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">✨</span> 实时预览</div>
+      <div class="m-section-desc">10 条已解析，点击卡片试听发音</div>
+    </div>
+    <div class="m-preview-section">
+      <div class="m-preview-cards">
+        <div class="m-preview-card">
+          <div class="m-pc-word">environment</div>
+          <div class="m-pc-phonetic">/ɪnˈvaɪrənmənt/</div>
+          <div class="m-pc-meaning">环境</div>
+          <div class="m-pc-actions">
+            <span class="m-pc-pos">n.</span>
+            <span class="m-pc-play">🔊</span>
+          </div>
+        </div>
+        <div class="m-preview-card">
+          <div class="m-pc-word">economy</div>
+          <div class="m-pc-phonetic">/ɪˈkɒnəmi/</div>
+          <div class="m-pc-meaning">经济</div>
+          <div class="m-pc-actions">
+            <span class="m-pc-pos">n.</span>
+            <span class="m-pc-play">🔊</span>
+          </div>
+        </div>
+        <div class="m-preview-card">
+          <div class="m-pc-word">technology</div>
+          <div class="m-pc-phonetic">/tekˈnɒlədʒi/</div>
+          <div class="m-pc-meaning">技术</div>
+          <div class="m-pc-actions">
+            <span class="m-pc-pos">n.</span>
+            <span class="m-pc-play">🔊</span>
+          </div>
+        </div>
+        <div class="m-preview-card">
+          <div class="m-pc-word">education</div>
+          <div class="m-pc-phonetic">/ˌedʒuˈkeɪʃn/</div>
+          <div class="m-pc-meaning">教育</div>
+          <div class="m-pc-actions">
+            <span class="m-pc-pos">n.</span>
+            <span class="m-pc-play">🔊</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Options ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">⚙️</span> 导入选项</div>
+    </div>
+    <div class="m-options-card">
+      <div class="m-option-row">
+        <div class="m-or-body">
+          <b>🔊 自动生成发音</b>
+          <small>使用 TTS 生成标准发音</small>
+        </div>
+        <div class="m-toggle on"></div>
+      </div>
+      <div class="m-option-row">
+        <div class="m-or-body">
+          <b>🧹 去重合并</b>
+          <small>与现有词库重复词汇自动合并</small>
+        </div>
+        <div class="m-toggle on"></div>
+      </div>
+      <div class="m-option-row">
+        <div class="m-or-body">
+          <b>🔤 按字母排序</b>
+          <small>导入后按 A-Z 排列</small>
+        </div>
+        <div class="m-toggle"></div>
+      </div>
+    </div>
+
+    <!-- ===== Format Spec ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📐</span> 格式规范</div>
+      <div class="m-section-desc">支持 TXT / CSV / JSON 三种格式</div>
+    </div>
+    <div class="m-format-card">
+      <div class="m-fc-tabs">
+        <div class="m-fc-tab active">TXT</div>
+        <div class="m-fc-tab">CSV</div>
+        <div class="m-fc-tab">JSON</div>
+      </div>
+      <div class="m-fc-code">
+        <div class="m-fcc-line"><span class="m-fcc-comment"># 格式: 单词 /音标/ 词性. 中文</span></div>
+        <div class="m-fcc-line"><span class="m-fcc-word">environment</span> <span class="m-fcc-phonetic">/ɪnˈvaɪrənmənt/</span> <span class="m-fcc-pos">n.</span> <span class="m-fcc-meaning">环境</span></div>
+        <div class="m-fcc-line"><span class="m-fcc-word">economy</span> <span class="m-fcc-phonetic">/ɪˈkɒnəmi/</span> <span class="m-fcc-pos">n.</span> <span class="m-fcc-meaning">经济</span></div>
+        <div class="m-fcc-line"><span class="m-fcc-word">knowledge</span> <span class="m-fcc-phonetic">/ˈnɒlɪdʒ/</span> <span class="m-fcc-pos">n.</span> <span class="m-fcc-meaning">知识</span></div>
+      </div>
+      <div class="m-fc-hint">💡 也可省略音标：environment n. 环境</div>
+    </div>
+
+    <!-- ===== Import History ===== -->
+    <div class="m-section">
+      <div class="m-section-title"><span class="msi">📜</span> 导入历史</div>
+      <div class="m-section-desc">共 8 套已导入</div>
+    </div>
+    <div class="m-history-card">
+      <div class="m-hc-list">
+        <div class="m-history-item">
+          <span class="m-hi-emoji">📚</span>
+          <div class="m-hi-body">
+            <b>考研核心词</b>
+            <small>3 天前导入 · TXT</small>
+          </div>
+          <span class="m-hi-count">5,500 词</span>
+          <span class="m-hi-status">✓</span>
+        </div>
+        <div class="m-history-item">
+          <span class="m-hi-emoji">📚</span>
+          <div class="m-hi-body">
+            <b>CET-4 高频</b>
+            <small>1 周前导入 · CSV</small>
+          </div>
+          <span class="m-hi-count">2,400 词</span>
+          <span class="m-hi-status">✓</span>
+        </div>
+        <div class="m-history-item">
+          <span class="m-hi-emoji">💬</span>
+          <div class="m-hi-body">
+            <b>新概念三册</b>
+            <small>2 周前导入 · TXT</small>
+          </div>
+          <span class="m-hi-count">1,200 句</span>
+          <span class="m-hi-status">✓</span>
+        </div>
+        <div class="m-history-item">
+          <span class="m-hi-emoji">📚</span>
+          <div class="m-hi-body">
+            <b>学术词汇</b>
+            <small>1 月前导入 · JSON</small>
+          </div>
+          <span class="m-hi-count">1,800 词</span>
+          <span class="m-hi-status">✓</span>
+        </div>
+        <div class="m-history-item">
+          <span class="m-hi-emoji">📚</span>
+          <div class="m-hi-body">
+            <b>商务英语</b>
+            <small>2 月前导入 · TXT</small>
+          </div>
+          <span class="m-hi-count">980 词</span>
+          <span class="m-hi-status">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Tips ===== -->
+    <div class="m-tips">
+      <span class="m-tb-emoji">💡</span>
+      <div class="m-tb-body">
+        <b>导入小贴士</b>
+        <p>单个文件最多 5,000 条。导入后自动进入素材库，可用于背单词、听打、跟读等所有练习模式。</p>
+      </div>
+    </div>
+
+    <!-- ===== Action Bar ===== -->
+    <div class="m-action">
+      <div class="m-action-info">
+        <span class="mai-dot"></span>
+        准备就绪 · 10 条待导入
+      </div>
+      <div class="m-action-btns">
+        <button class="m-action-btn ghost">📄 模板</button>
+        <button class="m-action-btn white">取消</button>
+        <button class="m-action-btn primary">✨ 导入 10 条</button>
+      </div>
+    </div>
+
+    <div class="m-footer">
+      🦉 英语听打 · 导入词库<br>
+      导入内容自动进入素材库，可用于所有练习模式 🚀
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

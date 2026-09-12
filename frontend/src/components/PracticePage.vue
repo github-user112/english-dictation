@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, preloadWord, sndRight, sndWrong, audioPlaying } from "../lib/core";
+import { api, Settings, audioEl, ensureAudio, playUrl, preloadAudio, playWord, sndRight, sndWrong, audioPlaying, todayNextStep, goTodayStep } from "../lib/core";
 import { makeTapGuard, onBlurCatch, onCharInput, onCompEnd, onCompStart } from "../lib/input";
 import WordCells from "./WordCells.vue";
 import SentenceCells from "./SentenceCells.vue";
@@ -31,6 +31,7 @@ const error = ref("");
 const saveError = ref("");
 const custom = ref(false);
 const customLabel = ref("错词重练");
+const wrongTask = ref(false);   // 今日错词回收任务：作答记入 daily_practice_log 的 wrong 桶
 const audioCache = ref({});
 const playToken = ref(0);
 const replayTimer = ref(null);
@@ -42,6 +43,8 @@ const catchEl = ref(null);
 const itemShownAt = ref(0);   // 当前题出现时刻，用于打字速度统计
 const lessonList = ref([]);   // 本素材的课次表（按课练习时拉取，用于自动跳下一课）
 const lessonDone = ref(false);// 本课打完，展示提示后自动跳下一课
+const fromToday = ref(false); // 今日动线入口带 from=today：打完跳下一关而不是下一课
+const todayNext = ref(null);  // 今日动线的下一关（完成本关时拉取）
 let mounted = true;
 
 function markItemShown() { itemShownAt.value = Date.now(); }
@@ -84,13 +87,21 @@ onMounted(async () => {
   scope.value = qs.get("scope") || (props.params?.get("scope") || "all");
   lesson.value = Number(qs.get("lesson") || props.params?.get("lesson")) || null;
   practiceMode.value = qs.get("mode") || props.params?.get("mode") || Settings.get().practiceMode;
-  const c = sessionStorage.getItem("dict_custom");
+  fromToday.value = qs.get("from") === "today";
+  wrongTask.value = qs.get("wrongtask") === "1";
+  // 自定义练习（错词重练/易混词/自定义文章）：凭 URL 的 custom=1 认领 sessionStorage 里的题组。
+  // 不删 dict_custom——刷新后同 URL 重新认领同一份题组；storage 被清（关标签页）则明确报错，
+  // 不再退回普通会话（否则会按 list 参数莫名变成句子听打）
+  const wantCustom = qs.get("custom") === "1";
+  const c = wantCustom ? sessionStorage.getItem("dict_custom") : null;
   if (c) {
     items.value = JSON.parse(c);
     customLabel.value = sessionStorage.getItem("dict_custom_label") || "错词重练";
-    sessionStorage.removeItem("dict_custom");
-    sessionStorage.removeItem("dict_custom_label");
     custom.value = true;
+  } else if (wantCustom) {
+    error.value = "练习数据已失效，请返回重新发起";
+    loading.value = false;
+    return;
   } else {
     try {
       await loadSession();
@@ -208,11 +219,17 @@ function onKey(ev) {
   }
   if (ev.key === "Enter") { ev.preventDefault(); submit(); return; }
   if (ev.key === "Escape") { clearReplay(); play(); return; }
+  if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {   // 方向键移动格内光标，配合点击定位改中间的字
+    ev.preventDefault();
+    if (!retrying.value) cells.value?.moveCursor?.(ev.key === "ArrowLeft" ? -1 : 1);
+    return;
+  }
   if (ev.key === "Backspace") {
     ev.preventDefault();
     if (!retrying.value) {
       cells.value.backspace();
       saveInputSnapshot();
+      submitIfCorrect();   // 删除后同样判对：修好末词应自动过关，与输入路径对称
     }
     return;
   }
@@ -223,14 +240,26 @@ function onKey(ev) {
   }
 }
 function onInput(ev) {
-  onCharInput(ev, typeChar, () => !submitted.value && !peeking.value);
+  onCharInput(ev, typeChar, () => !submitted.value && !peeking.value, () => {
+    // 与 onKey 的 Backspace 一致：判错红字保持期间不允许删除
+    if (!retrying.value) { cells.value?.backspace(); saveInputSnapshot(); submitIfCorrect(); }
+  });
+}
+function submitIfCorrect() {
+  // 删除路径的自动过关：只对“改对了”负责，判错仍由 Enter/满格触发（词模式 isFull 语义不变）
+  if (practiceMode.value !== "pure" && !submitted.value && cells.value?.isCorrect?.()) submit();
 }
 function typeChar(ch) {
   if (!cells.value || submitted.value) return;
   if (retrying.value) return;   // 判错后红色保持，按 Enter 才清空重输
   let wrong = false;
-  for (const c of ch) {
-    wrong = (mode.value === "word" ? cells.value.typeLetter(c) : cells.value.typeWordChar(c)) || wrong;
+  if (mode.value === "sentence" && ch.length > 1 && cells.value.typeText) {
+    // IME 组字/粘贴整句灌入：按词分发进格，错词标红留在原格，不会整句堵进第一格
+    wrong = cells.value.typeText(ch);
+  } else {
+    for (const c of ch) {
+      wrong = (mode.value === "word" ? cells.value.typeLetter(c) : cells.value.typeWordChar(c)) || wrong;
+    }
   }
   saveInputSnapshot();
   if (wrong && practiceMode.value !== "pure") {
@@ -299,10 +328,8 @@ async function preloadNext() {
   if (!mounted) return;
   const ni = items.value[cur.value + 1];
   if (!ni) return;
-  if (ni.kind === "word") {
-    preloadWord(ni);   // 单词：预拉取有道真人音
-    return;
-  }
+  // 单词不预拉：有道 dictvoice 不返回缓存头，预拉=白下载两遍，播放时照样重新请求
+  if (ni.kind === "word") return;
   if (audioCache.value[ni.text]) return;
   ensureAudio(ni).then((u) => {
     if (mounted) audioCache.value[ni.text] = u;
@@ -367,7 +394,8 @@ async function saveResult(outcome, finalRight) {
   return api("/result", { method: "POST", body: JSON.stringify({
     session_id: sessionId.value || undefined,
     // 易混词特练/错词重练的条目自带真实来源列表，优先于页面级 list
-    list: item.value.list || list.value, id: item.value.id, mode: practiceMode.value,
+    list: item.value.list || list.value, id: item.value.id,
+    mode: wrongTask.value ? "wrong" : practiceMode.value,
     first_right: firstRight.value, final_right: finalRight,
     attempt_count: attemptCount.value, outcome,
     right: finalRight, retried: firstRight.value === false,
@@ -437,6 +465,11 @@ function next() {
   if (nextTimer.value) { clearTimeout(nextTimer.value); nextTimer.value = null; }
   clearInputSnapshot();
   if (cur.value + 1 >= items.value.length) {
+    // 今日动线来的：本关完成 → 自动串联下一关，不推进课次（错词回收虽走 custom 题组，同样是动线一关）
+    if (fromToday.value && (!custom.value || wrongTask.value)) {
+      finishTodayStep();
+      return;
+    }
     // 按课练习且还有下一课：提示后自动跳转；否则回素材库
     if (!custom.value && lesson.value && nextLessonNo.value != null) {
       lessonDone.value = true;
@@ -464,6 +497,17 @@ function next() {
   }, 130);
 }
 function goCatalog() { location.hash = "#/catalog"; }
+async function finishTodayStep() {
+  lessonDone.value = true;
+  // 此刻末题已保存，/api/today 已把本关标为完成；按五环顺序找下一关（本页路由区分听打/听写/错词回收）
+  const stepKey = wrongTask.value ? "wrong"
+    : location.hash.replace(/^#\/?/, "").split("?")[0] === "sentence" ? "sentence" : "dictation";
+  todayNext.value = await todayNextStep(stepKey);
+  if (!mounted) return;
+  clearTimeout(nextTimer.value);
+  nextTimer.value = setTimeout(goNextStep, 2500);
+}
+function goNextStep() { goTodayStep(todayNext.value); }
 function goNextLesson() {
   if (!mounted || nextLessonNo.value == null) return;
   localStorage.setItem(`dict_lesson_${list.value}`, String(nextLessonNo.value));
@@ -537,12 +581,22 @@ function cycleSpeed() {
 <template>
   <div v-if="lessonDone" class="empty" role="status">
     <div style="font-size:42px;" aria-hidden="true">🎉</div>
-    <div style="font-size:20px;font-weight:700;margin-bottom:8px;">第 {{ lessonRank(lesson) }} 课听打完成！</div>
-    <p>即将自动进入第 {{ lessonRank(nextLessonNo) }} 课…</p>
-    <div class="controls" style="margin-top:14px;">
-      <button class="btn primary big" @click="goNextLesson">立即开始 →</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
-    </div>
+    <template v-if="fromToday">
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px;">{{ lesson ? `第 ${lessonRank(lesson)} 课完成！` : "本关完成！" }}</div>
+      <p>{{ todayNext ? `即将进入下一关：${todayNext.title}…` : "今日五环全通，正在返回…" }}</p>
+      <div class="controls" style="margin-top:14px;">
+        <button class="btn primary big" @click="goNextStep">{{ todayNext ? "下一关 →" : "返回今日 →" }}</button>
+        <button class="btn ghost" @click="goCatalog">返回今日动线</button>
+      </div>
+    </template>
+    <template v-else>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px;">第 {{ lessonRank(lesson) }} 课听打完成！</div>
+      <p>即将自动进入第 {{ lessonRank(nextLessonNo) }} 课…</p>
+      <div class="controls" style="margin-top:14px;">
+        <button class="btn primary big" @click="goNextLesson">立即开始 →</button>
+        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      </div>
+    </template>
   </div>
   <div v-else-if="error" class="empty" role="alert"><p>{{ error }}</p><button class="btn primary" @click="retryLoad">重试</button></div>
   <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
@@ -551,7 +605,8 @@ function cycleSpeed() {
 
     <!-- 会话驾驶舱：模式切换 / 进度 / 作用域 + 速度 -->
     <div class="cockpit">
-      <div class="mode-tabs">
+      <!-- 今日动线引导中隐藏模式切换：词/句是不同的关，由动线串联，词库也不同（nceN ↔ ncN） -->
+      <div class="mode-tabs" v-if="!fromToday">
         <a class="mode-tab" :class="{ active: mode === 'word' }"
            :href="'#/word?list=' + encodeURIComponent(list) + '&amp;scope=' + encodeURIComponent(scope) + '&amp;mode=' + encodeURIComponent(practiceMode) + (lesson ? '&amp;lesson=' + lesson : '')">
           <span class="ic">🔤</span> 单词听打

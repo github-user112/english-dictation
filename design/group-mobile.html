@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小组详情 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  .phone-frame {
+    max-width:400px; margin:0 auto; min-height:100vh;
+    position:relative; overflow:hidden;
+  }
+
+  /* Top Bar */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(247,247,247,0.95);
+    backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:8px; font-weight:900; font-size:17px; color:var(--green); }
+  .topbar-brand .owl { font-size:26px; animation:owl-bob 3s ease-in-out infinite; }
+  @keyframes owl-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  .topbar-stats { display:flex; align-items:center; gap:12px; }
+  .stat-item { display:flex; align-items:center; gap:4px; font-weight:800; font-size:14px; }
+  .stat-item.streak { color:var(--orange); }
+  .stat-item.xp { color:var(--gold); }
+
+  /* ===== Group Hero ===== */
+  .group-hero {
+    background:linear-gradient(135deg, var(--purple) 0%, #a855f7 100%);
+    border-radius:18px; padding:18px;
+    box-shadow:0 5px 0 var(--purple-dark), 0 8px 22px rgba(206,130,255,0.25);
+    position:relative; overflow:hidden;
+    margin:14px 14px 14px;
+  }
+  .group-hero::after {
+    content:''; position:absolute; top:-40px; right:-25px;
+    width:150px; height:150px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.13), transparent 70%);
+  }
+  .group-hero::before {
+    content:''; position:absolute; bottom:-50px; left:-30px;
+    width:130px; height:130px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.06), transparent 70%);
+  }
+  .gh-top { display:flex; align-items:center; gap:14px; margin-bottom:14px; position:relative; z-index:1; }
+  .gh-avatar {
+    width:60px; height:60px; border-radius:18px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:32px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(6px);
+    box-shadow:0 3px 0 rgba(0,0,0,0.15);
+    animation:hero-float 3s ease-in-out infinite;
+  }
+  @keyframes hero-float {
+    0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}
+  }
+  .gh-body { flex:1; min-width:0; }
+  .gh-eyebrow {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:3px 10px; border-radius:16px; font-size:11px; font-weight:900;
+    margin-bottom:6px;
+  }
+  .gh-eyebrow .pulse { width:6px; height:6px; border-radius:50%; background:#fff; animation:pulse-dot 1.5s ease infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .gh-body h1 { font-size:20px; font-weight:900; letter-spacing:-0.3px; margin-bottom:3px; line-height:1.3; }
+  .gh-body p { font-size:12px; font-weight:700; opacity:0.9; line-height:1.4; }
+
+  .gh-stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
+    position:relative; z-index:1;
+  }
+  .gh-stat {
+    background:rgba(255,255,255,0.18); backdrop-filter:blur(4px);
+    padding:10px 6px; border-radius:12px; text-align:center;
+  }
+  .gh-stat .ic { font-size:18px; }
+  .gh-stat .val { font-size:22px; font-weight:900; line-height:1; margin-top:2px; }
+  .gh-stat .lbl { font-size:10px; font-weight:800; opacity:0.85; margin-top:2px; }
+
+  .gh-tags {
+    display:flex; gap:6px; flex-wrap:wrap; margin-top:12px;
+    position:relative; z-index:1;
+  }
+  .gh-tag {
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(255,255,255,0.2); backdrop-filter:blur(4px);
+    padding:4px 10px; border-radius:10px; font-size:11px; font-weight:800;
+  }
+
+  /* ===== Action Buttons (mobile full-width) ===== */
+  .action-list {
+    display:flex; flex-direction:column; gap:8px;
+    margin:0 14px 14px;
+  }
+  .action-btn {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:13px 18px; border:none; border-radius:13px;
+    font-family:inherit; font-weight:900; font-size:14px;
+    cursor:pointer; text-decoration:none; white-space:nowrap;
+    transition:transform 0.1s; width:100%;
+  }
+  .action-btn:active { transform:translateY(3px); }
+  .action-btn.primary { background:var(--purple); color:#fff; box-shadow:0 4px 0 var(--purple-dark); }
+  .action-btn.primary:active { box-shadow:0 1px 0 var(--purple-dark); }
+  .action-btn.blue { background:var(--blue); color:#fff; box-shadow:0 4px 0 var(--blue-dark); }
+  .action-btn.blue:active { box-shadow:0 1px 0 var(--blue-dark); }
+  .action-btn.orange { background:var(--orange); color:#fff; box-shadow:0 4px 0 var(--orange-dark); }
+  .action-btn.orange:active { box-shadow:0 1px 0 var(--orange-dark); }
+
+  .action-grid-2 {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px;
+    margin:0 14px 14px;
+  }
+  .action-grid-2 .action-btn { padding:11px 12px; font-size:13px; border-radius:11px; }
+
+  /* ===== Section Header ===== */
+  .section-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px 10px;
+  }
+  .section-head h2 { font-size:17px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .section-head .sub { font-size:11px; font-weight:700; color:var(--text-dim); }
+  .section-head .more {
+    font-size:12px; font-weight:800; color:var(--purple-dark); text-decoration:none;
+    display:flex; align-items:center; gap:3px;
+  }
+
+  /* ===== Podium Card (mobile) ===== */
+  .podium-card {
+    margin:0 14px 14px;
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .pc-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .pc-head h3 { font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .pc-head h3 .ic { font-size:19px; }
+  .pc-head .sub { font-size:11px; font-weight:700; color:var(--text-dim); }
+
+  .podium-row {
+    display:flex; align-items:flex-end; justify-content:center;
+    gap:10px; margin-bottom:16px;
+  }
+  .podium-col {
+    display:flex; flex-direction:column; align-items:center;
+    position:relative;
+  }
+  .pcol-medal {
+    font-size:22px; margin-bottom:4px;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+  }
+  .pcol-avatar {
+    width:50px; height:50px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; box-shadow:0 3px 0 rgba(0,0,0,0.13);
+    margin-bottom:6px; position:relative;
+  }
+  .pcol-avatar.first {
+    width:58px; height:58px; font-size:28px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 3px rgba(255,200,0,0.3);
+  }
+  .pcol-avatar.second {
+    width:54px; height:54px; font-size:26px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 3px rgba(192,192,192,0.3);
+  }
+  .pcol-avatar.third {
+    width:52px; height:52px; font-size:25px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 3px rgba(205,127,50,0.3);
+  }
+  .pcol-name {
+    font-size:12px; font-weight:900; margin-bottom:4px;
+    display:flex; align-items:center; gap:4px;
+  }
+  .pcol-name .rank-badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:5px; font-size:10px;
+    font-weight:900;
+  }
+  .pcol-name .rank-badge.r1 { background:var(--gold); color:#fff; }
+  .pcol-name .rank-badge.r2 { background:#c0c0c0; color:#fff; }
+  .pcol-name .rank-badge.r3 { background:#cd7f32; color:#fff; }
+  .pcol-base {
+    background:#f7f7f7; border-radius:12px; padding:8px 10px;
+    text-align:center; width:100%; min-width:90px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.06);
+  }
+  .pcol-base.first { background:var(--gold-light); border:2px solid var(--gold); box-shadow:0 3px 0 rgba(255,200,0,0.25); }
+  .pcol-base.second { border:2px solid #e0e0e0; }
+  .pcol-base.third { border:2px solid #e8d4bc; }
+  .pcol-xp { font-size:14px; font-weight:900; color:var(--green-dark); }
+  .pcol-meta { font-size:10px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+  .pcol-meta .up { color:var(--green-dark); font-weight:800; }
+  .pcol-meta .down { color:var(--red); font-weight:800; }
+
+  /* ===== Leaderboard List ===== */
+  .lb-list { display:flex; flex-direction:column; gap:6px; }
+  .lb-item {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px; border-radius:11px;
+    background:#f7f7f7; transition:all 0.2s;
+  }
+  .lb-item.me { background:var(--purple-light); border:2px solid rgba(206,130,255,0.3); }
+  .lb-rank {
+    width:24px; height:24px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900; flex-shrink:0;
+    background:#e5e5e5; color:var(--text-dim);
+  }
+  .lb-rank.top { background:var(--gold); color:#fff; }
+  .lb-avatar {
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .lb-info { flex:1; min-width:0; }
+  .lb-info .name { font-size:12px; font-weight:800; margin-bottom:1px; display:flex; align-items:center; gap:4px; }
+  .lb-info .name .me-tag {
+    display:inline-flex; align-items:center;
+    padding:1px 5px; border-radius:5px; font-size:9px; font-weight:900;
+    background:var(--purple); color:#fff;
+  }
+  .lb-info .detail { font-size:10px; color:var(--text-dim); font-weight:600; }
+  .lb-xp { font-size:13px; font-weight:900; color:var(--green-dark); flex-shrink:0; }
+  .lb-trend {
+    font-size:10px; font-weight:800; flex-shrink:0;
+    display:inline-flex; align-items:center; gap:2px;
+  }
+  .lb-trend.up { color:var(--green-dark); }
+  .lb-trend.down { color:var(--red); }
+
+  /* ===== Member List (mobile) ===== */
+  .member-card {
+    margin:0 14px 14px;
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .mc-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .mc-head h3 { font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .mc-head h3 .ic { font-size:19px; }
+  .mc-head .count { font-size:11px; font-weight:700; color:var(--text-dim); }
+
+  .member-list { display:flex; flex-direction:column; gap:6px; }
+  .member-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:11px;
+    background:#f7f7f7; transition:all 0.2s;
+  }
+  .member-item.online { background:var(--green-bg); border:2px solid rgba(88,204,2,0.2); }
+  .mi-avatar {
+    width:36px; height:36px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(0,0,0,0.1);
+    position:relative;
+  }
+  .mi-avatar.online::after {
+    content:''; position:absolute; bottom:0; right:0;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--green); border:2px solid #fff;
+  }
+  .mi-info { flex:1; min-width:0; }
+  .mi-name { font-size:12px; font-weight:800; margin-bottom:1px; display:flex; align-items:center; gap:5px; }
+  .mi-name .role {
+    display:inline-flex; align-items:center;
+    padding:1px 6px; border-radius:5px; font-size:9px; font-weight:900;
+    background:var(--purple); color:#fff;
+  }
+  .mi-name .role.moderator { background:var(--blue); }
+  .mi-detail { font-size:10px; color:var(--text-dim); font-weight:600; }
+  .mi-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .mi-lv {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:2px 7px; border-radius:7px;
+    background:var(--purple-light); color:var(--purple-dark);
+    font-size:10px; font-weight:900;
+  }
+  .mi-xp {
+    font-size:12px; font-weight:900; color:var(--green-dark);
+    min-width:42px; text-align:right;
+  }
+  .mi-status {
+    font-size:9px; font-weight:800; color:var(--text-faint);
+  }
+  .mi-status.active { color:var(--green-dark); }
+  .mi-status.away { color:var(--orange); }
+
+  /* ===== Activity Feed (mobile) ===== */
+  .activity-card {
+    margin:0 14px 14px;
+    background:var(--panel); border-radius:16px; padding:16px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04);
+  }
+  .ac-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .ac-head h3 { font-size:15px; font-weight:900; display:flex; align-items:center; gap:6px; }
+  .ac-head h3 .ic { font-size:19px; }
+  .ac-head .filters { display:flex; gap:5px; }
+  .ac-filter {
+    padding:4px 10px; border-radius:9px; font-size:10px; font-weight:800;
+    background:#f0f0f0; color:var(--text-dim); cursor:pointer;
+    transition:all 0.2s; border:none; font-family:inherit;
+  }
+  .ac-filter.active { background:var(--purple); color:#fff; box-shadow:0 2px 0 var(--purple-dark); }
+
+  .activity-feed { display:flex; flex-direction:column; gap:8px; }
+  .af-item {
+    display:flex; align-items:flex-start; gap:10px;
+    padding:10px 12px; border-radius:11px;
+    background:#f7f7f7;
+  }
+  .af-item.highlight { background:var(--green-bg); border:2px solid rgba(88,204,2,0.2); }
+  .af-emoji {
+    width:34px; height:34px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; flex-shrink:0;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .af-emoji.green { background:var(--green-light); }
+  .af-emoji.blue { background:var(--blue-light); }
+  .af-emoji.orange { background:var(--orange-light); }
+  .af-emoji.gold { background:var(--gold-light); }
+  .af-emoji.purple { background:var(--purple-light); }
+  .af-emoji.red { background:#ffd9d9; }
+  .af-body { flex:1; min-width:0; }
+  .af-body .af-text { font-size:12px; font-weight:600; line-height:1.5; margin-bottom:3px; }
+  .af-body .af-text b { font-weight:900; }
+  .af-body .af-text .xp-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:1px 6px; border-radius:5px; font-size:10px; font-weight:900;
+    background:var(--gold-light); color:#a88800;
+  }
+  .af-body .af-text .badge-tag {
+    display:inline-flex; align-items:center; gap:3px;
+    padding:1px 6px; border-radius:5px; font-size:10px; font-weight:900;
+    background:var(--green-light); color:var(--green-dark);
+  }
+  .af-time { font-size:10px; font-weight:700; color:var(--text-faint); flex-shrink:0; }
+
+  /* ===== Footer Link ===== */
+  .footer-link {
+    display:block; text-align:center; margin:14px 16px 12px;
+    font-size:12px; font-weight:700; color:var(--text-dim); text-decoration:none;
+  }
+  .footer-link:hover { color:var(--purple); }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span> 英语听打 · 小组详情
+    </div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">🔥 12</div>
+      <div class="stat-item xp">⚡ 2,340</div>
+    </div>
+  </div>
+
+  <!-- Group Hero -->
+  <div class="group-hero">
+    <div class="gh-top">
+      <div class="gh-avatar">⚔️</div>
+      <div class="gh-body">
+        <div class="gh-eyebrow"><span class="pulse"></span> 活跃中 · 第 3 周</div>
+        <h1>每日听打 PK 战队</h1>
+        <p>每日组队 PK · 每周积分清零 · 冠军双倍 XP</p>
+      </div>
+    </div>
+    <div class="gh-stats">
+      <div class="gh-stat">
+        <div class="ic">👥</div>
+        <div class="val">14</div>
+        <div class="lbl">成员</div>
+      </div>
+      <div class="gh-stat">
+        <div class="ic">⚡</div>
+        <div class="val">2,106</div>
+        <div class="lbl">小组 XP</div>
+      </div>
+      <div class="gh-stat">
+        <div class="ic">🔥</div>
+        <div class="val">11</div>
+        <div class="lbl">今日活跃</div>
+      </div>
+    </div>
+    <div class="gh-tags">
+      <span class="gh-tag">🎯 每日 PK</span>
+      <span class="gh-tag">👥 14 人</span>
+      <span class="gh-tag">📅 2 周</span>
+    </div>
+  </div>
+
+  <!-- Actions (mobile full-width) -->
+  <div class="action-grid-2">
+    <a class="action-btn primary" href="#">🎮 发起 PK</a>
+    <button class="action-btn blue">📨 邀请成员</button>
+  </div>
+  <div class="action-list">
+    <button class="action-btn orange">🏆 查看小组规则与奖励</button>
+  </div>
+
+  <!-- Section: Leaderboard -->
+  <div class="section-head">
+    <h2>🏆 本周排行榜</h2>
+    <span class="sub">距重置 2 天</span>
+  </div>
+
+  <div class="podium-card">
+    <div class="podium-row">
+
+      <!-- 2nd -->
+      <div class="podium-col">
+        <div class="pcol-medal">🥈</div>
+        <div class="pcol-avatar second" style="background:linear-gradient(135deg, var(--blue), #4dd0ff);">👩</div>
+        <div class="pcol-name">
+          <span class="rank-badge r2">2</span>
+          林小美
+        </div>
+        <div class="pcol-base second">
+          <div class="pcol-xp">384 XP</div>
+          <div class="pcol-meta"><span class="up">▲ +12</span></div>
+        </div>
+      </div>
+
+      <!-- 1st -->
+      <div class="podium-col">
+        <div class="pcol-medal">🏆</div>
+        <div class="pcol-avatar first" style="background:linear-gradient(135deg, var(--gold), #ffe066);">🧑</div>
+        <div class="pcol-name">
+          <span class="rank-badge r1">1</span>
+          王大力
+        </div>
+        <div class="pcol-base first">
+          <div class="pcol-xp">412 XP</div>
+          <div class="pcol-meta"><span class="up">▲ +28</span></div>
+        </div>
+      </div>
+
+      <!-- 3rd -->
+      <div class="podium-col">
+        <div class="pcol-medal">🥉</div>
+        <div class="pcol-avatar third" style="background:linear-gradient(135deg, var(--orange), #ffb347);">👦</div>
+        <div class="pcol-name">
+          <span class="rank-badge r3">3</span>
+          张小明
+        </div>
+        <div class="pcol-base third">
+          <div class="pcol-xp">356 XP</div>
+          <div class="pcol-meta"><span class="down">▼ -8</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="lb-list">
+      <div class="lb-item">
+        <div class="lb-rank">4</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--green), #6fdd1a);">👧</div>
+        <div class="lb-info">
+          <div class="name">赵晓琳</div>
+          <div class="detail">连对 12 · 8 天 streak</div>
+        </div>
+        <div class="lb-trend down">▼ -2</div>
+        <div class="lb-xp">340</div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank">5</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">🧔</div>
+        <div class="lb-info">
+          <div class="name">李建国</div>
+          <div class="detail">PK 胜率 67% · 5 连胜</div>
+        </div>
+        <div class="lb-trend up">▲ +5</div>
+        <div class="lb-xp">318</div>
+      </div>
+      <div class="lb-item me">
+        <div class="lb-rank top">6</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">👨</div>
+        <div class="lb-info">
+          <div class="name">你 <span class="me-tag">ME</span></div>
+          <div class="detail">PK 胜率 71% · 3 连胜</div>
+        </div>
+        <div class="lb-trend up">▲ +9</div>
+        <div class="lb-xp">296</div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank">7</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, var(--red), #ff7a7a);">👩‍🦰</div>
+        <div class="lb-info">
+          <div class="name">陈思思</div>
+          <div class="detail">听打正确率 92%</div>
+        </div>
+        <div class="lb-trend up">▲ +3</div>
+        <div class="lb-xp">274</div>
+      </div>
+      <div class="lb-item">
+        <div class="lb-rank">8</div>
+        <div class="lb-avatar" style="background:linear-gradient(135deg, #14b8a6, #5eead4);">🧑‍🦱</div>
+        <div class="lb-info">
+          <div class="name">周文杰</div>
+          <div class="detail">今日打卡 · 首对 4 题</div>
+        </div>
+        <div class="lb-trend down">▼ -1</div>
+        <div class="lb-xp">251</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Members -->
+  <div class="section-head">
+    <h2>👥 成员列表</h2>
+    <span class="sub">14 人 · 9 在线</span>
+  </div>
+
+  <div class="member-card">
+    <div class="member-list">
+      <div class="member-item online">
+        <div class="mi-avatar online" style="background:linear-gradient(135deg, var(--gold), #ffe066);">🧑</div>
+        <div class="mi-info">
+          <div class="mi-name">王大力 <span class="role">队长</span></div>
+          <div class="mi-detail">Lv.8 · 听打 35 题</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.8</span>
+          <span class="mi-xp">1,240</span>
+          <span class="mi-status active">● 在线</span>
+        </div>
+      </div>
+      <div class="member-item online">
+        <div class="mi-avatar online" style="background:linear-gradient(135deg, var(--blue), #4dd0ff);">👩</div>
+        <div class="mi-info">
+          <div class="mi-name">林小美 <span class="role moderator">管理</span></div>
+          <div class="mi-detail">Lv.7 · 连对 28 题</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.7</span>
+          <span class="mi-xp">980</span>
+          <span class="mi-status active">● 在线</span>
+        </div>
+      </div>
+      <div class="member-item">
+        <div class="mi-avatar" style="background:linear-gradient(135deg, var(--orange), #ffb347);">👦</div>
+        <div class="mi-info">
+          <div class="mi-name">张小明</div>
+          <div class="mi-detail">Lv.6 · PK 胜率 58%</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.6</span>
+          <span class="mi-xp">762</span>
+          <span class="mi-status">离线</span>
+        </div>
+      </div>
+      <div class="member-item">
+        <div class="mi-avatar" style="background:linear-gradient(135deg, var(--green), #6fdd1a);">👧</div>
+        <div class="mi-info">
+          <div class="mi-name">赵晓琳</div>
+          <div class="mi-detail">Lv.7 · 8 天 streak</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.7</span>
+          <span class="mi-xp">845</span>
+          <span class="mi-status">离线</span>
+        </div>
+      </div>
+      <div class="member-item online">
+        <div class="mi-avatar online" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">🧔</div>
+        <div class="mi-info">
+          <div class="mi-name">李建国</div>
+          <div class="mi-detail">Lv.6 · 5 连胜</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.6</span>
+          <span class="mi-xp">698</span>
+          <span class="mi-status active">● 在线</span>
+        </div>
+      </div>
+      <div class="member-item online">
+        <div class="mi-avatar online" style="background:linear-gradient(135deg, var(--purple), #e0aaff);">👨</div>
+        <div class="mi-info">
+          <div class="mi-name">你 <span class="role">成员</span></div>
+          <div class="mi-detail">Lv.5 · 3 连胜</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.5</span>
+          <span class="mi-xp">540</span>
+          <span class="mi-status active">● 在线</span>
+        </div>
+      </div>
+      <div class="member-item online">
+        <div class="mi-avatar online" style="background:linear-gradient(135deg, var(--red), #ff7a7a);">👩‍🦰</div>
+        <div class="mi-info">
+          <div class="mi-name">陈思思</div>
+          <div class="mi-detail">Lv.4 · 正确率 92%</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.4</span>
+          <span class="mi-xp">386</span>
+          <span class="mi-status active">● 在线</span>
+        </div>
+      </div>
+      <div class="member-item">
+        <div class="mi-avatar" style="background:linear-gradient(135deg, #14b8a6, #5eead4);">🧑‍🦱</div>
+        <div class="mi-info">
+          <div class="mi-name">周文杰</div>
+          <div class="mi-detail">Lv.3 · 今日打卡</div>
+        </div>
+        <div class="mi-right">
+          <span class="mi-lv">🏆 Lv.3</span>
+          <span class="mi-xp">210</span>
+          <span class="mi-status away">⚡ 离开</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Activity Feed -->
+  <div class="section-head">
+    <h2>📜 小组动态</h2>
+  </div>
+
+  <div class="activity-card">
+    <div class="ac-head">
+      <h3>最新</h3>
+      <div class="filters">
+        <button class="ac-filter active">全部</button>
+        <button class="ac-filter">🎮 PK</button>
+        <button class="ac-filter">📊 成就</button>
+      </div>
+    </div>
+
+    <div class="activity-feed">
+
+      <div class="af-item highlight">
+        <div class="af-emoji green">🏆</div>
+        <div class="af-body">
+          <div class="af-text"><b>王大力</b> 获 <span class="badge-tag">🎖️ 本周 MVP</span>，听打 35 题全对 <span class="xp-tag">⚡ 双倍 XP</span></div>
+          <div class="af-time">10 分钟前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji blue">🎮</div>
+        <div class="af-body">
+          <div class="af-text"><b>你</b> 与 <b>林小美</b> PK 3:2 获胜 <span class="xp-tag">⚡ 50 XP</span></div>
+          <div class="af-time">25 分钟前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji orange">📊</div>
+        <div class="af-body">
+          <div class="af-text"><b>赵晓琳</b> 达成 <span class="badge-tag">🔥 8 天 streak</span>，累计 320 题</div>
+          <div class="af-time">1 小时前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji gold">🎖️</div>
+        <div class="af-body">
+          <div class="af-text"><b>李建国</b> 5 连胜，获 <span class="badge-tag">⚔️ 连胜之矛</span> 成就</div>
+          <div class="af-time">2 小时前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji purple">👥</div>
+        <div class="af-body">
+          <div class="af-text"><b>陈思思</b> 加入小组，当前 <b>14</b> 人</div>
+          <div class="af-time">3 小时前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji red">🎯</div>
+        <div class="af-body">
+          <div class="af-text"><b>张小明</b> 听打 24 题，正确率 <b>88%</b>，小组活跃 79%</div>
+          <div class="af-time">4 小时前</div>
+        </div>
+      </div>
+
+      <div class="af-item">
+        <div class="af-emoji blue">📖</div>
+        <div class="af-body">
+          <div class="af-text"><b>周文杰</b> 完成 CET-4 背诵，获 <span class="badge-tag">🎓 词汇新星</span></div>
+          <div class="af-time">5 小时前</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <a class="footer-link" href="#">查看全部动态 →</a>
+</div>
+</body>
+</html>

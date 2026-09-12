@@ -389,6 +389,21 @@
   box-shadow: 0 0 8px rgba(88, 204, 2, .5);
   animation: caret-blink 1.1s var(--ease-inout) infinite;
 }
+/* 与 word-line 同理：当前格打错时错色优先于当前格绿框 */
+.practice .cell.letter-line.current.wrong,
+.practice .cell.letter-line.current.bad {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
+  box-shadow: 0 3px 0 rgba(255, 75, 75, .22), 0 0 0 5px rgba(255, 75, 75, .14);
+}
+:root[data-theme="dark"] .practice .cell.letter-line.current.wrong,
+:root[data-theme="dark"] .practice .cell.letter-line.current.bad {
+  background: rgba(255, 75, 75, .14);
+  color: var(--red);
+  box-shadow: 0 3px 0 #000, 0 0 0 5px rgba(255, 75, 75, .16);
+}
+.practice .cell.letter-line.current.wrong::after { background: var(--red); box-shadow: 0 0 8px rgba(255, 75, 75, .55); }
 
 /* 句子：逐词圆角输入格（蓝=听/学） */
 .practice .cell.word-line {
@@ -466,6 +481,22 @@
   animation: caret-blink 1.1s var(--ease-inout) infinite;
 }
 .practice .cell.word-line.current:not(:empty)::after { left: auto; right: 14px; }
+/* 当前词格改用语内嵌 .midcaret 字符级光标（点击定位后可能在词中间），词尾 ::after 让位 */
+.practice .cell.word-line.current.has-midcaret::after { display: none; }
+
+/* 当前格同时是错格：.wrong 与 .current 同优先级但 .current 定义在后会被盖掉，此处明确错色优先 */
+.practice .cell.word-line.current.wrong {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
+  box-shadow: 0 3px 0 rgba(255, 75, 75, .22), 0 0 0 5px rgba(255, 75, 75, .14);
+}
+:root[data-theme="dark"] .practice .cell.word-line.current.wrong {
+  background: rgba(255, 75, 75, .14);
+  color: var(--red);
+  box-shadow: 0 3px 0 #000, 0 0 0 5px rgba(255, 75, 75, .16);
+}
+.practice .cell.word-line.current.wrong::after { background: var(--red); box-shadow: 0 0 8px rgba(255, 75, 75, .55); }
 
 /* 纯听写模式的整行输入 */
 .practice .cell.pure-line {

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账号中心 · 英语听打</title>
+<link rel="stylesheet" href="duolingo-system.css">
+<style>
+  /* ============ Page-specific styles ============ */
+
+  /* ---- Page head ---- */
+  .page-head {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin:18px 4px 18px; gap:16px; flex-wrap:wrap;
+  }
+  .page-head h1 {
+    font-size:32px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;
+    display:flex; align-items:center; gap:10px;
+  }
+  .page-head h1 .emoji { font-size:34px; }
+  .page-head p { font-size:14px; font-weight:700; color:var(--text-dim); margin-top:4px; }
+  .head-actions { display:flex; gap:8px; }
+  .head-actions .btn-sm { padding:8px 14px; font-size:13px; border-radius:10px; }
+
+  /* ============ Profile Hero ============ */
+  .profile-hero {
+    background:linear-gradient(135deg, #1cb0f6 0%, #4dd0ff 45%, #ce82ff 100%);
+    border-radius:22px; padding:26px 30px; color:#fff;
+    box-shadow:0 6px 0 var(--blue-dark), 0 12px 32px rgba(28,176,246,0.28);
+    position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .profile-hero::after {
+    content:''; position:absolute; top:-70px; right:-40px;
+    width:240px; height:240px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .profile-hero::before {
+    content:''; position:absolute; bottom:-80px; left:-30px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .ph-row { display:flex; align-items:center; gap:24px; position:relative; z-index:1; }
+  .ph-avatar {
+    width:88px; height:88px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(135deg, var(--gold), #ffdf6b);
+    display:flex; align-items:center; justify-content:center; font-size:44px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15), 0 0 0 4px rgba(255,255,255,0.4);
+    filter:drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+  }
+  .ph-id { flex:1; min-width:0; }
+  .ph-name-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .ph-name { font-size:26px; font-weight:900; letter-spacing:-0.3px; }
+  .ph-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.22); backdrop-filter:blur(4px);
+    padding:4px 12px; border-radius:10px; font-weight:900; font-size:12px;
+  }
+  .ph-title {
+    font-size:12px; font-weight:900; letter-spacing:0.5px; text-transform:uppercase;
+    opacity:0.9; margin-bottom:3px;
+  }
+  .ph-sub {
+    font-size:13px; font-weight:700; opacity:0.95; line-height:1.5;
+    margin-bottom:14px;
+  }
+  .ph-stats {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;
+    position:relative; z-index:1;
+  }
+  .ph-stat {
+    background:rgba(255,255,255,0.16); backdrop-filter:blur(4px);
+    border-radius:14px; padding:12px 14px; text-align:center;
+  }
+  .ph-stat .ic { font-size:20px; display:block; margin-bottom:2px; }
+  .ph-stat .v { font-size:20px; font-weight:900; line-height:1.2; }
+  .ph-stat .k { font-size:11px; font-weight:800; opacity:0.9; margin-top:2px; }
+
+  /* ============ Level Progress ============ */
+  .level-card {
+    background:var(--panel); border-radius:18px; padding:20px 22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px; position:relative;
+  }
+  .level-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .level-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .level-head .title .ic { font-size:26px; }
+  .level-head .cur { font-size:14px; font-weight:800; color:var(--text-dim); }
+  .level-head .cur b { color:var(--purple); font-size:16px; }
+
+  .level-row { display:flex; align-items:center; gap:18px; }
+  .level-badge {
+    width:88px; height:88px; border-radius:22px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--purple), #e0aaff);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:#fff; box-shadow:0 4px 0 var(--purple-dark), 0 8px 20px rgba(206,130,255,0.3);
+    position:relative;
+  }
+  .level-badge::after {
+    content:''; position:absolute; top:-8px; right:-8px;
+    width:32px; height:32px; border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), #ffdf6b);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900; color:#5a3e00;
+    box-shadow:0 2px 0 rgba(0,0,0,0.12);
+  }
+  .level-badge .n { font-size:30px; font-weight:900; line-height:1; }
+  .level-badge .k { font-size:10px; font-weight:900; opacity:0.9; margin-top:2px; }
+
+  .level-info { flex:1; min-width:0; }
+  .level-info .name { font-size:20px; font-weight:900; color:var(--purple-dark); margin-bottom:4px; }
+  .level-info .desc { font-size:13px; font-weight:700; color:var(--text-dim); margin-bottom:10px; }
+  .level-bar-wrap { margin-bottom:6px; }
+  .level-bar-wrap .progress-bar { height:14px; }
+  .level-bar-wrap .progress-fill {
+    background:linear-gradient(90deg, var(--purple), #e0aaff);
+    box-shadow:0 2px 0 rgba(0,0,0,0.06);
+  }
+  .level-bar-wrap .progress-label { font-size:11px; }
+  .level-bar-wrap .progress-label b { color:var(--purple-dark); }
+
+  .level-next {
+    display:flex; align-items:center; gap:10px;
+    background:var(--purple-light); border-radius:12px; padding:10px 14px; margin-top:10px;
+  }
+  .level-next .ic { font-size:22px; }
+  .level-next .txt { flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--text-dim); line-height:1.4; }
+  .level-next .txt b { color:var(--purple-dark); font-weight:900; }
+
+  /* ============ Tabs ============ */
+  .mob-tab-bar {
+    display:flex; gap:4px; background:#ececec; padding:5px;
+    border-radius:14px; margin-bottom:18px;
+  }
+  .tab-btn {
+    flex:1; padding:12px 8px; border-radius:10px;
+    font-weight:800; font-size:14px; text-align:center;
+    background:transparent; color:var(--text-dim);
+    cursor:pointer; font-family:inherit; border:none;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  .tab-btn .t-ic { font-size:20px; }
+  .tab-btn.active { background:#fff; color:var(--green-dark); box-shadow:0 2px 0 rgba(0,0,0,0.08); }
+
+  /* ============ Grid Layouts ============ */
+  .main-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;
+  }
+  .main-grid-full { margin-bottom:18px; }
+
+  /* ============ Section Cards ============ */
+  .section-card {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+  }
+  .sc-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; flex-wrap:wrap; }
+  .sc-head .title { font-size:18px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .sc-head .title .ic { font-size:26px; }
+  .sc-head .sub { font-size:12px; font-weight:800; color:var(--text-dim); }
+
+  /* ============ Account Status Card ============ */
+  .account-status {
+    background:var(--panel); border-radius:18px; padding:22px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.04);
+    margin-bottom:18px;
+  }
+  .as-head { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .as-head .ic {
+    width:56px; height:56px; border-radius:16px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--green), #6fdd1a);
+    display:flex; align-items:center; justify-content:center; font-size:28px;
+    box-shadow:0 3px 0 var(--green-dark);
+  }
+  .as-head .title { font-size:18px; font-weight:900; }
+  .as-head .sub { font-size:12px; font-weight:700; color:var(--text-dim); margin-top:2px; }
+
+  .as-rows { display:flex; flex-direction:column; gap:12px; }
+  .as-row {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px; border-radius:14px; background:#f7f7f7;
+    transition:all 0.15s;
+  }
+  .as-row:hover { background:#f0f0f0; }
+  .as-row .r-ic {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .as-row .r-ic.green { background:var(--green-light); }
+  .as-row .r-ic.blue { background:var(--blue-light); }
+  .as-row .r-ic.orange { background:var(--orange-light); }
+  .as-row .r-ic.purple { background:var(--purple-light); }
+  .as-row .r-ic.red { background:var(--red-light); }
+  .as-row .r-body { flex:1; min-width:0; }
+  .as-row .r-body b { display:block; font-size:14px; font-weight:800; margin-bottom:2px; }
+  .as-row .r-body small { font-size:12px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+  .as-row .r-val {
+    flex-shrink:0; font-size:13px; font-weight:900;
+    display:flex; align-items:center; gap:6px;
+  }
+  .as-row .r-val.verified { color:var(--green-dark); }
+  .as-row .r-val.warning { color:var(--orange-dark); }
+  .as-row .r-val.normal { color:var(--text-dim); }
+  .as-row .r-go {
+    flex-shrink:0; width:30px; height:30px; border-radius:10px;
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:900; color:var(--green);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08); cursor:pointer;
+  }
+
+  /* ============ Security Settings ============ */
+  .setting-row {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px; border-radius:14px; background:#f7f7f7;
+    margin-bottom:10px; transition:all 0.15s;
+  }
+  .setting-row:last-child { margin-bottom:0; }
+  .setting-row:hover { background:#f0f0f0; }
+  .setting-row .s-ic {
+    width:40px; height:40px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .setting-row .s-ic.green { background:var(--green-light); }
+  .setting-row .s-ic.blue { background:var(--blue-light); }
+  .setting-row .s-ic.orange { background:var(--orange-light); }
+  .setting-row .s-ic.purple { background:var(--purple-light); }
+  .setting-row .s-ic.red { background:var(--red-light); }
+  .setting-row .s-ic.gold { background:var(--gold-light); }
+  .setting-row .s-body { flex:1; min-width:0; }
+  .setting-row .s-body b { display:block; font-size:14px; font-weight:800; margin-bottom:2px; }
+  .setting-row .s-body small { font-size:12px; color:var(--text-dim); font-weight:600; line-height:1.4; }
+
+  /* Toggle switch */
+  .toggle {
+    width:48px; height:28px; border-radius:14px; background:#ccc;
+    position:relative; cursor:pointer; flex-shrink:0; transition:background 0.2s;
+  }
+  .toggle.on { background:var(--green); }
+  .toggle::after {
+    content:''; position:absolute; top:3px; left:3px;
+    width:22px; height:22px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2); transition:left 0.2s;
+  }
+  .toggle.on::after { left:23px; }
+
+  /* ============ Login Sessions ============ */
+  .session-list { display:flex; flex-direction:column; gap:10px; }
+  .session-item {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 16px; border-radius:14px; background:#f7f7f7;
+    border:2px solid transparent;
+  }
+  .session-item.current { border-color:var(--green); background:var(--green-bg); }
+  .session-item .s-ic {
+    width:44px; height:44px; border-radius:12px; flex-shrink:0;
+    background:#fff; display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .session-item .s-body { flex:1; min-width:0; }
+  .session-item .s-body b { display:block; font-size:14px; font-weight:800; margin-bottom:2px; }
+  .session-item .s-body small { font-size:12px; color:var(--text-dim); font-weight:600; }
+  .session-item .s-loc { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--text-dim); margin-top:2px; font-weight:700; }
+  .session-item .s-time {
+    flex-shrink:0; font-size:11px; font-weight:800; color:var(--text-dim);
+    background:#fff; padding:4px 10px; border-radius:8px;
+  }
+  .session-item .s-logout {
+    flex-shrink:0; padding:6px 12px; border-radius:10px;
+    background:var(--red-light); color:var(--red-dark); font-weight:800; font-size:12px;
+    cursor:pointer; border:none; font-family:inherit;
+  }
+
+  /* ============ Achievements Grid ============ */
+  .ach-grid {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;
+  }
+  .ach-item {
+    background:#f7f7f7; border-radius:14px; padding:14px 12px;
+    text-align:center; position:relative; transition:all 0.15s;
+  }
+  .ach-item.unlocked { background:var(--gold-light); border:2px solid rgba(255,200,0,0.4); }
+  .ach-item.locked { opacity:0.5; }
+  .ach-item .ic {
+    font-size:32px; margin-bottom:6px; display:block;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }
+  .ach-item .name { font-size:12px; font-weight:900; margin-bottom:2px; }
+  .ach-item .date { font-size:10px; font-weight:700; color:var(--text-dim); }
+  .ach-item.unlocked::after {
+    content:'✓'; position:absolute; top:6px; right:8px;
+    font-size:10px; font-weight:900; color:var(--green-dark);
+  }
+
+  /* ============ Data Export Card ============ */
+  .data-card {
+    background:linear-gradient(135deg, var(--purple) 0%, #e0aaff 100%);
+    border-radius:18px; padding:22px; color:#fff;
+    box-shadow:0 5px 0 var(--purple-dark), 0 10px 24px rgba(206,130,255,0.28);
+    position:relative; overflow:hidden; margin-bottom:18px;
+  }
+  .data-card::after {
+    content:''; position:absolute; top:-40px; right:-20px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,0.10);
+  }
+  .data-card::before {
+    content:''; position:absolute; bottom:-50px; left:25%;
+    width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+  }
+  .dc-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; position:relative; z-index:1; }
+  .dc-head .ic { font-size:32px; }
+  .dc-head .title { font-size:20px; font-weight:900; }
+  .dc-desc { font-size:13px; font-weight:700; opacity:0.95; line-height:1.5; margin-bottom:14px; position:relative; z-index:1; }
+  .dc-btns { display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1; }
+  .dc-btns .btn { background:rgba(255,255,255,0.22); color:#fff; box-shadow:0 4px 0 rgba(0,0,0,0.12); backdrop-filter:blur(4px); }
+  .dc-btns .btn:active { box-shadow:0 1px 0 rgba(0,0,0,0.12); }
+  .dc-btns .btn.solid { background:#fff; color:var(--purple-dark); box-shadow:0 4px 0 rgba(0,0,0,0.15); }
+  .dc-btns .btn.solid:active { box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+
+  /* ============ Footer ============ */
+  .foot {
+    text-align:center; margin-top:16px;
+    font-size:12px; color:var(--text-faint); font-weight:700;
+  }
+
+  /* ============ Animations ============ */
+  @keyframes owl-bounce {
+    0%,100% { transform:translateY(0); }
+    50% { transform:translateY(-3px); }
+  }
+
+  @keyframes pulse-green {
+    0%,100% { box-shadow:0 4px 0 var(--green-dark), 0 0 0 0 rgba(88,204,2,0.3); }
+    50% { box-shadow:0 4px 0 var(--green-dark), 0 0 0 8px rgba(88,204,2,0); }
+  }
+  .pulse-safe { animation:pulse-green 2.5s ease infinite; }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <span class="owl">🦉</span>
+      <span>英语听打</span>
+    </div>
+    <div style="font-weight:900; font-size:16px; color:var(--text);">账号中心</div>
+    <div class="topbar-stats">
+      <div class="stat-item streak">
+        <span class="icon">🔥</span>
+        <span>27</span>
+      </div>
+      <div class="stat-item xp">
+        <span class="icon">⚡</span>
+        <span>42,380</span>
+      </div>
+      <div class="stat-item level">
+        <span class="icon">🎯</span>
+        <span>Lv.11</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE HEAD ============ -->
+  <div class="page-head">
+    <div>
+      <h1><span class="emoji">👤</span> 账号中心</h1>
+      <p>管理你的账号、登录方式、安全设置与数据隐私</p>
+    </div>
+    <div class="head-actions">
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">⚙️ 设置</a>
+      <a href="#" class="btn btn-white btn-sm" style="text-decoration:none;">🚪 退出登录</a>
+    </div>
+  </div>
+
+  <!-- ============ PROFILE HERO ============ -->
+  <div class="profile-hero">
+    <div class="ph-row">
+      <div class="ph-avatar">🌟</div>
+      <div class="ph-id">
+        <div class="ph-name-row">
+          <span class="ph-name">李明远</span>
+          <span class="ph-badge">🎯 Lv.11</span>
+          <span class="ph-badge">🏅 词汇大师</span>
+        </div>
+        <div class="ph-title">Vocabulary Master · 词力等级 11</div>
+        <div class="ph-sub">
+          已坚持学习 <b>86 天</b> · 注册于 2025年7月 · 当前账号类型：<b style="color:#fff;">已验证</b>
+        </div>
+        <div class="ph-stats">
+          <div class="ph-stat">
+            <span class="ic">🔥</span>
+            <div class="v">27</div>
+            <div class="k">连续打卡</div>
+          </div>
+          <div class="ph-stat">
+            <span class="ic">⚡</span>
+            <div class="v">42,380</div>
+            <div class="k">总经验值</div>
+          </div>
+          <div class="ph-stat">
+            <span class="ic">📚</span>
+            <div class="v">3,847</div>
+            <div class="k">掌握单词</div>
+          </div>
+          <div class="ph-stat">
+            <span class="ic">🏆</span>
+            <div class="v">48</div>
+            <div class="k">获得成就</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEVEL PROGRESS ============ -->
+  <div class="level-card">
+    <div class="level-head">
+      <div class="title"><span class="ic">🌟</span> 词力等级进度</div>
+      <div class="cur">当前 <b>Lv.11 词汇大师</b> · 下一等级 Lv.12 词汇宗师</div>
+    </div>
+    <div class="level-row">
+      <div class="level-badge">
+        <div class="n">11</div>
+        <div class="k">LV</div>
+        <span style="position:absolute; top:-12px; right:-12px; font-size:16px;">⭐</span>
+      </div>
+      <div class="level-info">
+        <div class="name">词汇大师 · Vocabulary Master</div>
+        <div class="desc">掌握词汇量已超过 3,000 词，正在向 5,000 词进军</div>
+        <div class="level-bar-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:72%;"></div>
+          </div>
+          <div class="progress-label">
+            <span>已积累经验 <b>3,500</b> / 5,000 XP</span>
+            <span>72%</span>
+          </div>
+        </div>
+        <div class="level-next">
+          <span class="ic">📈</span>
+          <div class="txt">
+            还需 <b>1,500 XP</b> 解锁 <b>Lv.12 词汇宗师</b> · 预计再学 <b>5 天</b> 即可达成
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TABS ============ -->
+  <div class="mob-tab-bar">
+    <button class="tab-btn active">
+      <span class="t-ic">👤</span>
+      <span>个人信息</span>
+    </button>
+    <button class="tab-btn">
+      <span class="t-ic">🔐</span>
+      <span>安全设置</span>
+    </button>
+    <button class="tab-btn">
+      <span class="t-ic">📱</span>
+      <span>登录设备</span>
+    </button>
+    <button class="tab-btn">
+      <span class="t-ic">🏅</span>
+      <span>成就徽章</span>
+    </button>
+    <button class="tab-btn">
+      <span class="t-ic">📤</span>
+      <span>数据管理</span>
+    </button>
+  </div>
+
+  <!-- ============ PERSONAL INFO + SECURITY ============ -->
+  <div class="main-grid">
+
+    <!-- Personal Info -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">👤</span> 个人信息</div>
+        <div class="sub">当前用户信息</div>
+      </div>
+      <div class="as-rows">
+        <div class="as-row">
+          <div class="r-ic green">🌟</div>
+          <div class="r-body">
+            <b>用户名</b>
+            <small>li_mingyuan_2025</small>
+          </div>
+          <div class="r-go">✏️</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic blue">📧</div>
+          <div class="r-body">
+            <b>邮箱</b>
+            <small>limingyuan@example.com</small>
+          </div>
+          <div class="r-val verified">✓ 已验证</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic orange">📱</div>
+          <div class="r-body">
+            <b>手机号</b>
+            <small>+86 138 **** 6688</small>
+          </div>
+          <div class="r-val verified">✓ 已验证</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic purple">📅</div>
+          <div class="r-body">
+            <b>注册日期</b>
+            <small>2025 年 7 月 6 日</small>
+          </div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic red">🎂</div>
+          <div class="r-body">
+            <b>生日</b>
+            <small>未设置</small>
+          </div>
+          <div class="r-go">✏️</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic blue">🌐</div>
+          <div class="r-body">
+            <b>个人简介</b>
+            <small>热爱英语，目标 CET-6 600+，每天听打打卡</small>
+          </div>
+          <div class="r-go">✏️</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Security Settings -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🔐</span> 安全设置</div>
+        <div class="sub">账号安全总览</div>
+      </div>
+
+      <div class="as-rows">
+        <div class="as-row">
+          <div class="r-ic green">🔑</div>
+          <div class="r-body">
+            <b>修改密码</b>
+            <small>上次修改：2026 年 8 月 12 日 · 密码强度：强</small>
+          </div>
+          <div class="r-val normal">最近修改</div>
+          <div class="r-go">→</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic orange">🛡️</div>
+          <div class="r-body">
+            <b>两步验证</b>
+            <small>通过短信验证码保护账号</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic blue">🔔</div>
+          <div class="r-body">
+            <b>登录提醒</b>
+            <small>新设备登录时发送通知</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic purple">👁️</div>
+          <div class="r-body">
+            <b>隐私可见性</b>
+            <small>谁可以看到你的学习数据</small>
+          </div>
+          <div class="r-val normal">仅好友</div>
+          <div class="r-go">→</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic red">🗑️</div>
+          <div class="r-body">
+            <b>删除账号</b>
+            <small>永久删除所有账号数据（不可恢复）</small>
+          </div>
+          <div class="r-go">→</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ LOGIN SESSIONS ============ -->
+  <div class="section-card" style="margin-bottom:18px;">
+    <div class="sc-head">
+      <div class="title"><span class="ic">📱</span> 登录设备</div>
+      <div class="sub">当前共 <b style="color:var(--green-dark);">3</b> 个活跃设备 · 发现异常可立即退出</div>
+    </div>
+
+    <div class="session-list">
+      <div class="session-item current">
+        <div class="s-ic">💻</div>
+        <div class="s-body">
+          <b>MacBook Pro · Chrome 128</b>
+          <small>当前设备</small>
+          <div class="s-loc">📍 上海 · 中国移动 · IPv4</div>
+        </div>
+        <div class="s-time">现在</div>
+        <div class="s-logout" style="background:transparent; color:transparent;">退出</div>
+      </div>
+      <div class="session-item">
+        <div class="s-ic">📱</div>
+        <div class="s-body">
+          <b>iPhone 15 Pro · Safari</b>
+          <small>iOS 18.1 · 移动端</small>
+          <div class="s-loc">📍 上海 · 中国电信 · IPv4</div>
+        </div>
+        <div class="s-time">1 小时前</div>
+        <div class="s-logout">退出</div>
+      </div>
+      <div class="session-item">
+        <div class="s-ic">🖥️</div>
+        <div class="s-body">
+          <b>Windows 11 · Edge</b>
+          <small>桌面端 · 学校机房</small>
+          <div class="s-loc">📍 上海 · 校园网 · IPv6</div>
+        </div>
+        <div class="s-time">3 天前</div>
+        <div class="s-logout">退出</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn btn-orange btn-sm" style="flex:1;">🛡️ 退出所有其他设备</button>
+      <button class="btn btn-white btn-sm">🔄 刷新列表</button>
+    </div>
+  </div>
+
+  <!-- ============ ACHIEVEMENTS + DATA ============ -->
+  <div class="main-grid">
+
+    <!-- Achievements -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">🏅</span> 成就徽章</div>
+        <div class="sub">已获得 <b style="color:var(--gold);">48</b> / 60</div>
+      </div>
+      <div class="ach-grid">
+        <div class="ach-item unlocked">
+          <span class="ic">🔥</span>
+          <div class="name">坚持之星</div>
+          <div class="date">连续 7 天</div>
+        </div>
+        <div class="ach-item unlocked">
+          <span class="ic">⚡</span>
+          <div class="name">闪电手</div>
+          <div class="date">100 题/小时</div>
+        </div>
+        <div class="ach-item unlocked">
+          <span class="ic">🎯</span>
+          <div class="name">百步穿杨</div>
+          <div class="date">正确率 100%</div>
+        </div>
+        <div class="ach-item unlocked">
+          <span class="ic">📚</span>
+          <div class="name">词汇百工</div>
+          <div class="date">掌握 100 词</div>
+        </div>
+        <div class="ach-item unlocked">
+          <span class="ic">🌟</span>
+          <div class="name">词力大师</div>
+          <div class="date">Lv.11</div>
+        </div>
+        <div class="ach-item unlocked">
+          <span class="ic">🏆</span>
+          <div class="name">挑战达人</div>
+          <div class="date">每日挑战 50 次</div>
+        </div>
+        <div class="ach-item locked">
+          <span class="ic">🌈</span>
+          <div class="name">全模式玩家</div>
+          <div class="date">未完成</div>
+        </div>
+        <div class="ach-item locked">
+          <span class="ic">🎓</span>
+          <div class="name">词汇博士</div>
+          <div class="date">5000 词</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="section-card">
+      <div class="sc-head">
+        <div class="title"><span class="ic">📤</span> 数据管理</div>
+        <div class="sub">导出/备份你的学习数据</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="as-row">
+          <div class="r-ic green">📦</div>
+          <div class="r-body">
+            <b>导出学习记录</b>
+            <small>包含单词掌握列表、错题本、每日进度 · CSV 格式</small>
+          </div>
+          <div class="r-val normal">JSON / CSV</div>
+          <div class="r-go">↓</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic blue">☁️</div>
+          <div class="r-body">
+            <b>云端备份</b>
+            <small>自动同步到云端 · 下次登录自动恢复</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic orange">🔗</div>
+          <div class="r-body">
+            <b>跨设备同步</b>
+            <small>登录同一账号自动同步学习进度</small>
+          </div>
+          <div class="r-val verified">✓ 已开启</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic purple">🗂️</div>
+          <div class="r-body">
+            <b>数据保留策略</b>
+            <small>学习记录保留 12 个月 · 错题本永久保留</small>
+          </div>
+          <div class="r-go">→</div>
+        </div>
+        <div class="as-row">
+          <div class="r-ic red">⚠️</div>
+          <div class="r-body">
+            <b>账号注销</b>
+            <small>删除所有数据，30 天内可恢复</small>
+          </div>
+          <div class="r-go" style="color:var(--red);">→</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ DATA PRIVACY CARD ============ -->
+  <div class="data-card">
+    <div class="dc-head">
+      <span class="ic">🔒</span>
+      <div class="title">数据隐私与账号安全</div>
+    </div>
+    <div class="dc-desc">
+      你的学习数据仅用于个性化推荐与进度追踪，<b>不会</b>与第三方共享。你可以随时导出或删除所有数据，确保隐私完全由你掌控。
+    </div>
+    <div class="dc-btns">
+      <button class="btn solid">📋 查看隐私政策</button>
+      <button class="btn">🛡️ 安全最佳实践</button>
+      <button class="btn">📧 联系支持团队</button>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div class="foot">
+    <p>英语听打 · 账号中心 v1.0 · 数据每日自动备份 · 服务条款 · 隐私政策</p>
+  </div>
+
+</div>
+
+</body>
+</html>

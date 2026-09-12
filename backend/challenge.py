@@ -12,6 +12,7 @@ from .config import CONFIG, MATERIALS
 from .db import db
 from .friends import record_activity
 from .materials import _material_index, audio_url, load_material
+from .misc import local_today
 
 bp = Blueprint("challenge", __name__)
 
@@ -51,7 +52,7 @@ def api_quiz_session():
     if len(material) < 2:
         return jsonify({"error": "该素材词太少，无法出题"}), 400
     index = _material_index(list_key)
-    today = date.today().isoformat()
+    today = local_today().isoformat()
 
     with db() as conn:
         due_ids = [r["item_id"] for r in conn.execute(
