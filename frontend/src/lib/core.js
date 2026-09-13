@@ -43,7 +43,9 @@ function cookie(name) {
 const API_TIMEOUT = 15000;  // 15 秒超时
 
 export async function api(path, opts = {}) {
-  const legacyUser = User.get();
+  // 旧链接迁移只在「本机还没有游客 Cookie」时携带 ?u=：
+  // 已有身份的浏览器点开别人的旧链接，不该把请求写到别人的档案上
+  const legacyUser = cookie("dict_u") ? "" : User.get();
   const sep = path.includes("?") ? "&" : "?";
   const url = "/api" + path + (legacyUser ? sep + "u=" + encodeURIComponent(legacyUser) : "");
   const controller = new AbortController();
@@ -238,8 +240,15 @@ export function playWord(item, onended = null) {
    后面没有未完成环节（或拉取失败）返回 null → 回动线首页 */
 export async function todayNextStep(afterKey) {
   try {
+    // list 和 lesson 都要带上：用户在动线页手动选过课时（回看已学课），
+    // 漏传 lesson 会让服务端按自动推导回当前课，下一关直接跳错课
     const want = localStorage.getItem("dict_today_list");
-    const d = await api("/today" + (want ? `?list=${encodeURIComponent(want)}` : ""));
+    const wl = localStorage.getItem("dict_today_lesson");
+    const p = new URLSearchParams();
+    if (want) p.set("list", want);
+    if (wl) p.set("lesson", wl);
+    const q = p.toString();
+    const d = await api("/today" + (q ? `?${q}` : ""));
     const steps = d.steps || [];
     const i = afterKey ? steps.findIndex((s) => s.key === afterKey) : -1;
     return steps.slice(i + 1).find((s) => !s.done) || null;

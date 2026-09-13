@@ -165,8 +165,8 @@ function sharePayload() {
   };
 }
 
-function goCatalog() {
-  location.hash = "#/catalog";
+function goLists() {
+  location.hash = "#/lists";
 }
 </script>
 
@@ -188,7 +188,7 @@ function goCatalog() {
 
     <div class="controls">
       <button class="btn primary big" @click="start">开始测试</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      <button class="btn ghost" @click="goLists">返回素材库</button>
     </div>
 
     <div v-if="historyList.length" class="wt-history-section">
@@ -286,7 +286,7 @@ function goCatalog() {
       </div>
       <div class="controls">
         <button class="btn ghost" @click="start">🔄 再测一次</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        <button class="btn ghost" @click="goLists">返回素材库</button>
       </div>
     </div>
 
@@ -372,7 +372,7 @@ function goCatalog() {
   padding: 20px;
 }
 .wt-goal-modal {
-  background: #fff; border-radius: 20px;
+  background: var(--panel); border-radius: 20px;
   padding: 28px 24px; max-width: 380px; width: 100%;
   box-shadow: 0 12px 40px rgba(0,0,0,.25);
   display: flex; flex-direction: column; gap: 16px;
@@ -393,7 +393,7 @@ function goCatalog() {
 .wtg-day-opt {
   flex: 1; min-width: 56px; padding: 10px 6px;
   border: 2px solid var(--border); border-radius: 10px;
-  background: #fff; font-size: 15px; font-weight: 800;
+  background: var(--panel); font-size: 15px; font-weight: 800;
   color: var(--text); cursor: pointer; transition: all .12s;
 }
 .wtg-day-opt small { font-size: 10px; font-weight: 600; color: var(--text-dim); }

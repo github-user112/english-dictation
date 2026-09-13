@@ -337,6 +337,40 @@ describe("SentenceCells", () => {
     expect(vm.answerText()).toBe("b");
   });
 
+  it("独立标点 token（如 —）渲染为标点且不需作答", async () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("Yes — no."), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.findAll(".cell.word-line").length).toBe(2);   // 只有 Yes / no 两个词格
+    expect(wrapper.findAll(".punct").some((p) => p.text() === "—")).toBe(true);
+    vm.typeText("Yes no");
+    expect(vm.isCorrect()).toBe(true);   // 修复前：— 槽要求作答又无法作答，永远判错
+  });
+
+  it("空格跳格直接越过纯标点槽", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("Yes — no."), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "Yes") vm.typeWordChar(ch);
+    vm.typeWordChar(" ");   // 应落到 no 槽，而不是 — 槽
+    for (const ch of "no") vm.typeWordChar(ch);
+    expect(vm.answerText()).toBe("Yes no");
+    expect(vm.isCorrect()).toBe(true);
+  });
+
+  it("句首纯标点 token：光标落在第一个可输入词", () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("— Hello."), submitted: false, feedback: false, practiceMode: "assisted" },
+    });
+    const vm = wrapper.vm;
+    for (const ch of "Hello") vm.typeWordChar(ch);
+    expect(vm.answerText()).toBe("Hello");
+    expect(vm.isCorrect()).toBe(true);
+  });
+
   it("serialize/restore 带 charPos 往返", () => {
     const wrapper = mount(SentenceCells, {
       props: { tokens: makeSentence("hello world"), submitted: false, feedback: false, practiceMode: "assisted" },
@@ -353,5 +387,20 @@ describe("SentenceCells", () => {
     w2.vm.restore(state);
     w2.vm.typeWordChar("X");    // 在词 0 第 3 字符后插入
     expect(w2.vm.answerText()).toBe("helXlo world");
+  });
+
+  it("纯听写模式：判分标色后亮出逐词序列（与 WordCells 同口径）", async () => {
+    const wrapper = mount(SentenceCells, {
+      props: { tokens: makeSentence("hello world"), submitted: false, feedback: false, practiceMode: "pure" },
+    });
+    // 作答前：整句一条横线，不显示逐词格
+    expect(wrapper.find(".pure-line").exists()).toBe(true);
+    expect(wrapper.find("#sc0").exists()).toBe(false);
+    wrapper.vm.typeText("hello wrong");
+    wrapper.vm.markWrong();      // 判分标色 → showSequence 亮
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find(".pure-line").exists()).toBe(false);
+    expect(wrapper.find("#sc0").exists()).toBe(true);
+    expect(wrapper.find("#sc1").classes()).toContain("wrong");
   });
 });

@@ -1,5 +1,5 @@
 """打字数据页：WPM 曲线聚合 + 错键对挖掘 + 速度段位。"""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from backend.catalog import now
 from backend.db import db
@@ -58,7 +58,41 @@ def test_heatmap_pairs(client):
 def test_typing_empty_for_new_user(client):
     d = client.get("/api/stats/typing").get_json()
     assert d["curve"] == [] and d["heatmap"] == []
-    assert d["wpm7"] == 0 and d["tier"] == "青铜"
+
+
+def test_stats_use_local_day_boundary(client):
+    """answered_at 存 UTC：UTC+8 用户的晚间练习应聚合到本地次日/本地小时，
+    无 X-Tz-Offset 头时保持原 UTC 口径（兼容老客户端）。"""
+    today = date.today().isoformat()
+    user = _user(client)
+    _session("tp-tz", user, today)
+    # UTC 20:00 = 北京（UTC+8，偏移 -480）次日凌晨 4 点
+    stamp = f"{today}T20:00:00"
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO study_session_item(session_id,seq,item_id,kind,phase,state,"
+            "first_right,final_right,attempt_count,answered_at,first_typed,last_typed,duration_ms) "
+            "VALUES(?,?,?,?,?,'completed',1,1,1,?,NULL,?,?)",
+            ("tp-tz", 0, "hello", "word", "new", stamp, "x" * 50, 30000))
+    tomorrow = (date.fromisoformat(today) + timedelta(days=1)).isoformat()
+
+    d = client.get("/api/stats/typing", headers={"X-Tz-Offset": "-480"}).get_json()
+    assert d["curve"][0]["day"] == tomorrow
+    s = client.get("/api/stats", headers={"X-Tz-Offset": "-480"}).get_json()
+    assert s["speed"][0]["day"] == tomorrow
+    assert s["hours"][4] == 1 and s["hours"][20] == 0
+
+    d2 = client.get("/api/stats/typing").get_json()   # 无头：UTC 日界，行为不变
+    assert d2["curve"][0]["day"] == today
+    s2 = client.get("/api/stats").get_json()
+    assert s2["hours"][20] == 1
+    # wpm7 只计本地近 7 日：班次后若已跨入 UTC+8 次日（UTC 深夜跑测试时），
+    # 该点落在窗口内 → 20.0/白银；否则被排除 → 0/青铜
+    local_today = (datetime.now(timezone.utc) + timedelta(hours=8)).date().isoformat()
+    if tomorrow <= local_today:
+        assert d["wpm7"] == 20.0 and d["tier"] == "白银"
+    else:
+        assert d["wpm7"] == 0 and d["tier"] == "青铜"
 
 
 def test_old_rows_outside_window_ignored(client):

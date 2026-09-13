@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { api, audioEl, audioPlaying, playUrl, preloadAudio, sndRight, sndWrong, stopAudio } from "../lib/core";
+import { api, audioEl, audioPlaying, playUrl, preloadAudio, sndRight, sndWrong, stopAudio,
+         todayNextStep, goTodayStep } from "../lib/core";
 import { bestSentenceScore, listenOnce, speechSupported } from "../lib/speech";
 
 const props = defineProps({ params: { type: Object, default: null } });
@@ -22,6 +23,8 @@ const showText = ref(localStorage.getItem("dict_shadow_text") !== "0");
 const attempts = ref(0);         // 本句已跟读次数
 const passCount = ref(0);
 const playToken = ref(0);
+const fromToday = ref(false);    // 今日动线入口带 from=today：结束页给"下一关"
+const nextLoading = ref(false);
 let rec = null;
 let mounted = true;
 
@@ -43,6 +46,7 @@ const verdict = computed(() => {
 onMounted(async () => {
   list.value = props.params?.get("list") || "nc1";
   lesson.value = Number(props.params?.get("lesson")) || null;
+  fromToday.value = props.params?.get("from") === "today";
   try {
     const qs = new URLSearchParams({ list: list.value });
     if (lesson.value) qs.set("lesson", lesson.value);
@@ -142,10 +146,31 @@ function next() {
   if (idx.value >= items.value.length - 1) {
     stopAudio();
     phase.value = "done";
+    reportDone();
     return;
   }
   idx.value++;
   startItem();
+}
+
+/* 完成记账：良好句数落 daily_practice_log 的 shadow 桶（零经验，喂动线跟读环）。
+   失败静默——不为一笔统计打断学习流程 */
+function reportDone() {
+  api("/shadow/done", {
+    method: "POST",
+    body: JSON.stringify({
+      list: list.value, lesson: lesson.value,
+      good: passCount.value, total: items.value.length,
+    }),
+  }).catch(() => {});
+}
+
+function goCatalog() { location.hash = "#/catalog"; }
+async function goNextStep() {
+  if (nextLoading.value) return;
+  nextLoading.value = true;
+  const s = await todayNextStep("shadow");
+  if (mounted) goTodayStep(s);
 }
 
 function replay() { play(true); }       // 再听一遍，播完自动开麦
@@ -155,7 +180,7 @@ function switchLesson() {
   if (lesson.value) p.set("lesson", lesson.value);
   location.hash = `#/shadow?${p}`;
 }
-function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 </script>
 
 <template>
@@ -163,7 +188,7 @@ function goCatalog() { location.hash = "#/catalog"; }
     <span class="emoji" aria-hidden="true">📚</span>
     <h3>课程加载失败</h3>
     <p>{{ pageError }}</p>
-    <button class="btn primary" @click="goCatalog">返回素材库</button>
+    <button class="btn primary" @click="goLists">返回素材库</button>
   </div>
   <div v-else-if="loading" class="empty loading"><span class="spin" aria-hidden="true"></span><span class="load-text">加载中…</span></div>
 
@@ -204,9 +229,15 @@ function goCatalog() { location.hash = "#/catalog"; }
     <h3>本课完成</h3>
     <p>优秀 {{ passCount }} / {{ items.length }} 句</p>
     <div class="controls" style="margin-top:16px;">
-      <button class="btn primary big" @click="start">再读一遍</button>
-      <button v-if="nextLessonNo != null" class="btn primary" @click="lesson = nextLessonNo; switchLesson()">下一课（第 {{ nextLessonNo }} 课）→</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      <template v-if="fromToday">
+        <button class="btn primary big" :disabled="nextLoading" @click="goNextStep">下一关 →</button>
+        <button class="btn ghost big" @click="goCatalog">返回今日动线</button>
+      </template>
+      <template v-else>
+        <button class="btn primary big" @click="start">再读一遍</button>
+        <button v-if="nextLessonNo != null" class="btn primary" @click="lesson = nextLessonNo; switchLesson()">下一课（第 {{ nextLessonNo }} 课）→</button>
+        <button class="btn ghost" @click="goLists">返回素材库</button>
+      </template>
     </div>
   </div>
 

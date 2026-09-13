@@ -108,6 +108,31 @@ def test_state_changes_require_csrf_and_reject_bad_origin(app):
     assert bad_origin.status_code == 403
 
 
+def test_legacy_link_pins_identity_only_for_fresh_browser(app):
+    """?u= 旧链接迁移：无 Cookie 的浏览器点开旧链接 → 固化该身份（兼容保留）。"""
+    guest = "d" * 32
+    fresh = FlaskClient(app)
+    r = fresh.get(f"/api/lists?u={guest}")
+    assert r.json["user"] == guest
+    cookie = fresh.get_cookie("dict_u")
+    assert cookie is not None and cookie.value == guest
+
+
+def test_legacy_link_does_not_clobber_existing_identity(app):
+    """回归：已有游客 Cookie 的浏览器点开带 ?u= 的链接，本机身份不得被顶掉。"""
+    mine, theirs = "e" * 32, "f" * 32
+    browser = FlaskClient(app)
+    browser.set_cookie("dict_u", mine)
+    r = browser.get(f"/api/lists?u={theirs}")
+    # 兼容：本次请求仍按 ?u= 解析（测试/旧链接语义不变）
+    assert r.json["user"] == theirs
+    # 但 Cookie 不被固化成他人身份
+    cookie = browser.get_cookie("dict_u")
+    assert cookie is not None and cookie.value == mine
+    # 后续不带 ?u= 的请求回到本机身份
+    assert browser.get("/api/lists").json["user"] == mine
+
+
 def test_failed_logins_are_rate_limited(client):
     for _ in range(5):
         assert login(client, "missing", "wrong password that is long enough").status_code == 401

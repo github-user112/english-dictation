@@ -43,6 +43,10 @@ const challengeLink = ref("");
 const creatingChallenge = ref(false);
 const pkCreating = ref(false);
 const pkError = ref("");
+const sessionId = ref("");     // 服务端会话 id：结算判分的凭据
+const recordError = ref("");   // 开局/结算上报失败时结算页给出提示（不静默吞掉 60 秒）
+let answerLog = [];            // 按序答案 [{id, typed}]，结算时交服务端重判
+let startReq = null;           // 开局时间戳请求的 Promise，结算时先等它落定
 
 onMounted(async () => {
   // 同步段先挂监听：无论请求成败/卸载时序，onUnmounted 都能成对移除
@@ -64,6 +68,7 @@ onMounted(async () => {
     ]);
     if (!mounted) return;
     items.value = d.items || [];
+    sessionId.value = d.session || "";
     best.value = b.best || null;
   } catch (err) {
     if (mounted) loadError.value = err.message || "题目加载失败";
@@ -71,11 +76,11 @@ onMounted(async () => {
 });
 
 async function submitChallengeScore() {
-  if (!challengeId) return;
+  if (!challengeId || !sessionId.value) return;
   try {
     const d = await api(`/sprint/challenge/${challengeId}/score`, {
       method: "POST",
-      body: JSON.stringify({ score: score.value, combo: maxCombo.value, total: answered.value }),
+      body: JSON.stringify({ session: sessionId.value, answers: answerLog }),
     });
     if (challenge.value) challenge.value.scores = d.scores || [];
   } catch { /* 挑战可能已过期，不影响结算展示 */ }
@@ -125,6 +130,20 @@ async function start() {
   phase.value = "run";
   score.value = 0; combo.value = 0; maxCombo.value = 0; answered.value = 0;
   idx.value = 0; remain.value = DURATION; revealing.value = false; locked = false;
+  answerLog = [];
+  recordError.value = "";
+  // 盖服务端开局时间戳（时长闸门起点）；挑战模式在此才建会话拿 sessionId。
+  // 失败在 finish() 里收口：成绩不上榜但结算页明确提示，不静默吞掉这一局
+  if (challengeId) {
+    startReq = api(`/sprint/challenge/${challengeId}/start`, { method: "POST", body: "{}" })
+      .then((d) => { sessionId.value = d.session || ""; return Boolean(d.session); })
+      .catch(() => false);
+  } else if (sessionId.value) {
+    startReq = api("/sprint/session/start", { method: "POST",
+      body: JSON.stringify({ session: sessionId.value }) }).then(() => true).catch(() => false);
+  } else {
+    startReq = Promise.resolve(false);
+  }
   // 开局捕获幽灵目标分：finish() 更新 best 不影响本局的对手
   ghostTarget.value = best.value && best.value.score > 0 ? best.value.score : 0;
   ghost.value = 0;
@@ -194,8 +213,10 @@ function typeChar(ch) {
 function submit() {
   if (!cells.value || revealing.value || locked) return;
   locked = true;   // 从提交到切词之间封死重复入口（长按 Enter / 满格续敲）
+  const typed = cells.value.answerText();
   const right = cells.value.isCorrect();
   answered.value++;
+  answerLog.push({ id: item.value.id, typed });
   saveResult(right);
   if (right) {
     score.value++;
@@ -216,6 +237,7 @@ function submit() {
 function skip() {
   // locked 期间 advanceTimer 已在排队，再 skip 会双跳吞词
   if (phase.value !== "run" || revealing.value || locked) return;
+  answerLog.push({ id: item.value.id, typed: null });
   saveResult(null);
   nextWord();
 }
@@ -240,21 +262,33 @@ function lockAdvance(ms, fn) {
   advanceTimer.value = setTimeout(() => { if (mounted && phase.value === "run") fn(); }, ms);
 }
 
-function finish() {
+async function finish() {
   stopTimers();
   stopAudio();
   phase.value = "done";
-  api("/sprint/best", { method: "POST", body: JSON.stringify({
-    score: score.value, combo: maxCombo.value, total: answered.value,
-  }) }).then((d) => {
-    isRecord.value = Boolean(d.record);
-    best.value = d.best || best.value;
-  }).catch(() => {});
-  if (challengeId) submitChallengeScore();
+  // 结算只交答案序列：score/combo 服务端重判，返回权威值覆盖本地显示
+  const startOk = await (startReq || Promise.resolve(false));
+  if (!challengeId && sessionId.value && startOk) {
+    api("/sprint/best", { method: "POST", body: JSON.stringify({
+      session: sessionId.value, answers: answerLog,
+    }) }).then((d) => {
+      isRecord.value = Boolean(d.record);
+      best.value = d.best || best.value;
+      if (typeof d.score === "number") {
+        score.value = d.score; maxCombo.value = d.combo; answered.value = d.total ?? answered.value;
+      }
+    }).catch(() => { recordError.value = "成绩上报失败，本局未计入个人最佳"; });
+  } else if (!challengeId && !startOk) {
+    recordError.value = "网络异常，本局成绩未能记录";
+  }
+  if (challengeId) {
+    if (startOk) submitChallengeScore();
+    else recordError.value = "网络异常，本局成绩未能上榜";
+  }
 }
 
 function restart() { location.reload(); }
-function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 
 async function createPkRoom() {
   if (pkCreating.value) return;
@@ -389,7 +423,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
         </section>
 
         <div class="start-actions">
-          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+          <button class="btn ghost big" @click="goLists">返回素材库</button>
           <button class="btn ghost big" :disabled="pkCreating || !items.length" @click="createPkRoom">
             {{ pkCreating ? "生成中…" : "⚔️ 实时PK对战" }}
           </button>
@@ -516,6 +550,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
         <h2 class="rc-title">战报</h2>
         <div class="rc-big gold">{{ score }}<small>分</small></div>
         <p class="rc-sub">你得到 {{ score }} 分</p>
+        <p v-if="recordError" role="alert" class="err-text">{{ recordError }}</p>
 
         <div class="score-list">
           <div v-for="(s, i) in challenge.scores || []" :key="s.name + i" class="score-row">
@@ -528,7 +563,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
 
         <div class="controls">
           <button class="btn primary big" @click="restart">{{ challengeId ? '再战一局' : '再来一轮' }}</button>
-          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+          <button class="btn ghost big" @click="goLists">返回素材库</button>
         </div>
       </section>
 
@@ -563,6 +598,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
         </p>
 
         <p v-if="best" class="best-line">📌 个人最佳：{{ best.score }} 分 · 连击 ×{{ best.combo }}</p>
+        <p v-if="recordError" role="alert" class="err-text">{{ recordError }}</p>
 
         <!-- 发起挑战：生成同题链接 -->
         <div v-if="!challengeId && challengeLink" class="pk-share">
@@ -574,7 +610,7 @@ async function nextFrame() { await new Promise((r) => setTimeout(r, 0)); }
           <button v-if="!challengeId && !challengeLink" class="btn ghost big" :disabled="creatingChallenge" @click="createChallenge">
             {{ creatingChallenge ? '生成中…' : '⚔️ 向好友发起挑战' }}
           </button>
-          <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+          <button class="btn ghost big" @click="goLists">返回素材库</button>
         </div>
       </section>
     </div>

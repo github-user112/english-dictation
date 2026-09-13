@@ -8,6 +8,7 @@ from .friends import notify_level
 from .auth import get_user, resp
 from .config import CONFIG, MATERIALS
 from .db import db
+from .idempotency import SCORE_CAPS, validate_attempt_id
 from .materials import audio_url, find_item, iter_material
 from .misc import local_today
 
@@ -99,9 +100,10 @@ def api_memorize():
         return jsonify({"error": "词条不存在"}), 404
     if type(right) is not bool:
         return jsonify({"error": "right 必须为布尔值"}), 400
-    if attempt_id is not None:
-        if not isinstance(attempt_id, str) or not 1 <= len(attempt_id) <= 64 or not attempt_id.isalnum():
-            return jsonify({"error": "attempt_id 无效"}), 400
+    # 与其他计分端点同口径：缺 attempt_id 兼容放行（无幂等），非法值 400
+    attempt_id, err = validate_attempt_id(attempt_id)
+    if err:
+        return jsonify({"error": err[0]}), err[1]
 
     with db() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -114,6 +116,14 @@ def api_memorize():
                 return resp({"ok": True, "duplicate": True,
                              "memorized": bool(previous["memorized"]),
                              "memorize_count": previous["memorize_count"]})
+
+        # 当日封顶看 daily_log 实际入账数而非 attempt 表——不带 attempt_id 的
+        # 循环 POST 也撞同一堵墙（重放已在上面提前 return，不会误伤重试）
+        log = conn.execute(
+            "SELECT memorize_right, memorize_wrong FROM daily_log WHERE day=? AND user=?",
+            (today, u)).fetchone()
+        if log and log["memorize_right"] + log["memorize_wrong"] >= SCORE_CAPS["memorize"]:
+            return jsonify({"error": "今日背诵次数已达上限"}), 429
 
         row = conn.execute("SELECT * FROM word_state WHERE user=? AND list=? AND item_id=?",
                            (u, list_key, item_id)).fetchone()

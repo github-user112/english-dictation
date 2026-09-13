@@ -34,12 +34,12 @@ def test_today_fresh_user(client):
     assert d["all_done"] is False
     assert d["streak"] == 0
     keys = [s["key"] for s in d["steps"]]
-    assert keys == ["memorize", "dictation", "arrange", "sentence", "wrong"]
+    assert keys == ["memorize", "dictation", "sentence", "shadow", "wrong"]
     # 无计划时背词配额走默认 10；错词步无错词即视为完成
     assert d["steps"][0]["target"] == 10
     assert d["steps"][4]["done"] is True
     assert "list=test_words" in d["steps"][0]["link"]
-    assert "lesson=1" in d["steps"][3]["link"]
+    assert "lesson=1" in d["steps"][2]["link"]
 
 
 def test_today_uses_goal_quota(client):
@@ -85,9 +85,9 @@ def test_today_lesson_stays_on_same_day_completion(client):
                   (USER, "test_sents", TODAY, STAMP, STAMP, STAMP))
     d = get(client).get_json()
     assert d["lesson"] == 1
-    assert "lesson=1" in d["steps"][3]["link"]
+    assert "lesson=1" in d["steps"][2]["link"]
     # 第 1 课会话是今天完成的 → 句子步直接算完成（不强迫立刻再学第 2 课）
-    assert d["steps"][3]["done"] is True
+    assert d["steps"][2]["done"] is True
 
 
 def test_today_lesson_advances_next_day(client):
@@ -97,8 +97,8 @@ def test_today_lesson_advances_next_day(client):
                   (USER, "test_sents", yesterday, STAMP, STAMP, STAMP))
     d = get(client).get_json()
     assert d["lesson"] == 2
-    assert "lesson=2" in d["steps"][3]["link"]
-    assert d["steps"][3]["done"] is False
+    assert "lesson=2" in d["steps"][2]["link"]
+    assert d["steps"][2]["done"] is False
 
 
 def test_today_cross_day_session_completion_counts_today(client):
@@ -118,7 +118,7 @@ def test_today_cross_day_session_completion_counts_today(client):
     assert row["state"] == "completed"
     assert row["assigned_day"] == TODAY
     d = get(client).get_json()
-    assert d["steps"][3]["done"] is True
+    assert d["steps"][2]["done"] is True
 
 
 def test_today_wrong_step(client):
@@ -218,15 +218,31 @@ def test_lesson_mode_layout(client):
     assert d["goal"] is None                      # 按课不按量，学习计划不参与
     assert d["lesson"] == 1 and d["lesson_total"] == 2
     keys = [s["key"] for s in d["steps"]]
-    assert keys == ["memorize", "dictation", "arrange", "sentence", "wrong"]
+    assert keys == ["memorize", "dictation", "sentence", "shadow", "wrong"]
     mem, dic = d["steps"][:2]
-    arr, sent = d["steps"][2], d["steps"][3]
+    sent, shad = d["steps"][2], d["steps"][3]
     assert mem["target"] == 2 and mem["desc"] == "第 1 课 · 2 个单词"
     assert "list=test_nce&lesson=1" in mem["link"]
     assert "list=test_nce&lesson=1" in dic["link"] and dic["link"].endswith("from=today")
-    assert arr["link"].startswith("#/arrange?list=test_sents&lesson=1")
     assert "list=test_sents&lesson=1" in sent["link"]
     assert sent["target"] == 2                    # test_sents 第 1 课 2 句
+    assert shad["link"].startswith("#/shadow?list=test_sents&lesson=1")
+    assert shad["target"] == 5 and shad["done"] is False
+
+
+def test_lesson_mode_shadow_step_progress(client):
+    """跟读环：进度读 daily_practice_log 的 shadow 桶（review_count=良好句数）。"""
+    with db() as c:
+        c.execute("INSERT INTO daily_practice_log(day,user,practice_mode,review_count)"
+                  " VALUES(?,?,'shadow',3)", (TODAY, USER))
+    d = get_nce(client).get_json()
+    shad = d["steps"][3]
+    assert shad["key"] == "shadow" and shad["progress"] == 3 and shad["done"] is False
+    with db() as c:
+        c.execute("UPDATE daily_practice_log SET review_count=5 "
+                  "WHERE day=? AND user=? AND practice_mode='shadow'", (TODAY, USER))
+    d = get_nce(client).get_json()
+    assert d["steps"][3]["done"] is True
 
 
 def test_lesson_mode_word_lesson_mapping(client):
@@ -241,7 +257,7 @@ def test_lesson_mode_word_lesson_mapping(client):
     assert mem["desc"] == "第 2 课 · 2 个单词"
     assert "lesson=3" in mem["link"]                  # 词库课号 2L-1
     assert "lesson=3" in d["steps"][1]["link"]
-    assert "list=test_sents&lesson=2" in d["steps"][3]["link"]   # 句库课号不变
+    assert "list=test_sents&lesson=2" in d["steps"][2]["link"]   # 句库课号不变
 
 
 def test_lesson_mode_word_steps_completion(client):
@@ -282,7 +298,7 @@ def test_lesson_mode_same_lesson_two_sessions(client):
                   (USER, "test_sents", TODAY, STAMP, STAMP))
     d = get_nce(client).get_json()
     assert d["lesson"] == 1
-    assert d["steps"][3]["done"] is False
+    assert d["steps"][2]["done"] is False
 
 
 def test_today_all_done(client):
@@ -298,8 +314,8 @@ def test_today_all_done(client):
         for i in range(15):
             c.execute("INSERT INTO study_session_item(session_id,seq,item_id,kind,phase,state,final_right)"
                       " VALUES('s1',?,?,'word','new','completed',1)", (i + 1, f"w{i}"))
-        c.execute("INSERT INTO daily_practice_log(day,user,practice_mode,final_right_count)"
-                  " VALUES(?,?,'arrange',5)", (TODAY, USER))
+        c.execute("INSERT INTO daily_practice_log(day,user,practice_mode,review_count)"
+                  " VALUES(?,?,'shadow',5)", (TODAY, USER))
         c.execute("INSERT INTO daily_challenge(day,user,list_key,score,total,detail,completed_at)"
                   " VALUES(?,?,'test_words',8,10,'[]',?)", (TODAY, USER, STAMP))
     d = get(client).get_json()
@@ -351,7 +367,7 @@ def test_today_lesson_param_selects_specific_lesson(client):
     """?lesson=2 选择第 2 课，覆盖自动推导。"""
     d = client.get(f"/api/today?u={USER}&list=test_nce&lesson=2").get_json()
     assert d["lesson"] == 2
-    assert "lesson=2" in d["steps"][3]["link"]   # 句子步指向第 2 课
+    assert "lesson=2" in d["steps"][2]["link"]   # 句子步指向第 2 课
 
 
 def test_today_review_mode_true_for_completed_lesson(client):

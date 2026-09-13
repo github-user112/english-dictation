@@ -104,14 +104,17 @@ def get_identity():
 
     legacy_id = request.args.get("u", "").lower()
     cookie_id = request.cookies.get(COOKIE, "").lower()
-    for user_id in (legacy_id, cookie_id):
+    # ?u= 优先解析（旧进度链接的迁移通道），但标记来源：resp() 对 URL 来源的
+    # 身份不做 Cookie 固化——否则点开一条带 ?u= 的链接就会顶掉本机已有身份
+    for source, user_id in (("url", legacy_id), ("cookie", cookie_id)):
         if valid_user_id(user_id) and not _account_exists(user_id):
-            g.dict_identity = {"user_id": user_id, "username": None, "csrf_token": None, "authenticated": False}
+            g.dict_identity = {"user_id": user_id, "username": None, "csrf_token": None,
+                               "authenticated": False, "from_url": source == "url"}
             return g.dict_identity
 
     g.dict_identity = {
         "user_id": uuid_mod.uuid4().hex, "username": None,
-        "csrf_token": None, "authenticated": False,
+        "csrf_token": None, "authenticated": False, "from_url": False,
     }
     return g.dict_identity
 
@@ -227,7 +230,12 @@ def resp(obj, status=200, identity=None):
     payload = {**obj, "user": ident["user_id"]}
     response = make_response(jsonify(payload), status)
     if not ident["authenticated"]:
-        response.set_cookie(COOKIE, ident["user_id"], **_cookie_options(31536000))
+        # 固化只发生在：新游客发 Cookie / 旧链接迁移（本机还没有游客 Cookie）。
+        # 已有其他游客 Cookie 时 ?u= 身份只用一次——点开别人的旧链接不能
+        # 把本机身份顶掉（身份劫持的唯一实用入口）
+        existing = request.cookies.get(COOKIE, "").lower()
+        if not (ident.get("from_url") and existing and existing != ident["user_id"]):
+            response.set_cookie(COOKIE, ident["user_id"], **_cookie_options(31536000))
     csrf_token = ident["csrf_token"] or request.cookies.get(CSRF_COOKIE) or secrets.token_urlsafe(24)
     response.set_cookie(CSRF_COOKIE, csrf_token, **_csrf_cookie_options(AUTH_SESSION_DAYS * 86400))
     return response

@@ -157,7 +157,7 @@ function statusLine(d) {
           </div>
           <div class="stat-tile">
             <span class="em">🌱</span>
-            <span class="v gold">{{ p.tree_stage + 1 }} / 8</span>
+            <span class="v gold">{{ p.tree_stage + 1 }} / {{ p.tree_max_stage + 1 }}</span>
             <span class="k">成长阶段</span>
           </div>
         </div>

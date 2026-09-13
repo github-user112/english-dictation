@@ -5,7 +5,8 @@
 返回 "duplicate" 不再加分；未存则先查当日累计是否超上限，再放行，由调用方
 在业务逻辑完成后调用 mark_done() 落 attempt 记录。
 
-memorize 接口已有专属 memorize_attempt 表，走同套路但沿用其表（不改生产数据）。
+memorize 接口有专属 memorize_attempt 表做去重（沿用旧表不改生产数据），
+当日封顶则看 daily_log 实际入账数，SCORE_CAPS["memorize"] 同样集中在此。
 这里覆盖：legacy result (sprint/quiz/wrong) / match / boss / arrange。
 """
 from datetime import date, datetime, timezone
@@ -24,6 +25,7 @@ SCORE_CAPS = {
     "match": 30,
     "boss": 20,
     "arrange": 200,
+    "memorize": 400,   # memorize.py 用 daily_log 入账数做封顶（覆盖无 attempt_id 的客户端）
 }
 
 

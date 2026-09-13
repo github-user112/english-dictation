@@ -152,7 +152,8 @@ def api_daily_result():
         if not isinstance(a, dict):
             return jsonify({"error": "答案格式无效"}), 400
         qid, picked = a.get("id"), a.get("picked")
-        if qid not in option_ids or qid in seen \
+        # id 必须先验字符串：list/dict 之类的 qid 做集合成员判断会抛 TypeError → 500
+        if not isinstance(qid, str) or qid not in option_ids or qid in seen \
                 or not isinstance(picked, str) or picked not in option_ids[qid]:
             return jsonify({"error": "答案与今日题目不符"}), 400
         seen.add(qid)

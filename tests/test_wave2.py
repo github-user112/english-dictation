@@ -1,4 +1,5 @@
 """波2 功能测试：我的文章（自定义素材）与异步冲刺挑战。"""
+from backend.db import db
 
 
 def test_custom_material_lifecycle(client):
@@ -31,25 +32,40 @@ def test_custom_material_validation(client):
 
 
 def test_sprint_challenge_flow(client):
+    from datetime import datetime, timedelta, timezone
+
+    def play(cid, right_count):
+        """开局 → 回拨时间戳 → 提交答案序列（前 right_count 题答对）。"""
+        sid = client.post(f"/api/sprint/challenge/{cid}/start").get_json()["session"]
+        with db() as conn:
+            conn.execute("UPDATE sprint_session SET started_at=? WHERE id=?",
+                         (datetime.now(timezone.utc) - timedelta(seconds=60), sid))
+        items = client.get(f"/api/sprint/challenge?id={cid}").get_json()["items"]
+        answers = [{"id": it["id"],
+                    "typed": "".join(c for c in it["text"] if c.isalpha())
+                    if i < right_count else "zzz"}
+                   for i, it in enumerate(items)]
+        return client.post(f"/api/sprint/challenge/{cid}/score",
+                           json={"session": sid, "answers": answers})
+
     cid = client.post("/api/sprint/challenge?list=test_words").get_json()["id"]
     got = client.get(f"/api/sprint/challenge?id={cid}").get_json()
     assert 1 <= len(got["items"]) <= 40          # 测试素材仅 5 词，抽样封顶
     assert got["owner"]
     assert got["scores"] == []
 
-    first = client.post(f"/api/sprint/challenge/{cid}/score",
-                        json={"score": 10, "combo": 5, "total": 12}).get_json()
-    assert first["record"] is True and first["scores"][0]["score"] == 10
+    first = play(cid, 3).get_json()
+    assert first["record"] is True and first["scores"][0]["score"] == 3
     # 更低分不覆盖，record=False
-    second = client.post(f"/api/sprint/challenge/{cid}/score",
-                         json={"score": 4, "combo": 9, "total": 6}).get_json()
-    assert second["record"] is False and second["scores"][0]["score"] == 10
+    second = play(cid, 1).get_json()
+    assert second["record"] is False and second["scores"][0]["score"] == 3
     # 更高分覆盖
-    third = client.post(f"/api/sprint/challenge/{cid}/score",
-                        json={"score": 20, "combo": 1, "total": 22}).get_json()
-    assert third["record"] is True and third["scores"][0]["score"] == 20
+    third = play(cid, 5).get_json()
+    assert third["record"] is True and third["scores"][0]["score"] == 5
 
-    # 非法分数与不存在的挑战
-    assert client.post(f"/api/sprint/challenge/{cid}/score", json={"score": -1}).status_code == 400
+    # 无会话/错误会话一律拒收；不存在的挑战 404
+    assert client.post(f"/api/sprint/challenge/{cid}/score",
+                       json={"score": 99}).status_code == 400
     assert client.post("/api/sprint/challenge/nope/score", json={"score": 1}).status_code == 404
+    assert client.post("/api/sprint/challenge/nope/start").status_code == 404
     assert client.get("/api/sprint/challenge?id=nope").status_code == 404

@@ -15,7 +15,7 @@ from flask import Blueprint, jsonify, request
 from .auth import display_names, get_user, resp
 from .catalog import clamp_int
 from .db import db
-from .misc import local_today, day_streak
+from .misc import local_today, day_streak, STREAK_LOOKBACK_DAYS
 from .profile import LEVELS, XP_WEIGHTS, level_of
 
 bp = Blueprint("leaderboard", __name__)
@@ -100,13 +100,9 @@ def _xp_rows(conn, cutoff):
     return {u: int(v) for u, v in xs.items()}
 
 
-# 连续打卡只回看这么多天：超过一年的断档必然清零，无需更久的历史
-_STREAK_LOOKBACK_DAYS = 400
-
-
 def _streak_rows(conn):
-    """当前连续活跃天数，口径与 profile 一致：三类练习日期的并集。"""
-    floor = (local_today() - timedelta(days=_STREAK_LOOKBACK_DAYS)).isoformat()
+    """全用户当前连续活跃天数，口径与 misc.streak_days 一致：三类练习日期的并集。"""
+    floor = (local_today() - timedelta(days=STREAK_LOOKBACK_DAYS)).isoformat()
     days = defaultdict(set)
     for sql in ("SELECT DISTINCT user, day FROM daily_log WHERE day>=?",
                 "SELECT DISTINCT user, day FROM daily_practice_log WHERE day>=?",

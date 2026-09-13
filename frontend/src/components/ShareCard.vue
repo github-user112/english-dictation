@@ -46,6 +46,8 @@ onMounted(() => {
 });
 onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
+  // open 状态下被父级卸载（路由切换等）时 focusin 监听也要摘掉，否则泄漏到全文档
+  document.removeEventListener("focusin", trapFocus);
 });
 
 function onKey(e) {

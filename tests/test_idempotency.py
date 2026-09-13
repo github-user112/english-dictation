@@ -253,6 +253,75 @@ def test_arrange_hits_cap_returns_429(client):
 
 
 # ---------------------------------------------------------------------------
+# 非法 attempt_id 一律 400（不做无幂等降级：降级等于同时关掉去重与封顶）
+# ---------------------------------------------------------------------------
+
+def test_invalid_attempt_id_rejected_on_scoring_endpoints(client):
+    bad = "abc def"   # 含空格：合法字符集之外
+    r = _post(client, "/api/result", {
+        "list": "test_words", "id": "hello", "mode": "assisted",
+        "first_right": True, "final_right": True, "right": True,
+        "outcome": "completed", "attempt_id": bad})
+    assert r.status_code == 400
+    assert _post(client, "/api/match/result",
+                 {"list": "test_words", "answers": _MATCH_ANSWERS,
+                  "attempt_id": bad}).status_code == 400
+    _seed_boss_wrong(client)
+    assert _post(client, "/api/boss/result",
+                 {"answers": _BOSS_ANSWERS, "attempt_id": bad}).status_code == 400
+    assert _post(client, "/api/arrange/answer",
+                 {"list": "test_sents", "id": "2", "order": [0, 1, 2, 3],
+                  "attempt_id": bad}).status_code == 400
+    assert _post(client, "/api/memorize",
+                 {"list": "test_words", "id": "hello", "right": True,
+                  "attempt_id": bad}).status_code == 400
+    # 全部被拒、无任何入账
+    with db() as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM score_attempt WHERE user=?", (USER,)).fetchone()["c"] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM memorize_attempt WHERE user=?", (USER,)).fetchone()["c"] == 0
+
+
+# ---------------------------------------------------------------------------
+# /api/memorize  幂等 + 上限（覆盖无 attempt_id 的刷经验路径）
+# ---------------------------------------------------------------------------
+
+def test_memorize_replay_same_attempt_id_is_deduped(client):
+    payload = {"list": "test_words", "id": "hello", "right": True, "attempt_id": "mem1"}
+    r1 = _post(client, "/api/memorize", payload)
+    assert r1.status_code == 200 and r1.get_json()["duplicate"] is False
+    r2 = _post(client, "/api/memorize", payload)
+    assert r2.status_code == 200 and r2.get_json()["duplicate"] is True
+    with db() as conn:
+        log = conn.execute(
+            "SELECT memorize_right mr FROM daily_log WHERE user=?", (USER,)).fetchone()
+        assert log["mr"] == 1   # 重放不重复加经验
+
+
+def test_memorize_accepts_dashed_uuid_attempt_id(client):
+    """与 validate_attempt_id 同口径：带横杠的 UUID 合法（旧 memorize 私有校验曾拒绝）。"""
+    r = _post(client, "/api/memorize",
+              {"list": "test_words", "id": "hello", "right": True,
+               "attempt_id": "123e4567-e89b-12d3-a456-426614174000"})
+    assert r.status_code == 200
+
+
+def test_memorize_cap_covers_clients_without_attempt_id(client):
+    """不带 attempt_id 循环 POST 刷 memorize_right：撞 daily_log 入账数封顶。"""
+    with patch.dict(SCORE_CAPS, {"memorize": 3}):
+        payload = {"list": "test_words", "id": "hello", "right": True}
+        for _ in range(3):
+            assert _post(client, "/api/memorize", payload).status_code == 200
+        r = _post(client, "/api/memorize", payload)
+        assert r.status_code == 429
+        assert "上限" in r.get_json()["error"]
+        # 带合法 attempt_id 的新请求同样撞顶（封顶在幂等去重之后判定）
+        r2 = _post(client, "/api/memorize", {**payload, "attempt_id": "fresh1"})
+        assert r2.status_code == 429
+
+
+# ---------------------------------------------------------------------------
 # 老客户端兼容：未传 attempt_id 时照旧记
 # ---------------------------------------------------------------------------
 

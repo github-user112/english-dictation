@@ -9,6 +9,31 @@ const error = ref("");
 const poster = ref(null);   // canvas ref
 let themeObserver = null;
 
+/* 模式分布：daily_practice_log.practice_mode 的英文键 → 中文名（键集合来自后端写入处） */
+const MODE_LABELS = {
+  pure: "纯听写", assisted: "辅助听写", follow: "跟打", quiz: "听音选词", sprint: "限时冲刺",
+  match: "配对消消乐", arrange: "听音排句", wrong: "错词回收", boss: "Boss 战",
+};
+
+/* 里程碑庆祝弹层：已看过的不再弹（localStorage 记录已读，纯 UI 态不上服务端） */
+const SEEN_KEY = "dict_report_ms_seen";
+const seenMs = ref(new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")));
+const milestones = computed(() => {
+  if (!view.value) return [];
+  const v = view.value;
+  return [
+    { key: "streak-7", icon: "🔥", title: "周连胜", desc: "连续打卡 7 天，毅力满满！", on: v.streak >= 7 },
+    { key: "streak-30", icon: "🏆", title: "月之铁人", desc: "连续打卡 30 天，你是真的狠！", on: v.streak >= 30 },
+    { key: "words-1000", icon: "📚", title: "千词达人", desc: "累计听写 1000 个词，词汇量稳步增长！", on: v.totalWords >= 1000 },
+    { key: "words-5000", icon: "👑", title: "万词先锋", desc: "累计听写 5000 个词，词汇量已破局！", on: v.totalWords >= 5000 },
+    { key: "acc-90", icon: "🎯", title: "精准射手", desc: "正确率突破 90%，听写能力过硬！", on: v.acc >= 90 },
+  ].filter((m) => m.on && !seenMs.value.has(m.key));
+});
+function dismissMilestones() {
+  milestones.value.forEach((m) => seenMs.value.add(m.key));
+  localStorage.setItem(SEEN_KEY, JSON.stringify([...seenMs.value]));
+}
+
 onMounted(() => {
   load();
   // 跟随亮 / 暗主题切换，用对应调色板重绘海报
@@ -166,30 +191,13 @@ async function savePoster() {
   </div>
   <div v-else class="report-page">
 
-    <!-- 成就庆祝弹层：里程碑达成时显示，点击关闭 -->
-    <div v-if="view.streak >= 7 || view.totalWords >= 1000 || view.acc >= 90"
-         class="ach-celebrate" onclick="this.style.display='none'">
+    <!-- 成就庆祝弹层：新达成的里程碑才弹，点击关闭后记为已读 -->
+    <div v-if="milestones.length" class="ach-celebrate" @click="dismissMilestones">
       <div class="ach-box">
         <span class="ach-title">🎉 里程碑达成</span>
-        <div v-if="view.streak >= 7" class="ach-item">
-          <span class="ach-icon">🔥</span>
-          <span><b>周连胜</b><small>连续打卡 7 天，毅力满满！</small></span>
-        </div>
-        <div v-if="view.streak >= 30" class="ach-item">
-          <span class="ach-icon">🏆</span>
-          <span><b>月之铁人</b><small>连续打卡 30 天，你是真的狠！</small></span>
-        </div>
-        <div v-if="view.totalWords >= 1000" class="ach-item">
-          <span class="ach-icon">📚</span>
-          <span><b>千词达人</b><small>累计听写 1000 个词，词汇量稳步增长！</small></span>
-        </div>
-        <div v-if="view.totalWords >= 5000" class="ach-item">
-          <span class="ach-icon">👑</span>
-          <span><b>万词先锋</b><small>累计听写 5000 个词，词汇量已破局！</small></span>
-        </div>
-        <div v-if="view.acc >= 90" class="ach-item">
-          <span class="ach-icon">🎯</span>
-          <span><b>精准射手</b><small>正确率突破 90%，听写能力过硬！</small></span>
+        <div v-for="m in milestones" :key="m.key" class="ach-item">
+          <span class="ach-icon">{{ m.icon }}</span>
+          <span><b>{{ m.title }}</b><small>{{ m.desc }}</small></span>
         </div>
         <span class="ach-close">点击关闭</span>
       </div>
@@ -275,7 +283,7 @@ async function savePoster() {
             <div class="head">
               <div class="name">
                 <span class="em">{{ ['🎧','📝','🎤','✂️','🎮','📖'][idx % 6] }}</span>
-                {{ mode }}
+                {{ MODE_LABELS[mode] || mode }}
               </div>
               <div class="val">{{ m.first_right + m.first_wrong }} 题</div>
             </div>
@@ -342,7 +350,7 @@ async function savePoster() {
       <div class="hm-head">
         <div class="title"><span class="ic">🗓️</span> 打卡热力图</div>
       </div>
-      <div class="hm-sub">绿色越深表示当天练习量越大，共 {{ view.activeDays }} 天有记录</div>
+      <div class="hm-sub">最近 60 个活跃日（绿色越深练习量越大）· 共 {{ view.activeDays }} 天有记录</div>
       <div class="hm-grid-wrap">
         <div class="heat-grid">
           <span v-for="d in stats.days.slice(-60)" :key="d.day"

@@ -119,9 +119,11 @@ def api_arrange_answer():
     built = " ".join(display[p] for p in order)
     right = built == " ".join(item["text"].split())
 
+    # 缺 attempt_id 是老客户端兼容（无幂等放行）；送了却是垃圾值必须 400——
+    # 降级成 None 等于同时关掉幂等去重与当日封顶
     attempt_id, err = validate_attempt_id(data.get("attempt_id"))
     if err:
-        attempt_id = None  # 老客户端兼容
+        return jsonify({"error": err[0]}), err[1]
 
     today = local_today().isoformat()
     with db(immediate=True) as conn:

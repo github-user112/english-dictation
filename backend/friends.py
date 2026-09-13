@@ -14,7 +14,7 @@ from flask import Blueprint, jsonify, request
 from .auth import (authenticated, display_names, get_user, now_iso, resp,
                    valid_user_id)
 from .db import db
-from .profile import LEVELS, derive_profile, level_of, xp_of
+from .profile import LEVELS, derive_profile, derive_profiles_batch, level_of, xp_of
 
 bp = Blueprint("friends", __name__)
 
@@ -147,9 +147,11 @@ def api_friends():
             seen = {r["user_id"]: r["last_seen_at"] for r in conn.execute(
                 f"""SELECT user_id, MAX(last_seen_at) last_seen_at FROM auth_session
                     WHERE user_id IN ({marks}) GROUP BY user_id""", ids)}
+            profs = derive_profiles_batch(conn, ids)   # 批量推导，避免每好友 9 次查询
             for e in entries:
                 uid = e["user_id"]
-                prof = derive_profile(conn, uid)
+                prof = profs.get(uid) or {"level": 1, "title": LEVELS[0][1],
+                                          "streak": 0, "today_done": False, "xp": 0}
                 e.update({
                     "username": accts.get(uid, "已注销账户"),
                     "level": prof["level"], "level_title": prof["title"],

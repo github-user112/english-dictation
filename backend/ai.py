@@ -20,11 +20,23 @@ from .misc import local_today
 bp = Blueprint("ai", __name__)
 
 AI_BASE = os.environ.get("ENGLISH_DICTATION_AI_BASE", "https://ai.mi9.cc.cd/v1")
-AI_KEY = os.environ.get("ENGLISH_DICTATION_AI_KEY", "sk-68ea76a10152ad7c046e166c4159d62c")
 AI_MODEL = os.environ.get("ENGLISH_DICTATION_AI_MODEL", "llama-3.3-70b-instruct-fp8-fast")
 
 MAX_WORDS = 12
 FRESH_PER_DAY = 5
+
+
+def _ai_key():
+    """密钥不进源码：环境变量优先；本机即生产，回落到 data/ai.key（data/ 已 gitignore）。
+    未配置时返回空串，_chat 抛错由端点统一转 502。"""
+    key = os.environ.get("ENGLISH_DICTATION_AI_KEY")
+    if key:
+        return key
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "..", "data", "ai.key")) as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
 
 
 def _wrong_words(conn, user):
@@ -43,6 +55,9 @@ def _wrong_words(conn, user):
 
 
 def _chat(prompt):
+    key = _ai_key()
+    if not key:
+        raise RuntimeError("未配置 ENGLISH_DICTATION_AI_KEY 或 data/ai.key")
     body = json.dumps({
         "model": AI_MODEL,
         "messages": [
@@ -55,7 +70,7 @@ def _chat(prompt):
     }).encode("utf-8")
     req = urllib.request.Request(
         f"{AI_BASE}/chat/completions", data=body,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {AI_KEY}",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}",
                  # Cloudflare  zone 拦 python-urllib 默认 UA（403），换成显式标识
                  "User-Agent": "english-dictation/3.0 (+https://mi2.cc.cd)"})
     with urllib.request.urlopen(req, timeout=45) as r:

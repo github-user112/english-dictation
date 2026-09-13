@@ -13,11 +13,11 @@ from datetime import date, timedelta
 
 from flask import Blueprint, jsonify, request
 
-from .auth import authenticated, display_name, get_user, resp
+from .auth import authenticated, display_name, display_names, get_user, resp
 from .catalog import clamp_int, now
 from .friends import escape_like
 from .db import db
-from .profile import derive_profile
+from .profile import LEVELS, derive_profiles_batch
 from .misc import local_today
 
 bp = Blueprint("groups", __name__)
@@ -126,15 +126,18 @@ def api_search():
 
 
 def _member_cards(conn, group_id, viewer=None):
-    """成员卡片：等级/连续/今日已练按 profile 口径推导，自己一行带 me 标记。"""
+    """成员卡片：等级/连续/今日已练按 profile 口径批量推导，自己一行带 me 标记。"""
     rows = conn.execute(
         "SELECT user, role, joined_at FROM group_member WHERE group_id=? ORDER BY joined_at",
         (group_id,)).fetchall()
+    profs = derive_profiles_batch(conn, [r["user"] for r in rows])
+    names = display_names(conn, [r["user"] for r in rows])   # 批量取名，避免每成员一次查询
     cards = []
     for r in rows:
         uid = r["user"]
-        prof = derive_profile(conn, uid)
-        cards.append({"user_id": uid, "name": display_name(conn, uid),
+        prof = profs.get(uid) or {"level": 1, "title": LEVELS[0][1], "streak": 0,
+                                  "xp": 0, "today_done": False}
+        cards.append({"user_id": uid, "name": names.get(uid, "游客"),
                       "role": r["role"], "joined_at": r["joined_at"],
                       "level": prof["level"], "level_title": prof["title"],
                       "streak": prof["streak"], "xp": prof["xp"],

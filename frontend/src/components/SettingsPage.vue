@@ -174,7 +174,7 @@ function set(key, val) {
               <small>读完后隔几秒自动重播一次</small>
             </div>
             <div class="num-wrap">
-              <input type="number" class="num-input" min="1" max="60"
+              <input type="number" class="num-input" min="1" max="30"
                 :value="s.replayInterval" @change="set('replayInterval', Number($event.target.value))">
               <span class="num-unit">秒</span>
             </div>
@@ -186,7 +186,7 @@ function set(key, val) {
               <small>第一次播放后再重播几次，0 表示只播一遍</small>
             </div>
             <div class="num-wrap">
-              <input type="number" class="num-input" min="0" max="10"
+              <input type="number" class="num-input" min="0" max="5"
                 :value="s.replayTimes" @change="set('replayTimes', Number($event.target.value))">
               <span class="num-unit">次</span>
             </div>

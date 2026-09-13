@@ -75,7 +75,7 @@ const dateLabel = computed(() => {
   const d = new Date(data.value.date + "T00:00:00");
   return `${d.getMonth() + 1}月${d.getDate()}日 周${"日一二三四五六"[d.getDay()]}`;
 });
-const STEP_ICONS = { memorize: "📖", dictation: "👂", sentence: "✍️", arrange: "🧩", wrong: "🗑️" };
+const STEP_ICONS = { memorize: "📖", dictation: "👂", sentence: "✍️", shadow: "🎤", wrong: "🗑️" };
 /* 路径节点左右交错（多邻国式弯曲路径）：以节点中心偏移量表达 */
 const NODE_OFFSETS = [0, 44, 62, 44, 0, -44, -62, -44];
 function nodeOffset(i) { return NODE_OFFSETS[i % NODE_OFFSETS.length]; }

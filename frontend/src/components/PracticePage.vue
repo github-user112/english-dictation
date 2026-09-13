@@ -470,7 +470,7 @@ function next() {
       finishTodayStep();
       return;
     }
-    // 按课练习且还有下一课：提示后自动跳转；否则回素材库
+    // 按课练习且还有下一课：提示后自动跳转；否则回今日动线（全站首页）
     if (!custom.value && lesson.value && nextLessonNo.value != null) {
       lessonDone.value = true;
       nextTimer.value = setTimeout(goNextLesson, 2000);
@@ -497,6 +497,7 @@ function next() {
   }, 130);
 }
 function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 async function finishTodayStep() {
   lessonDone.value = true;
   // 此刻末题已保存，/api/today 已把本关标为完成；按五环顺序找下一关（本页路由区分听打/听写/错词回收）
@@ -594,7 +595,7 @@ function cycleSpeed() {
       <p>即将自动进入第 {{ lessonRank(nextLessonNo) }} 课…</p>
       <div class="controls" style="margin-top:14px;">
         <button class="btn primary big" @click="goNextLesson">立即开始 →</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        <button class="btn ghost" @click="goLists">返回素材库</button>
       </div>
     </template>
   </div>

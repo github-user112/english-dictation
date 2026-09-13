@@ -134,6 +134,18 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_score_attempt_user_day
             ON score_attempt(user, endpoint, day);
+        CREATE TABLE IF NOT EXISTS sprint_session (
+            id TEXT PRIMARY KEY,
+            user TEXT NOT NULL,
+            list_key TEXT NOT NULL,
+            challenge_id TEXT,
+            items TEXT NOT NULL,
+            started_at TEXT,
+            finished_at TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sprint_session_created
+            ON sprint_session(created_at);
         CREATE TABLE IF NOT EXISTS sprint_best (
             user TEXT PRIMARY KEY,
             score INTEGER NOT NULL DEFAULT 0,
@@ -336,10 +348,33 @@ def init_db():
 
 
 def migrate():
+    """旧库迁移。gunicorn 多 worker 无 --preload，每个 worker 启动都会跑一遍：
+    fcntl 文件锁串行化（HUP 重叠期新老 worker 也不会并发 RENAME/DROP）；
+    命中破坏性分支（RENAME/DROP）前先把库文件复制到 backups/。"""
+    import fcntl
+    lock = DB.parent / (DB.name + ".migrate.lock")
+    with open(lock, "w") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        _migrate_locked()
+
+
+def _backup_db(tag):
+    """破坏性迁移前的兜底副本：同目录 backups/，失败时可手工回滚。"""
+    import shutil
+    from datetime import datetime, timezone
+    dest_dir = DB.parent / "backups"
+    dest_dir.mkdir(exist_ok=True)
+    dest = dest_dir / f"{DB.stem}.pre-migrate-{tag}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.bak"
+    shutil.copyfile(DB, dest)
+    return dest
+
+
+def _migrate_locked():
     """旧库（无 user 列 / 无背诵列）迁移"""
     with db() as conn:
         cols = [r["name"] for r in conn.execute("PRAGMA table_info(word_state)").fetchall()]
         if "user" not in cols:
+            _backup_db("word-state-user")
             conn.executescript("""
             ALTER TABLE word_state RENAME TO word_state_old;
             CREATE TABLE word_state (
@@ -359,6 +394,7 @@ def migrate():
             """)
         cols = [r["name"] for r in conn.execute("PRAGMA table_info(daily_log)").fetchall()]
         if "user" not in cols:
+            _backup_db("daily-log-user")
             conn.executescript("""
             ALTER TABLE daily_log RENAME TO daily_log_old;
             CREATE TABLE daily_log (

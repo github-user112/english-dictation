@@ -43,7 +43,7 @@ async function submit() {
       body: JSON.stringify({ title: title.value, text: text.value }),
     });
     ok.value = d;
-    setTimeout(() => { location.hash = "#/catalog"; }, 900);
+    setTimeout(() => { location.hash = "#/lists"; }, 900);   // 回素材库直接看到刚导入的列表
   } catch (err) {
     error.value = err.message || "导入失败";
   } finally {
@@ -60,7 +60,7 @@ async function submit() {
     <div class="imp-hero-text">
       <h1>把任意文章，<em>变成听写素材。</em></h1>
       <div class="sub">粘贴英文文本（新闻 / 课文 / 歌词），自动分句后进入句子听写流程</div>
-      <div class="sub2">TXT / CSV / JSON · 自动识别格式 · 智能去重清洗</div>
+      <div class="sub2">每行一条 · 按 . ! ? 等句末标点自动分句</div>
     </div>
     <div class="imp-hero-stats">
       <div class="ihs">
@@ -113,29 +113,6 @@ async function submit() {
     <!-- ─── Left Column ─── -->
     <div class="imp-left">
 
-      <!-- Method Tabs -->
-      <div class="imp-method-tabs">
-        <div class="imp-method-tab active">
-          <span class="imt-check">✓</span>
-          <span class="imt-badge">当前</span>
-          <span class="imt-emoji">📋</span>
-          <span class="imt-title">粘贴文本</span>
-          <span class="imt-desc">从任意来源复制内容</span>
-        </div>
-        <div class="imp-method-tab">
-          <span class="imt-emoji">📤</span>
-          <span class="imt-title">上传文件</span>
-          <span class="imt-desc">TXT / CSV / JSON</span>
-        </div>
-      </div>
-
-      <!-- Content Type -->
-      <div class="imp-ctype-row">
-        <span class="imp-ctype-label">导入类型：</span>
-        <div class="imp-ctype-opt">📚 词库</div>
-        <div class="imp-ctype-opt active">💬 句库</div>
-      </div>
-
       <!-- Title Input -->
       <div class="imp-form-group">
         <label class="imp-form-label" for="imp-title">标题（可选）</label>
@@ -157,34 +134,7 @@ async function submit() {
         <textarea id="imp-text" v-model="text" class="imp-paste-textarea" rows="14"
                   placeholder="Paste any English text here…&#10;支持直接换行分段；按 . ! ? 等句末标点自动分句。" spellcheck="false"></textarea>
         <div class="imp-paste-footer">
-          <span>📝 每行一条 · # 注释行自动忽略</span>
-          <span>📤 或拖拽文件到此处</span>
-        </div>
-      </div>
-
-      <!-- Options -->
-      <div class="imp-options-card">
-        <div class="imp-oc-title"><span>⚙️</span> 导入选项</div>
-        <div class="imp-option-row">
-          <div class="imp-or-body">
-            <b>🔊 自动生成发音</b>
-            <small>使用 TTS 为每句生成标准发音音频</small>
-          </div>
-          <div class="imp-toggle on"></div>
-        </div>
-        <div class="imp-option-row">
-          <div class="imp-or-body">
-            <b>🧹 去重合并</b>
-            <small>与现有句库重复的词汇将自动合并</small>
-          </div>
-          <div class="imp-toggle on"></div>
-        </div>
-        <div class="imp-option-row">
-          <div class="imp-or-body">
-            <b>🔤 按字母排序</b>
-            <small>导入后按 A-Z 字母顺序排列</small>
-          </div>
-          <div class="imp-toggle"></div>
+          <span>📝 每行一条 · 超长句自动二次切分</span>
         </div>
       </div>
 
@@ -195,20 +145,13 @@ async function submit() {
 
       <!-- Format Spec -->
       <div class="imp-format-card">
-        <div class="imp-fc-title"><span>📐</span> 格式规范</div>
-        <div class="imp-fc-tabs">
-          <div class="imp-fc-tab active">TXT</div>
-          <div class="imp-fc-tab">CSV</div>
-          <div class="imp-fc-tab">JSON</div>
-        </div>
+        <div class="imp-fc-title"><span>📐</span> 格式示例</div>
         <div class="imp-fc-code">
-          <div class="imp-fcc-line"><span class="imp-fcc-comment"># 每行一段 · 按 . ! ? 自动分句</span></div>
           <div class="imp-fcc-line"><span class="imp-fcc-text">The weather is beautiful today.</span></div>
           <div class="imp-fcc-line"><span class="imp-fcc-text">I love learning English.</span></div>
-          <div class="imp-fcc-line"><span class="imp-fcc-comment"># 支持直接换行分段</span></div>
           <div class="imp-fcc-line"><span class="imp-fcc-text">Practice makes perfect!</span></div>
         </div>
-        <div class="imp-fc-hint">💡 也可省略标点，系统会自动分句</div>
+        <div class="imp-fc-hint">💡 每行一段，按 . ! ? 自动分句；也可省略标点</div>
       </div>
 
       <!-- Tips -->

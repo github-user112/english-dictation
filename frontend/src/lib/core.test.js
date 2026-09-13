@@ -1,5 +1,5 @@
 /* 核心工具函数测试 */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -86,6 +86,32 @@ describe("User", () => {
   it("should not persist uuid in localStorage", () => {
     expect(User.save).toBeUndefined();
     expect(localStorageMock.getItem("dict_u")).toBeNull();
+  });
+});
+
+describe("api legacy link (?u=)", () => {
+  beforeEach(() => {
+    window.location.search = "?u=testuser1234567890123456789012345678";
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, text: () => Promise.resolve("{}"),
+    });
+  });
+
+  afterEach(() => {
+    window.location.search = "";   // 不污染后续 describe 的共享 location
+    document.cookie = "";
+  });
+
+  it("appends ?u= for fresh browser (no dict_u cookie)", async () => {
+    document.cookie = "";
+    await api("/lists");
+    expect(global.fetch.mock.calls[0][0]).toContain("u=testuser1234567890123456789012345678");
+  });
+
+  it("omits ?u= when this browser already has a guest cookie", async () => {
+    document.cookie = "dict_u=" + "a".repeat(32);
+    await api("/lists");
+    expect(global.fetch.mock.calls[0][0]).not.toContain("u=testuser");
   });
 });
 

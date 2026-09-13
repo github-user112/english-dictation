@@ -15,6 +15,7 @@ const items = ref([]);                 // 全部任务
 const queue = ref([]);                 // 自测队列
 const cur = ref(null);
 const flipped = ref(false);
+const seenAnswer = ref(false);       // 当前卡看过背面即闩住：翻回正面不退进度
 const submitted = ref(false);
 const lastRight = ref(false);
 const retrying = ref(false);          // 自测答错已亮答案，等待照着重打（不换题）
@@ -41,10 +42,10 @@ const learnTotal = computed(() => items.value.length);
 /* ---- 进度环百分比 ---- */
 const ringPct = computed(() => {
   if (!learnTotal.value) return 0;
-  return Math.round(((learnIndex.value + (flipped.value ? 1 : 0)) / learnTotal.value) * 100);
+  return Math.round(((learnIndex.value + (seenAnswer.value ? 1 : 0)) / learnTotal.value) * 100);
 });
 const ringOffset = computed(() => 100 - ringPct.value);
-const doneCount = computed(() => learnIndex.value + (flipped.value ? 1 : 0));
+const doneCount = computed(() => learnIndex.value + (seenAnswer.value ? 1 : 0));
 const correctPct = computed(() => {
   const total = stat.value.right + stat.value.wrong;
   return total ? Math.round((stat.value.right / total) * 100) : 0;
@@ -59,7 +60,7 @@ function saveState() {
       list: list.value, lesson: lesson.value, review: reviewAll.value, phase: phase.value, items: items.value,
       queue: queue.value, cur: cur.value, stat: stat.value,
       submitted: submitted.value, lastRight: lastRight.value, lastNote: lastNote.value,
-      retrying: retrying.value,
+      retrying: retrying.value, seenAnswer: seenAnswer.value,
       attemptId: attemptId.value, saveError: saveError.value,
       quizRound: quizRound.value, learnIndex: learnIndex.value,
     }));
@@ -107,6 +108,7 @@ async function init() {
     submitted.value = Boolean(saved.submitted);
     lastRight.value = Boolean(saved.lastRight);
     retrying.value = Boolean(saved.retrying);
+    seenAnswer.value = Boolean(saved.seenAnswer);
     lastNote.value = saved.lastNote || "";
     attemptId.value = saved.attemptId || newAttemptId();
     saveError.value = saved.saveError || "";
@@ -261,12 +263,13 @@ function flip() {
   if (phase.value !== "learn") return;
   playToken.value++;
   flipped.value = !flipped.value;
-  if (flipped.value) audioEl.pause();
+  if (flipped.value) { audioEl.pause(); seenAnswer.value = true; }
 }
 function learnNext() {
   playToken.value++;
   audioEl.pause();
   flipped.value = false;
+  seenAnswer.value = false;
   const idx = items.value.indexOf(cur.value);
   if (idx < items.value.length - 1) {
     learnIndex.value = idx + 1;
@@ -283,6 +286,7 @@ function startQuiz() {
   quizRound.value++;
   phase.value = "quiz";
   flipped.value = false;
+  seenAnswer.value = false;
   if (queue.value.length) {
     cur.value = queue.value[0];
     queue.value.shift();
@@ -408,7 +412,7 @@ function goDictation() {
   if (fromToday.value) q.set("from", "today");
   window.location.hash = `#/word?${q}`;
 }
-function goCatalog() { window.location.hash = "#/catalog"; }
+function goLists() { window.location.hash = "#/lists"; }
 </script>
 
 <template>
@@ -418,7 +422,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
     <p>本轮没有要背的词（已背的词 7 天内会回来复习）</p>
     <div class="controls" style="margin-top:16px;">
       <button class="btn primary" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
-      <button class="btn ghost" @click="goCatalog">返回素材库</button>
+      <button class="btn ghost" @click="goLists">返回素材库</button>
     </div>
   </div>
 
@@ -553,7 +557,7 @@ function goCatalog() { window.location.hash = "#/catalog"; }
       <div class="controls">
         <button class="btn primary big" @click="goDictation">{{ lesson ? "去听打本课单词" : "去听打（只看已背）" }}</button>
         <button class="btn ghost" @click="redo">再背一轮</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        <button class="btn ghost" @click="goLists">返回素材库</button>
       </div>
     </div>
 

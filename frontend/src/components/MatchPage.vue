@@ -170,7 +170,7 @@ async function win() {
   } catch { /* 结算失败不影响战报展示 */ }
 }
 
-function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 function mmss(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
 </script>
 
@@ -207,7 +207,7 @@ function mmss(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0
         <p v-if="loadError" role="alert" class="setup-error">⚠️ {{ loadError }}</p>
         <div class="controls match-cta">
           <button class="btn primary big full" @click="deal">🎮 开始配对</button>
-          <button class="btn ghost full" @click="goCatalog">📚 返回素材库</button>
+          <button class="btn ghost full" @click="goLists">📚 返回素材库</button>
         </div>
       </section>
 

@@ -372,3 +372,29 @@ def test_result_bool_fields_must_be_real_booleans(client):
             })
             assert response.status_code == 400, (field, bad, response.json)
             assert field in response.json["error"]
+
+
+def test_attempt_without_first_right_rejected(client):
+    """回归：缺 first_right 的 attempt 曾把首答错（0）永久落库，没答过的题凭空进错词本。"""
+    session = get(client, "/api/session?list=test_words&mode=pure&new=1").json
+    session_id, item = session["session"]["id"], session["items"][0]["id"]
+    # 会话路径
+    r = post(client, "/api/result", {"session_id": session_id, "id": item, "outcome": "attempt"})
+    assert r.status_code == 400
+    # legacy 路径（无 session_id）
+    r2 = post(client, "/api/result", {"list": "test_words", "id": item, "outcome": "attempt"})
+    assert r2.status_code == 400
+    # first_right 显式为 null 同样拒收
+    r3 = post(client, "/api/result",
+              {"session_id": session_id, "id": item, "first_right": None, "outcome": "attempt"})
+    assert r3.status_code == 400
+    # 题目仍未被污染：合法 attempt + completed 流程照常
+    from backend.db import db
+    with db() as conn:
+        row = conn.execute(
+            "SELECT first_right, state FROM study_session_item WHERE session_id=? AND item_id=?",
+            (session_id, item)).fetchone()
+    assert row["first_right"] is None and row["state"] == "pending"
+    assert post(client, "/api/result", {"session_id": session_id, "id": item,
+                                        "first_right": True, "attempt_count": 1,
+                                        "outcome": "attempt"}).status_code == 200

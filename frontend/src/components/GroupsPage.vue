@@ -118,6 +118,11 @@ async function doSearch(q) {
   searching.value = false;
 }
 
+// 「加入小组」卡片：滚动到搜索区。不能用 <a href="#锚点">——hash 路由会被劫持
+function scrollToSearch() {
+  document.getElementById("gh-search-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function triggerSearch() {
   const q = searchQ.value.trim();
   if (!q) { searchResults.value = []; return; }
@@ -195,14 +200,14 @@ function roleLabel(role) {
         </span>
         <span class="gh-action-cta">{{ showCreate ? "收起 ←" : "开始创建 →" }}</span>
       </button>
-      <a class="gh-action gh-action-find" href="#gh-search-anchor">
+      <button class="gh-action gh-action-find" type="button" @click="scrollToSearch">
         <span class="gh-action-emoji">🔍</span>
         <span class="gh-action-body">
           <h3>加入小组</h3>
           <p>搜索公开小组，或输入邀请码</p>
         </span>
         <span class="gh-action-cta">浏览加入 →</span>
-      </a>
+      </button>
     </div>
 
     <!-- Create form -->

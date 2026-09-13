@@ -80,6 +80,22 @@ def test_streak_unions_all_activity_sources(client):
     assert p["daily_done_today"] is True and p["daily_streak"] == 1
 
 
+def test_streak_consistent_across_today_stats_profile(client):
+    """today/stats/profile 三处 streak 同口径：不被 60 天窗口截断。"""
+    days = [((date.today() - timedelta(days=i)).isoformat(), 1) for i in range(70)]
+    insert_dictation_days(days)   # 连续 70 天，超过 today 页旧的 60 天窗口
+    streaks = [get(client, u).get_json()["streak"]
+               for u in ("/api/today", "/api/stats", "/api/profile")]
+    assert streaks == [70, 70, 70]
+
+
+def test_today_and_stats_count_daily_challenge_in_streak(client):
+    """只做了每日挑战也算活跃：today/stats 不能再漏 daily_challenge 表。"""
+    insert_daily_challenge()
+    assert get(client, "/api/today").get_json()["streak"] == 1
+    assert get(client, "/api/stats").get_json()["streak"] == 1
+
+
 def test_tree_thirsty_when_only_yesterday_practiced(client):
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     insert_dictation_days([(yesterday, 1)])

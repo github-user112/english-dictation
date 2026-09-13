@@ -15,6 +15,11 @@ const fromToday = ref(false);       // 今日动线入口：hero 换成「今日
 const reclaimLoading = ref(false);
 // 回收任务只练单词（与 /wrong/today 的 kind='word' 口径一致），句子错词留给「开始复习」
 const wordCount = computed(() => items.value.filter((i) => i.kind === "word").length);
+// 今日到期：next_review 为空（新错词）或已到复习日。与后端间隔重复同一日期口径（本地 ISO 日）
+const dueToday = computed(() => {
+  const today = new Date().toLocaleDateString("en-CA");
+  return items.value.filter((i) => !i.next_review || i.next_review <= today).length;
+});
 
 onMounted(() => {
   fromToday.value = props.params?.get("from") === "today";
@@ -161,7 +166,7 @@ function grouped() {
           <svg viewBox="0 0 36 36">
             <circle class="wr-ring-bg" cx="18" cy="18" r="15.9155" pathLength="100"/>
             <circle class="wr-ring-fg" cx="18" cy="18" r="15.9155" pathLength="100"
-                    :style="{ strokeDashoffset: String(100 - items.length) }"/>
+                    :style="{ strokeDashoffset: String(Math.max(0, 100 - items.length)) }"/>
           </svg>
           <div class="wr-center">
             <span class="wr-big">{{ items.length }}</span>
@@ -172,7 +177,7 @@ function grouped() {
           <div class="wh-stat">
             <span class="wh-emoji">⏰</span>
             <div class="wh-stat-body">
-              <b class="orange">{{ items.length }}</b><small>今日待复习</small>
+              <b class="orange">{{ dueToday }}</b><small>今日待复习</small>
             </div>
           </div>
           <div class="wh-stat">
@@ -234,7 +239,7 @@ function grouped() {
               <h2><span>📕</span> 待复习词表</h2>
               <small>共 {{ items.length }} 个词 · 按错词次数排序</small>
             </div>
-            <span class="badge-soft orange">⏰ 今日到期</span>
+            <span class="badge-soft orange">⏰ 今日到期 {{ dueToday }} 词</span>
           </div>
 
           <template v-for="(list, key) in grouped()" :key="key">

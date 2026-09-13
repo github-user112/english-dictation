@@ -10,7 +10,7 @@ from flask import Blueprint
 
 from .auth import get_user, resp
 from .db import db
-from .misc import local_today, day_streak
+from .misc import local_today, day_streak, STREAK_LOOKBACK_DAYS
 
 bp = Blueprint("profile", __name__)
 
@@ -119,6 +119,51 @@ def derive_profile(conn, user):
         "daily_done_today": today.isoformat() in set(dc_days),
         "week": week,
     }
+
+
+def derive_profiles_batch(conn, users):
+    """多用户轻量推导：{uid: {xp, level, title, streak, today_done}}，固定 6 次查询。
+
+    好友列表/小组成员卡片用——逐个 derive_profile 是每用户 ~9 次查询（30 人 ≈ 270 次），
+    批量版按 user IN (...) 分组聚合，与 derive_profile 共用 XP_WEIGHTS/LEVELS/打卡口径。
+    streak 带 400 天回看窗（超过一年的断档必然清零，与 misc.streak_days 同口径）。
+    """
+    users = list(dict.fromkeys(users))
+    if not users:
+        return {}
+    marks = ",".join("?" * len(users))
+    w = XP_WEIGHTS
+    xp_map = dict.fromkeys(users, 0)
+    for r in conn.execute(
+            f"SELECT user, COALESCE(SUM(final_right_count),0) fr, COALESCE(SUM(new_count),0) nw, "
+            f"COALESCE(SUM(first_wrong_count),0)+COALESCE(SUM(skipped_count),0) fs "
+            f"FROM daily_practice_log WHERE user IN ({marks}) GROUP BY user", users):
+        xp_map[r["user"]] += r["fr"] * w["final_right"] + r["nw"] * w["new"] + r["fs"] * w["effort"]
+    for r in conn.execute(
+            f"SELECT user, COALESCE(SUM(memorize_right),0) m FROM daily_log "
+            f"WHERE user IN ({marks}) GROUP BY user", users):
+        xp_map[r["user"]] += r["m"] * w["memorize_right"]
+    for r in conn.execute(
+            f"SELECT user, COALESCE(SUM(score),0) s, COALESCE(SUM(total-score),0) dw "
+            f"FROM daily_challenge WHERE user IN ({marks}) GROUP BY user", users):
+        xp_map[r["user"]] += r["s"] * w["daily_right"] + r["dw"] * w["daily_wrong"]
+
+    floor = (local_today() - timedelta(days=STREAK_LOOKBACK_DAYS)).isoformat()
+    days = {}
+    for sql in (f"SELECT user, day FROM daily_log WHERE user IN ({marks}) AND day>=?",
+                f"SELECT DISTINCT user, day FROM daily_practice_log WHERE user IN ({marks}) AND day>=?",
+                f"SELECT user, day FROM daily_challenge WHERE user IN ({marks}) AND day>=?"):
+        for r in conn.execute(sql, (*users, floor)):
+            days.setdefault(r["user"], set()).add(r["day"])
+
+    today_iso = local_today().isoformat()
+    out = {}
+    for u in users:
+        xp = xp_map[u]
+        level = level_of(xp)
+        out[u] = {"xp": xp, "level": level, "title": LEVELS[level - 1][1],
+                  "streak": day_streak(days.get(u, ())), "today_done": today_iso in days.get(u, ())}
+    return out
 
 
 @bp.get("/api/profile")

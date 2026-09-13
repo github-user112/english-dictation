@@ -19,6 +19,7 @@ const lvWidth = computed(() => `${Math.round((Profile.levelProgress || 0) * 100)
 const MORE = [
   { p: "lists", t: "素材库", s: "素材" },
   { p: "wordtest", t: "词汇量测试", s: "词测" },
+  { p: "shadow", t: "听读跟读", s: "跟读" },
   { p: "report", t: "学习报告", s: "报告" },
   { p: "leaderboard", t: "排行榜", s: "排行", sep: true },
   { p: "friends", t: "好友", s: "好友" },

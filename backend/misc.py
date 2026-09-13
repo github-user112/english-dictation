@@ -96,7 +96,7 @@ def api_wrong():
     args = (u, list_key) if list_key else (u,)
     with db() as conn:
         rows = conn.execute(
-            f"SELECT list, item_id, wrong_count, right_count, last_seen FROM word_state {cond} "
+            f"SELECT list, item_id, wrong_count, right_count, last_seen, next_review FROM word_state {cond} "
             "ORDER BY last_seen DESC LIMIT 500", args).fetchall()
     items = []
     for r in rows:
@@ -104,6 +104,7 @@ def api_wrong():
         if m:
             items.append({**m, "list": r["list"], "wrong_count": r["wrong_count"],
                           "right_count": r["right_count"], "last_seen": r["last_seen"],
+                          "next_review": r["next_review"],
                           "audio": audio_url(r["list"], r["item_id"], m["text"])})
     return resp({"items": items})
 
@@ -152,18 +153,22 @@ def api_wrong_remove():
     return resp({"ok": True})
 
 
+def _tz_offset_minutes():
+    """请求头 X-Tz-Offset 里的时区偏移（JS getTimezoneOffset 分钟，西正东负）；
+    无请求上下文（定时任务）或头缺失/非法时返回 None。"""
+    if not has_request_context():
+        return None
+    try:
+        return max(-840, min(840, int(request.headers.get("X-Tz-Offset", ""))))   # UTC-12..+14
+    except (TypeError, ValueError):
+        return None
+
+
 def local_today():
-    """用户本地的「今天」：客户端经 X-Tz-Offset 头传 JS getTimezoneOffset（分钟，西正东负），
-    用 UTC 时刻减偏移得到用户本地日期；无请求上下文（定时任务）或头缺失/非法时退回
+    """用户本地的「今天」：用 UTC 时刻减偏移得到用户本地日期；头缺失/非法时退回
     date.today()（服务器本地）——与改动前的行为完全一致，老测试/非 UTC 部署不受影响。
     返回 date 对象，调用处的减法/isoformat/weekday 用法与 date.today() 完全一致。"""
-    off = None
-    if has_request_context():
-        raw = request.headers.get("X-Tz-Offset", "")
-        try:
-            off = max(-840, min(840, int(raw)))   # 合法时区范围 UTC-12..+14
-        except (TypeError, ValueError):
-            off = None
+    off = _tz_offset_minutes()
     if off is None:
         return date.today()
     return (datetime.now(timezone.utc) - timedelta(minutes=off)).date()
@@ -182,12 +187,33 @@ def day_streak(days):
     return n
 
 
+# 连续打卡只回看这么多天：超过一年的断档必然清零，无需更久的历史
+STREAK_LOOKBACK_DAYS = 400
+
+
+def streak_days(user, conn):
+    """活跃日集合：听打/分模式练习/每日挑战三类记录的并集（全站 streak 统一口径）。"""
+    floor = (local_today() - timedelta(days=STREAK_LOOKBACK_DAYS)).isoformat()
+    days = {r["day"] for r in conn.execute(
+        "SELECT day FROM daily_log WHERE user=? AND day>=?", (user, floor))}
+    days |= {r["day"] for r in conn.execute(
+        "SELECT DISTINCT day FROM daily_practice_log WHERE user=? AND day>=?", (user, floor))}
+    days |= {r["day"] for r in conn.execute(
+        "SELECT day FROM daily_challenge WHERE user=? AND day>=?", (user, floor))}
+    return days
+
+
+def user_streak(user, conn):
+    return day_streak(streak_days(user, conn))
+
+
 @bp.get("/api/stats")
 def api_stats():
     u = get_user()
     # 报告口径是"这一年"（ReportPage 文案），速度/时段统计同样只扫近一年，
-    # 避免 study_session_item 全历史随练习量线性拖慢每次请求
-    since = (local_today() - timedelta(days=370)).isoformat()
+    # 避免 study_session_item 全历史随练习量线性拖慢每次请求。
+    # answered_at 是 UTC 时间戳，窗口下界也用 UTC 日界，不与 local_today 混用
+    since = (datetime.now(timezone.utc) - timedelta(days=370)).strftime("%Y-%m-%d")
     with db() as conn:
         rows = conn.execute("SELECT * FROM daily_log WHERE user=? ORDER BY day", (u,)).fetchall()
         mode_rows = conn.execute(
@@ -197,22 +223,31 @@ def api_stats():
             (u,)).fetchall()
         wrong = conn.execute("SELECT COUNT(*) c FROM word_state WHERE user=? AND wrong_count>0", (u,)).fetchone()["c"]
         # 打字速度曲线：按天聚合正确完成题的平均耗时（秒）
+        # answered_at 存的是 UTC；速度曲线/黄金时段按用户本地日界聚合，
+        # 否则 UTC+8 用户的晚间练习会落到图表的"第二天"（与热力图 daily_log 的本地日界不一致）
+        off = _tz_offset_minutes()
+        shift = f"{-off} minutes" if off is not None else None
+        day_col = "substr(datetime(si.answered_at, ?),1,10)" if shift else "substr(si.answered_at,1,10)"
+        hour_col = "CAST(strftime('%H', datetime(si.answered_at, ?)) AS INT)" if shift \
+            else "CAST(substr(si.answered_at,12,2) AS INT)"
+        sp = (shift,) if shift else ()
         speed = [{"day": r["d"], "sec": round(r["sec"], 2), "n": r["n"]} for r in conn.execute(
-            "SELECT substr(si.answered_at,1,10) d, AVG(si.duration_ms)/1000.0 sec, COUNT(*) n "
+            f"SELECT {day_col} d, AVG(si.duration_ms)/1000.0 sec, COUNT(*) n "
             "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
             "WHERE s.user=? AND si.state='completed' AND si.final_right=1 "
             "AND si.duration_ms IS NOT NULL AND si.answered_at>=? GROUP BY d ORDER BY d",
-            (u, since)).fetchall()]
+            (*sp, u, since)).fetchall()]
         # 按小时作答分布（用于学习报告的“黄金时段”）：只算实际完成的题，与速度曲线同口径
         hours = [0] * 24
         for r in conn.execute(
-            "SELECT CAST(substr(si.answered_at,12,2) AS INT) h, COUNT(*) c "
+            f"SELECT {hour_col} h, COUNT(*) c "
             "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
             "WHERE s.user=? AND si.answered_at>=? AND si.state='completed' GROUP BY h",
-            (u, since)).fetchall():
+            (*sp, u, since)).fetchall():
             if 0 <= r["h"] <= 23:
                 hours[r["h"]] = r["c"]
         due_soon = _due_soon_count(u, conn)
+        streak = user_streak(u, conn)   # 与 profile/today 同口径：三类练习记录并集
     days = [{"day": r["day"], "new": r["new_count"], "review": r["review_count"],
              "right": r["right_count"], "wrong": r["wrong_count"],
              "memorize_right": r["memorize_right"], "memorize_wrong": r["memorize_wrong"]}
@@ -221,7 +256,6 @@ def api_stats():
     total_w = sum(d["wrong"] for d in days)
     total_mr = sum(d["memorize_right"] for d in days)
     total_mw = sum(d["memorize_wrong"] for d in days)
-    streak = day_streak(r["day"] for r in rows)
     practice_modes = {}
     for row in mode_rows:
         total = row["first_right"] + row["first_wrong"]
@@ -264,8 +298,7 @@ def api_report_weekly():
         days_active = conn.execute(
             "SELECT COUNT(DISTINCT day) c FROM daily_practice_log WHERE user=? AND day>=? AND day<?",
             (u, this_week, week_end)).fetchone()["c"]
-        streak = day_streak(r["day"] for r in conn.execute(
-            "SELECT day FROM daily_log WHERE user=?", (u,)).fetchall())
+        streak = user_streak(u, conn)   # 与 today/profile/leaderboard 同口径（三表并集）
     acc, prev_acc = accuracy(cur), accuracy(prev)
     # 上周没练过时不显示增量（+100% 之类的数字没有意义）
     delta = round((acc - prev_acc) * 100) if prev["fr"] + prev["fw"] > 0 else None
@@ -285,19 +318,23 @@ def api_stats_typing():
     （改对重输后等于正确文本），不反查素材文件。
     """
     u = get_user()
-    since30 = (local_today() - timedelta(days=29)).isoformat()
-    since90 = (local_today() - timedelta(days=89)).isoformat()
+    # answered_at 存 UTC：窗口下界用 UTC 日界（与 WHERE 比较类型一致），聚合再按本地日界
+    off = _tz_offset_minutes()
+    shift = f"{-off} minutes" if off is not None else None
+    since30 = (datetime.now(timezone.utc) - timedelta(days=29)).strftime("%Y-%m-%d")
+    since90 = (datetime.now(timezone.utc) - timedelta(days=89)).strftime("%Y-%m-%d")
+    day_col = "substr(datetime(si.answered_at, ?),1,10)" if shift else "substr(si.answered_at,1,10)"
     with db() as conn:
         curve = [{"day": r["d"],
                   "wpm": round(r["chars"] / 5 / (r["ms"] / 60000), 1) if r["ms"] else 0,
                   "n": r["n"]}
                  for r in conn.execute(
-            "SELECT substr(si.answered_at,1,10) d, SUM(LENGTH(si.last_typed)) chars, "
+            f"SELECT {day_col} d, SUM(LENGTH(si.last_typed)) chars, "
             "SUM(si.duration_ms) ms, COUNT(*) n "
             "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
             "WHERE s.user=? AND si.state='completed' AND si.final_right=1 "
             "AND si.duration_ms>0 AND si.last_typed IS NOT NULL AND si.answered_at>=? "
-            "GROUP BY d ORDER BY d", (u, since30)).fetchall()]
+            "GROUP BY d ORDER BY d", (*((shift,) if shift else ()), u, since30)).fetchall()]
         typo_rows = conn.execute(
             "SELECT s.list, si.item_id, si.first_typed "
             "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
@@ -334,7 +371,9 @@ def api_stats_typing():
              "got": [{"key": t, "count": n} for t, n in c.most_common(3)]}
             for e, c in sorted(by_char.items(), key=lambda kv: -sum(kv[1].values()))[:12]]
 
-    recent7 = [p["wpm"] for p in curve if p["day"] >= (local_today() - timedelta(days=6)).isoformat()]
+    today_iso = local_today().isoformat()
+    recent7 = [p["wpm"] for p in curve
+               if (local_today() - timedelta(days=6)).isoformat() <= p["day"] <= today_iso]
     wpm7 = round(sum(recent7) / len(recent7), 1) if recent7 else 0
     tier = next((label for limit, label in
                  [(45, "钻石"), (35, "铂金"), (25, "黄金"), (15, "白银"), (0, "青铜")] if wpm7 >= limit))
@@ -375,13 +414,16 @@ def _levenshtein(a, b):
 def api_confusions():
     """聚合最近的错拼：word → 常被错打成什么。只保留编辑距离 ≤3 的近似对。"""
     user = get_user()
+    # 只看近 90 天：错拼本来就是"最近"的才有训练价值；也挡住随练习量增长的全史扫描
+    since90 = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
     with db() as conn:
         rows = conn.execute(
             "SELECT s.list list_key, si.item_id item_id, si.state state, "
             "si.first_typed first_typed, si.last_typed typed "
             "FROM study_session_item si JOIN study_session s ON s.id=si.session_id "
-            "WHERE s.user=? AND (si.last_typed IS NOT NULL OR si.first_typed IS NOT NULL) "
-            "ORDER BY si.answered_at DESC LIMIT 2000", (user,)).fetchall()
+            "WHERE s.user=? AND si.answered_at>=? "
+            "AND (si.last_typed IS NOT NULL OR si.first_typed IS NOT NULL) "
+            "ORDER BY si.answered_at DESC LIMIT 2000", (user, since90)).fetchall()
 
     agg = {}   # (list,text) -> {"meta", "typos": {typed: count}}
     for r in rows:

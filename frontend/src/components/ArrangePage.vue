@@ -125,6 +125,7 @@ function next() {
 }
 
 function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 async function goNextStep() {
   if (nextLoading.value) return;
   nextLoading.value = true;
@@ -178,7 +179,7 @@ async function goNextStep() {
 
           <div class="controls start-controls">
             <button class="btn primary big" @click="start">🧩 开始排句</button>
-            <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+            <button class="btn ghost big" @click="goLists">返回素材库</button>
           </div>
         </div>
       </div>
@@ -382,7 +383,7 @@ async function goNextStep() {
           </template>
           <template v-else>
             <button class="btn primary big" @click="start">🔁 再来一组</button>
-            <button class="btn ghost big" @click="goCatalog">返回素材库</button>
+            <button class="btn ghost big" @click="goLists">返回素材库</button>
           </template>
         </div>
       </div>

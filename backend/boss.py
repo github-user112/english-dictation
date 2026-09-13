@@ -75,9 +75,10 @@ def api_boss_result():
     if not isinstance(answers, list) or not answers or len(answers) > BOSS_MAX_WORDS * 2:
         return jsonify({"error": "answers 无效"}), 400
 
+    # 缺 attempt_id 是老客户端兼容（无幂等放行）；垃圾值必须 400，见 arrange.py
     attempt_id, err = validate_attempt_id(data.get("attempt_id"))
     if err:
-        attempt_id = None  # 老客户端兼容
+        return jsonify({"error": err[0]}), err[1]
 
     today = local_today().isoformat()
     with db(immediate=True) as conn:

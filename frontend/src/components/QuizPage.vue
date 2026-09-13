@@ -136,7 +136,7 @@ function next() {
 }
 
 function restart() { location.reload(); }
-function goCatalog() { location.hash = "#/catalog"; }
+function goLists() { location.hash = "#/lists"; }
 </script>
 
 <template>
@@ -236,7 +236,7 @@ function goCatalog() { location.hash = "#/catalog"; }
       </div>
       <div class="controls">
         <button class="btn primary big" @click="restart">再来一轮</button>
-        <button class="btn ghost" @click="goCatalog">返回素材库</button>
+        <button class="btn ghost" @click="goLists">返回素材库</button>
       </div>
     </div>
   </div>

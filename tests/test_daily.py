@@ -113,6 +113,10 @@ def test_daily_result_validates_answers(client):
     foreign = [{"id": q["id"], "picked": q["id"]} for q in d["questions"]]
     foreign[0] = {"id": foreign[0]["id"], "picked": "not-an-option"}
     assert client.post(url, json={"list": d["list"], "answers": foreign}).status_code == 400
+    # 非字符串 id（list/dict/int）必须 400 而不是 TypeError 500
+    for bad_id in (["x"], {"x": 1}, 1, None):
+        bad = [{"id": bad_id, "picked": answers[0]["picked"]}] + answers[1:]
+        assert client.post(url, json={"list": d["list"], "answers": bad}).status_code == 400
 
 
 def test_daily_result_stores_canonical_order(client):

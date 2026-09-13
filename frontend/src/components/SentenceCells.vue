@@ -10,7 +10,8 @@ const box = ref(null);
 const flash = ref([]);
 const mark = ref([]);
 const extras = ref([]);
-const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback);
+// 与 WordCells 同口径：纯听写模式下提交判分后（有标色）也亮出词序，方便对照错处
+const showSequence = computed(() => props.practiceMode !== "pure" || props.feedback || mark.value.some(Boolean));
 
 // 词核字符：字母/数字/下划线/撇号/连字符；其余视为前后标点（pre/suf）。
 // 内部含 . , / & : 等字符的缩写词（B.C.、a.m.、2,400、Why/Why）整体保留在 core 中由用户输入。
@@ -20,14 +21,25 @@ const words = computed(() =>
     const suf = (w.match(/[^\w-]+$/) || [""])[0];
     let core = w.slice(pre.length, suf ? w.length - suf.length : w.length);
     core = core.replace(/_/g, "");  // 下划线可忽略：不要求输入，判定时忽略
-    if (!core) return { pre: "", core: w, suf: "" };  // 纯标点 token
+    // 纯标点 token（独立的 —、… 等）：渲染为标点、不参与输入与判分。
+    // 不参与判分是硬约束——它的 norm(core) 为空，要求作答则永远判不对
+    if (!core) return { pre: "", core: w, suf: "", punctOnly: true };
     return { pre, core, suf };
   }));
 
-watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { scur.value = 0; charPos.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
+// 纯标点词槽（归一化后为空）不需作答
+function isPunctOnly(i) { return !norm(words.value[i]?.core); }
+function firstTypable() {
+  let j = 0;
+  while (j < words.value.length - 1 && isPunctOnly(j)) j++;
+  return j;
+}
+
+watch(() => `${props.tokens.id}:${props.tokens.text}`, () => { scur.value = firstTypable(); charPos.value = 0; input.value = []; flash.value = []; mark.value = []; extras.value = []; });
 
 // 判分归一化：忽略大小写与标点，只比字母数字（"Chinese," 与 "Chinese"、"too." 与 "too" 同算对）
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+scur.value = firstTypable();   // 挂载时句首若是纯标点 token，光标直接落在第一个可输入词（须在 norm 定义后）
 function typeWordChar(ch) {
   if (/\s/.test(ch)) {   // 任何空白都算跳格：空格/NBSP/全角空格（IME 组字里常见后两者）
     const typed = norm(input.value[scur.value]);
@@ -65,9 +77,12 @@ function typeWordChar(ch) {
   if (props.practiceMode !== "pure") mark.value[i] = wrong ? "wrong" : "";
   return props.practiceMode !== "pure" && wrong;
 }
-// 跳到指定词（越界则停在末词），光标落到该词已输入文本末尾
+// 跳到指定词（越界则停在末词），光标落到该词已输入文本末尾；纯标点词槽不参与输入，自动跳过
 function jumpTo(i) {
-  scur.value = Math.min(i, words.value.length - 1);
+  let j = Math.min(i, words.value.length - 1);
+  while (j < words.value.length - 1 && isPunctOnly(j)) j++;
+  while (j > 0 && isPunctOnly(j)) j--;   // 目标及之后全是标点：退回最近的可输入词
+  scur.value = j;
   charPos.value = (input.value[scur.value] || "").length;
 }
 // 整句灌入模式标记：IME 组字/粘贴一次交付整句时，空格跳格不再要求当前词完全正确
@@ -96,8 +111,11 @@ function backspace() {
     refreshMark(scur.value);
     return;
   }
-  if (scur.value > 0) {   // 光标在词首：退回上一词并删其尾字符（沿用旧行为）
-    scur.value--;
+  if (scur.value > 0) {   // 光标在词首：退回上一可输入词并删其尾字符（跳过纯标点槽，沿用旧行为）
+    let j = scur.value - 1;
+    while (j > 0 && isPunctOnly(j)) j--;
+    if (isPunctOnly(j)) return;
+    scur.value = j;
     input.value[scur.value] = (input.value[scur.value] || "").slice(0, -1);
     charPos.value = (input.value[scur.value] || "").length;
     refreshMark(scur.value);
@@ -153,7 +171,11 @@ function moveCursor(d) {
     return;
   }
   if (p > len) {
-    if (scur.value < words.value.length - 1) { scur.value++; charPos.value = 0; }
+    if (scur.value < words.value.length - 1) {   // 移到下一可输入词（跳过纯标点槽）
+      let j = scur.value + 1;
+      while (j < words.value.length - 1 && isPunctOnly(j)) j++;
+      if (!isPunctOnly(j)) { scur.value = j; charPos.value = 0; }
+    }
     return;
   }
   charPos.value = p;
@@ -178,7 +200,7 @@ function markWrong() {
   extras.value = extra;
 }
 function reset() {
-  scur.value = 0;
+  scur.value = firstTypable();
   charPos.value = 0;
   input.value = [];
   flash.value = [];
@@ -188,8 +210,9 @@ function reset() {
 }
 function isCorrect() {
   const t = words.value.map((w) => norm(w.core));
-  return input.value.filter(Boolean).length === t.length &&
-    t.every((w, i) => norm(input.value[i]) === w);
+  // 纯标点槽（target 为空）不需作答：只数非空 target，作答里纯标点槽的输入（若有）也不算占用
+  return input.value.filter((v, i) => v && t[i] !== "").length === t.filter(Boolean).length &&
+    t.every((w, i) => !w || norm(input.value[i]) === w);
 }
 function lineChars(i) {
   if (props.practiceMode === "pure") return Math.max(3, (input.value[i] || "").length);
@@ -211,6 +234,7 @@ function restore(s) {
   if (!s) return;
   input.value = [...(s.input || [])];
   scur.value = Number(s.cursor) || 0;
+  if (isPunctOnly(scur.value)) scur.value = firstTypable();   // 老快照可能指在纯标点槽上
   // 老快照没有 charPos 字段：落到词尾，与旧版行为一致
   const len = (input.value[scur.value] || "").length;
   charPos.value = s.charPos === undefined ? len : Math.min(Number(s.charPos) || 0, len);
@@ -228,7 +252,8 @@ defineExpose({ typeWordChar, typeText, backspace, paint, markWrong, reset, isCor
       <span v-for="(e, k) in extraAt(i)" :key="'extra-' + i + '-' + k" class="cell word-line wrong"
             :style="{ '--chars': Math.max(3, e.word.length) }">{{ e.word }}</span>
       <span v-if="w.pre" class="punct">{{ w.pre }}</span>
-      <span :id="'sc' + i" class="cell word-line"
+      <span v-if="w.punctOnly" class="punct">{{ w.core }}</span>
+      <span v-else :id="'sc' + i" class="cell word-line"
             :class="[mark[i] || '', !submitted && !feedback && i === scur ? 'current has-midcaret' : '']"
             :style="{ '--chars': lineChars(i), cursor: 'text' }" @click="focusWord(i, $event)"><template v-if="!submitted && !feedback && i === scur"><span class="cb">{{ (input[i] || "").slice(0, charPos) }}</span><i class="midcaret" aria-hidden="true"></i><span class="ca">{{ (input[i] || "").slice(charPos) }}</span></template><template v-else>{{ input[i] }}</template></span>
       <span v-if="w.suf" class="punct">{{ w.suf }}</span>

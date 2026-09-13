@@ -55,7 +55,7 @@ def now():
 
 
 def clamp_int(raw, default, minimum=0, maximum=100):
-    # 与 challenge._int_or_none 同口径：int(True)==1、int(3.9)==3 不是合法输入
+    # 显式拒绝 bool/float：int(True)==1、int(3.9)==3 不是合法输入
     if isinstance(raw, bool) or not isinstance(raw, (int, str)):
         return default
     try:
@@ -329,7 +329,9 @@ def api_session():
                      "remaining_today": max(0, remaining - len(fresh))}
 
         conn.execute(
-            "INSERT INTO study_session VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO study_session(id,user,list,practice_mode,scope,strategy,lesson,"
+            "assigned_day,requested_new,state,created_at,updated_at,completed_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (session_id, user, list_key, mode, scope, strategy, lesson, today,
              new_quota if strategy == "daily" else 0, "active", stamp, stamp, None))
         conn.executemany(
@@ -462,6 +464,10 @@ def api_result():
     # 但 update_word_state 又被 None 挡下——同一作答在四处口径对不上（legacy 路径同此守卫）
     if outcome == "completed" and (first_right is None or final_right is None):
         return jsonify({"error": "completed 需要 first_right 和 final_right"}), 400
+    # attempt 同样强制：缺 first_right 的 attempt 会把 0（首答错）永久落库并连坐
+    # 后续 completed 的 effective_first——没作答过的题凭空进错词本
+    if outcome == "attempt" and first_right is None:
+        return jsonify({"error": "attempt 需要 first_right"}), 400
     if not session_id:
         return legacy_result(user, data, item_id, first_right, final_right, outcome, today)
     with db() as conn:
@@ -567,8 +573,8 @@ def legacy_result(user, data, item_id, first_right, final_right, outcome, today)
 
     带 attempt_id 的请求按 (user, "result", attempt_id) 幂等去重，并受当日
     SCORE_CAPS["result"] 上限约束：刷分/断线重放只计一次，超限直接 429。
-    老客户端未传 attempt_id 时照旧记（兼容），但标记 legacy_no_idempotency
-    以便观察；后续前端补传后此处改强制。
+    老客户端未传 attempt_id 时照旧记（兼容，但无幂等无封顶）；attempt_id
+    存在但非法（非字符串/超长/含非字母数字）一律 400，不做无幂等降级。
     """
     list_key = data.get("list")
     if list_key not in MATERIALS:
@@ -580,10 +586,11 @@ def legacy_result(user, data, item_id, first_right, final_right, outcome, today)
         return jsonify({"error": "练习模式无效"}), 400
     skipped = outcome == "skipped"
 
+    # 缺 attempt_id 是老客户端兼容（无幂等放行）；垃圾值必须 400——
+    # 降级成 None 等于同时关掉幂等去重与当日 SCORE_CAPS 封顶
     attempt_id, err = validate_attempt_id(data.get("attempt_id"))
     if err:
-        # 老客户端走兼容：仍允许记录（不阻塞旧版页面）；前端补传后此处改强制 return
-        attempt_id = None
+        return jsonify({"error": err[0]}), err[1]
 
     with db(immediate=True) as conn:
         if attempt_id:
