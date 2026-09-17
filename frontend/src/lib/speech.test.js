@@ -96,9 +96,10 @@ describe("listenOnce", () => {
 
   it("should start recognition with lang and alternatives", () => {
     const rec = listenOnce({ onResult: vi.fn(), onError: vi.fn() });
-    expect(rec).toBeInstanceOf(FakeSR);
-    expect(rec.lang).toBe("en-US");
-    expect(rec.maxAlternatives).toBe(3);
+    expect(rec.mode).toBe("native");
+    expect(FakeSR.lastStarted.lang).toBe("en-US");
+    expect(FakeSR.lastStarted.maxAlternatives).toBe(3);
+    rec.abort();
   });
 
   it("should collect all alternatives from the result event", () => {

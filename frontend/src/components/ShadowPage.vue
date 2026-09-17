@@ -2,7 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { api, audioEl, audioPlaying, playUrl, preloadAudio, sndRight, sndWrong, stopAudio,
          todayNextStep, goTodayStep } from "../lib/core";
-import { bestSentenceScore, listenOnce, speechSupported } from "../lib/speech";
+import { bestSentenceScore, listenOnce, preferServerRecognition, speechErrorMessage, speechStateLabel,
+         speechSupported } from "../lib/speech";
 
 const props = defineProps({ params: { type: Object, default: null } });
 
@@ -25,6 +26,12 @@ const passCount = ref(0);
 const playToken = ref(0);
 const fromToday = ref(false);    // 今日动线入口带 from=today：结束页给"下一关"
 const nextLoading = ref(false);
+const serverMode = ref(preferServerRecognition()); // 移动端默认服务端识别；桌面原生可用
+const speechStage = ref("");     // requesting | recording | encoding | uploading | recognizing
+const recordingAudio = ref(null);
+const recordingUrl = ref("");    // 本句录音 blob URL（HTML audio 回放，换句/重录/unmount 释放）
+const session = ref(0);          // 会话令牌：取消/换题后过期回调不得覆盖当前结果
+const passedIds = new Set();     // 已优秀的句 id：重复通过同一句不重复计数
 let rec = null;
 let mounted = true;
 
@@ -67,12 +74,24 @@ onUnmounted(() => {
   mounted = false;
   playToken.value++;
   abortRec();
+  revokeRecording();
   stopAudio();
 });
 
 function abortRec() {
+  session.value++;               // 令牌失效：旧会话的一切回调到此作废
   try { rec && rec.abort(); } catch { /* 已结束 */ }
   rec = null;
+  speechStage.value = "";
+}
+
+/* 录音 blob URL 只服务当前句；换句/重录/卸载时释放 */
+function revokeRecording() {
+  recordingAudio.value?.pause();
+  if (recordingUrl.value) {
+    URL.revokeObjectURL(recordingUrl.value);
+    recordingUrl.value = "";
+  }
 }
 
 function toggleText() {
@@ -83,6 +102,7 @@ function toggleText() {
 function start() {
   idx.value = 0;
   passCount.value = 0;
+  passedIds.clear();
   startItem();
 }
 
@@ -90,59 +110,86 @@ function startItem() {
   attempts.value = 0;
   result.value = null;
   errorMsg.value = "";
-  play(true);
+  revokeRecording();
+  play();
 }
 
-/* 播放当前句；thenListen 时播完自动开麦跟读 */
-function play(thenListen) {
+/* 播放当前句（播完不再自动开麦，由用户点「跟读」发起） */
+function play() {
   const item = cur.value;
   if (!item) return;
   const token = ++playToken.value;
   abortRec();
-  result.value = null;
   errorMsg.value = "";
   phase.value = "play";
   const nxt = items.value[idx.value + 1];
   if (nxt) preloadAudio(nxt.audio);
   audioEl.onended = () => {
     if (!mounted || token !== playToken.value) return;
-    if (thenListen) beginListen(item);
-    else if (phase.value === "play") phase.value = "idle";
+    if (phase.value === "play") phase.value = "idle";
   };
   playUrl(item.audio);
 }
 
+/* 用户点「跟读」时才申请麦克风权限；处理中禁重入，可取消 */
 function beginListen(item) {
-  if (!supported) { phase.value = "idle"; return; }
+  if (!item || !supported || phase.value === "listen") return;
+  playToken.value++;
+  stopAudio();
   abortRec();
+  revokeRecording();
+  serverMode.value = preferServerRecognition();
+  result.value = null;
+  errorMsg.value = "";
+  const my = ++session.value;
   phase.value = "listen";
+  speechStage.value = "requesting";
   rec = listenOnce({
+    onFallback: () => { if (my === session.value) serverMode.value = true; },   // 原生识别空壳，自动切服务端（手动停止）
+    onState: (st) => {
+      if (my !== session.value || !mounted) return;
+      speechStage.value = st;
+    },
+    onRecording: (blob) => {
+      if (my !== session.value || !mounted || !blob) return;
+      revokeRecording();
+      recordingUrl.value = URL.createObjectURL(blob);   // 失败也可回放自己的录音
+    },
     onResult: (alts) => {
-      if (!mounted || cur.value !== item) return;
+      if (!mounted || my !== session.value || cur.value !== item) return;
       const r = bestSentenceScore(item.text, alts);
       result.value = r;
       attempts.value++;
-      if (r.score >= PASS) { passCount.value++; sndRight(); } else sndWrong();
+      if (r.score >= PASS) {
+        if (!passedIds.has(item.id)) { passedIds.add(item.id); passCount.value++; }
+        sndRight();
+      } else sndWrong();
       phase.value = "result";
+      speechStage.value = "";
     },
     onError: (err) => {
       if (err === "aborted") return;   // 主动取消/重播，不算失败
-      if (!mounted || cur.value !== item) return;
-      errorMsg.value = err === "not-allowed" ? "需要麦克风权限"
-        : err === "no-speech" ? "没听到声音，靠近点再试"
-        : "识别失败，请重试";
+      if (!mounted || my !== session.value || cur.value !== item) return;
+      result.value = null;             // 失败清空结果，不计分
+      errorMsg.value = speechErrorMessage(err);
       phase.value = "idle";
+      speechStage.value = "";
     },
     onEnd: () => {
+      if (my !== session.value || !mounted) return;
+      speechStage.value = "";
       if (phase.value === "listen") phase.value = "idle";  // 无结果自动结束
     },
   });
-  if (!rec) phase.value = "idle";
+  if (!rec) { phase.value = "idle"; speechStage.value = ""; }
+  else if (rec.mode === "server") serverMode.value = true;   // 无原生识别，直接走服务端
 }
 
 function next() {
   playToken.value++;
   abortRec();
+  revokeRecording();
+  result.value = null;
   if (idx.value >= items.value.length - 1) {
     stopAudio();
     phase.value = "done";
@@ -173,9 +220,19 @@ async function goNextStep() {
   if (mounted) goTodayStep(s);
 }
 
-function replay() { play(true); }       // 再听一遍，播完自动开麦
-function retry() { beginListen(cur.value); }  // 不重听，直接再读
+function replay() { play(); }                 // 再听一遍原声；要跟读再点「跟读」
+function retry() { beginListen(cur.value); }  // 不重听，直接再读（用户手势触发，点才申请权限）
+function finishRecording() {
+  if (phase.value !== "listen" || speechStage.value !== "recording") return;
+  speechStage.value = serverMode.value ? "encoding" : "recognizing";
+  rec?.finish();
+}
 function switchLesson() {
+  playToken.value++;
+  abortRec();
+  revokeRecording();
+  result.value = null;
+  stopAudio();
   const p = new URLSearchParams({ list: list.value });
   if (lesson.value) p.set("lesson", lesson.value);
   location.hash = `#/shadow?${p}`;
@@ -208,7 +265,7 @@ function goLists() { location.hash = "#/lists"; }
       <div class="si-step">
         <span class="si-icon" aria-hidden="true">🎙️</span>
         <b>跟读</b>
-        <small>播放后自动开麦</small>
+        <small>点「跟读」开麦</small>
       </div>
       <div class="si-step">
         <span class="si-icon" aria-hidden="true">⭐</span>
@@ -289,14 +346,14 @@ function goLists() { location.hash = "#/lists"; }
           </div>
 
           <div class="speech-drill" aria-live="polite" :class="{
-            on: phase === 'listen',
+            on: phase === 'listen' && speechStage === 'recording',
             playing: phase === 'play',
             good: verdict && verdict.cls === 'good',
             close: verdict && verdict.cls === 'close',
             bad: !!errorMsg || (verdict && verdict.cls === 'bad'),
           }">
             <span v-if="phase === 'play'" class="speech-verdict">🔊 正在播放…</span>
-            <span v-else-if="phase === 'listen'" class="speech-verdict good"><span class="mic-dot"></span> 正在听，请跟读…</span>
+            <span v-else-if="phase === 'listen'" class="speech-verdict"><span v-if="speechStage === 'recording'" class="mic-dot"></span> {{ speechStateLabel(speechStage) }}<small v-if="speechStage === 'recording'">{{ serverMode ? ' · 说完点「说完了」' : ' · 请跟读，说完自动识别' }}</small></span>
             <span v-else-if="phase === 'result' && verdict" class="speech-verdict" :class="verdict.cls">
               {{ verdict.label }} <b>{{ result.score }}分</b>
               <small v-if="!passed && result.hit">（听到的是「{{ result.hit }}」）</small>
@@ -318,13 +375,20 @@ function goLists() { location.hash = "#/lists"; }
             </template>
             <template v-else>
               <div class="record-zone">
-                <button v-if="phase === 'listen'" class="btn ghost sm listening" aria-label="取消本次跟读" @click="abortRec(); phase = 'idle'">取消</button>
-                <button class="btn white" :class="{ playing: audioPlaying && phase === 'play' }" :disabled="phase === 'play'" @click="replay">🔊 重播</button>
-                <button v-if="supported" class="btn primary" :class="{ recording: phase === 'listen' }" :disabled="phase === 'play'" @click="retry">🎤 跟读</button>
+                <template v-if="phase === 'listen'">
+                  <button v-if="serverMode && speechStage === 'recording'" class="btn primary recording" @click="finishRecording">🎤 说完了，开始识别</button>
+                  <button class="btn ghost sm listening" aria-label="取消本次跟读" @click="abortRec(); phase = 'idle'">取消</button>
+                </template>
+                <button class="btn white" :class="{ playing: audioPlaying && phase === 'play' }" :disabled="phase === 'play' || phase === 'listen'" @click="replay">🔊 重播</button>
+                <button v-if="supported" class="btn primary" :disabled="phase === 'listen'" @click="retry">{{ errorMsg ? '🎤 重试跟读' : '🎤 跟读' }}</button>
                 <button class="btn ghost" aria-label="跳过这句" @click="next">跳过 →</button>
               </div>
             </template>
-            <div class="hint">听一遍 → 自动开麦跟读 → {{ PASS }} 分优秀可跳下一句{{ showText ? "" : " · 句子已隐藏，打分后显示" }}</div>
+            <div v-if="recordingUrl" class="recording-playback">
+              <span>我的录音（仅当前句可回放）</span>
+              <audio ref="recordingAudio" :src="recordingUrl" controls preload="metadata" aria-label="回放我的录音"></audio>
+            </div>
+            <div class="hint">听一遍 → 点「跟读」开麦 → 识别打分 · {{ PASS }} 分优秀可跳下一句{{ showText ? "" : " · 句子已隐藏，打分后显示" }}</div>
           </div>
         </div>
       </div>

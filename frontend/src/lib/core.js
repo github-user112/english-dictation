@@ -34,7 +34,7 @@ export const User = {
   },
 };
 
-function cookie(name) {
+export function cookie(name) {
   const prefix = name + "=";
   return document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix))?.slice(prefix.length) || "";
 }

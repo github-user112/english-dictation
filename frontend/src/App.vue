@@ -25,6 +25,7 @@ import GroupDetailPage from "./components/GroupDetailPage.vue";
 import PkPage from "./components/PkPage.vue";
 import WordTestPage from "./components/WordTestPage.vue";
 import ShadowPage from "./components/ShadowPage.vue";
+import SpeechDebug from "./components/SpeechDebug.vue";
 import { refreshAccount } from "./lib/account";
 import { stopAudio } from "./lib/core";
 
@@ -43,6 +44,7 @@ const ROUTES = {
   pk: PkPage,
   wordtest: WordTestPage,
   shadow: ShadowPage,
+  dbg: SpeechDebug,
 };
 /* 用当前 hash 直接初始化，避免「默认 TodayPage + 空 key → route() 改 key → 重挂载」
    导致首屏页面组件 mounted 两次、/api/today 打两次 */

@@ -38,5 +38,11 @@ frontend/public/fonts/*.ttf
 # 设计稿字体源文件（与 design/mockups/fonts 同策略：体积大，不入 git；bash scripts/copy_fonts.sh 装配）
 design/fonts/
 
+# 工作区根目录散落的字体副本与本地运维脚本，不入库
+/NotoColorEmoji.ttf
+/NotoSansSC-Bold.otf
+/NotoSansSC-Regular.otf
+scripts/rotate-claude-key.sh
+
 # 截图产物（scripts/screenshot.sh 生成，用于对照设计稿自检）
 shots/

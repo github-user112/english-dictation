@@ -47,6 +47,29 @@ CONFIG.update({
     "tts_lazy_max_files": TTS_LAZY_MAX_FILES,
 })
 
+# ---- 服务端 ASR（语音识别兜底）：安卓 MIUI 浏览器/Edge 的 SpeechRecognition 是空壳，
+# 录音走后端转发 Cloudflare Workers AI Whisper ----
+CF_ACCOUNT_ID = os.environ.get("ENGLISH_DICTATION_CF_ACCOUNT_ID", "0c4a89fdb508abf8dc2994fbf3054a06")
+ASR_MODEL = os.environ.get("ENGLISH_DICTATION_ASR_MODEL", "@cf/openai/whisper-large-v3-turbo")
+ASR_RATE_LIMIT_PER_HOUR = max(0, int(os.environ.get("ENGLISH_DICTATION_ASR_RATE_LIMIT_PER_HOUR", "120")))
+ASR_MAX_CONCURRENCY = max(1, int(os.environ.get("ENGLISH_DICTATION_ASR_MAX_CONCURRENCY", "2")))
+CONFIG.update({
+    "asr_rate_limit_per_hour": ASR_RATE_LIMIT_PER_HOUR,
+    "asr_max_concurrency": ASR_MAX_CONCURRENCY,
+})
+
+
+def cf_api_token():
+    """CF API token：环境变量优先，否则读 data/cf_api_token（data/ 已 gitignore；
+    本机 sudo 不可用写不了 /etc/environment，文件是次优解）。"""
+    tok = os.environ.get("ENGLISH_DICTATION_CF_API_TOKEN", "").strip()
+    if tok:
+        return tok
+    try:
+        return (BASE / "data" / "cf_api_token").read_text().strip()
+    except OSError:
+        return ""
+
 MATERIALS = {
     "cet4": {"type": "words", "title": "CET-4 词汇"},
     "cet6": {"type": "words", "title": "CET-6 词汇"},

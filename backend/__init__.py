@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request, send_from_directory
 
-from . import (achievements, ai, arrange, auth_routes, boss, catalog, challenge, custom,
+from . import (achievements, ai, arrange, asr, auth_routes, boss, catalog, challenge, custom,
                daily, db as dbmod, friends, goal, groups, leaderboard, match, memorize,
                misc, pk, profile, push, shadow, today, wordtest)
 from .auth import csrf_valid, legacy_account_protected
@@ -19,7 +19,7 @@ def create_app(*, static_dir=None):
     app = Flask(__name__, static_folder=str(asset_root))
     dbmod.init_db()
     dbmod.migrate()
-    for mod in (achievements, ai, arrange, auth_routes, boss, catalog, challenge, custom,
+    for mod in (achievements, ai, arrange, asr, auth_routes, boss, catalog, challenge, custom,
                 daily, friends, goal, groups, leaderboard, match, memorize, misc, pk,
                 profile, push, shadow, today, wordtest):
         app.register_blueprint(mod.bp)
