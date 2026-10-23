@@ -121,6 +121,26 @@ describe("ListenPage", () => {
     expect(location.hash).toBe("");   // 没有下一课，停在课末
   });
 
+  it("file 模式：本课循环开启时课末回到本课开头继续播", async () => {
+    sessionPayload = { ...filePayload, start: 5 };   // 本课从 5s 开始
+    const wrapper = await mountPage();
+    const chip = wrapper.findAll(".lp-chip").find((b) => b.text().includes("本课循环"));
+    await chip.trigger("click");
+    expect(chip.attributes("aria-pressed")).toBe("true");
+    expect(JSON.parse(localStorage.getItem("dict_listen_opts")).loopLesson).toBe(true);
+
+    await wrapper.find(".play-btn").trigger("click");
+    audioEl.pause.mockClear();
+    audioEl.currentTime = 31;             // 越过 end=30
+    audioEl.ontimeupdate();
+    await flushPromises();
+    expect(audioEl.pause).not.toHaveBeenCalled();
+    expect(audioEl.currentTime).toBe(5);  // 回到本课起点，不是文件 0s
+    expect(wrapper.find(".track-fill").attributes("style")).toContain("width: 0%");
+    expect(wrapper.findAll(".sent-row")[0].classes()).toContain("active");
+    expect(location.hash).not.toContain("lesson=2");   // 不能误切下一课
+  });
+
   it("file 模式：无时间轴句子播单句音频，播完不触发自动连播", async () => {
     localStorage.setItem("dict_listen_opts", JSON.stringify({ autoNext: true }));
     const wrapper = await mountPage();
@@ -191,6 +211,45 @@ describe("ListenPage", () => {
     await flushPromises();
     expect(audioEl.src).toBe("/audio/test/2.mp3");
     expect(wrapper.text()).toContain("第 2 / 2 句");
+  });
+
+  it("sentences 模式：本课循环开启时最后一句播完回到第 1 句", async () => {
+    sessionPayload = sentPayload;
+    localStorage.setItem("dict_listen_opts", JSON.stringify({ loopLesson: true }));
+    const wrapper = await mountPage();
+
+    audioEl.paused = true;
+    await wrapper.find(".play-btn").trigger("click");
+    audioEl.onended();   // 第 1 句 → 第 2 句
+    await flushPromises();
+    expect(audioEl.src).toBe("/audio/test/2.mp3");
+
+    audioEl.onended();   // 最后一句 → 回第 1 句
+    await flushPromises();
+    expect(audioEl.src).toBe("/audio/test/1.mp3");
+    expect(wrapper.text()).toContain("第 1 / 2 句");
+  });
+
+  it("本课循环与单句循环、自动下一课互斥", async () => {
+    localStorage.setItem("dict_listen_opts", JSON.stringify({ autoNext: true }));
+    const wrapper = await mountPage();
+    const byText = (text) => wrapper.findAll(".lp-chip").find((b) => b.text().includes(text));
+
+    await byText("本课循环").trigger("click");
+    expect(byText("本课循环").attributes("aria-pressed")).toBe("true");
+    expect(byText("自动下一课").attributes("aria-pressed")).toBe("false");
+    expect(JSON.parse(localStorage.getItem("dict_listen_opts")))
+      .toMatchObject({ loopLesson: true, loopOne: false, autoNext: false });
+
+    await byText("单句循环").trigger("click");
+    expect(byText("单句循环").attributes("aria-pressed")).toBe("true");
+    expect(byText("本课循环").attributes("aria-pressed")).toBe("false");
+
+    await byText("本课循环").trigger("click");   // 再开课循环，单句关掉
+    expect(byText("单句循环").attributes("aria-pressed")).toBe("false");
+    await byText("自动下一课").trigger("click"); // 开自动下一课，课循环关掉
+    expect(byText("本课循环").attributes("aria-pressed")).toBe("false");
+    expect(byText("自动下一课").attributes("aria-pressed")).toBe("true");
   });
 
   it("file 模式：单句音频还在加载时按播放，加载完成后不能抢回整课播放", async () => {

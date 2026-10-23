@@ -28,21 +28,39 @@ const opts = loadOpts();
 const showEn = ref(opts.showEn);
 const showZh = ref(opts.showZh);
 const loopOne = ref(opts.loopOne);
+const loopLesson = ref(opts.loopLesson);
 const autoNext = ref(opts.autoNext);
+if (loopLesson.value) { loopOne.value = false; autoNext.value = false; }   // 旧配置里的互斥归一
 const listEl = ref(null);
 let mounted = true;
 let loadedSrc = "";               // 当前 audioEl 已装载的 src（避免重复 load）
 let playSeq = 0;                  // 播放令牌：整课/换句操作用来作废还在加载的单句音频
 
 function loadOpts() {
-  try { return { showEn: true, showZh: true, loopOne: false, autoNext: false,
+  try { return { showEn: true, showZh: true, loopOne: false, loopLesson: false, autoNext: false,
                 ...JSON.parse(localStorage.getItem(OPTS_KEY) || "{}") }; }
-  catch { return { showEn: true, showZh: true, loopOne: false, autoNext: false }; }
+  catch { return { showEn: true, showZh: true, loopOne: false, loopLesson: false, autoNext: false }; }
 }
 function saveOpts() {
   localStorage.setItem(OPTS_KEY, JSON.stringify({
-    showEn: showEn.value, showZh: showZh.value, loopOne: loopOne.value, autoNext: autoNext.value,
+    showEn: showEn.value, showZh: showZh.value,
+    loopOne: loopOne.value, loopLesson: loopLesson.value, autoNext: autoNext.value,
   }));
+}
+function toggleLoopOne() {
+  loopOne.value = !loopOne.value;
+  if (loopOne.value) loopLesson.value = false;   // 单句循环与整课循环互斥
+  saveOpts();
+}
+function toggleLoopLesson() {
+  loopLesson.value = !loopLesson.value;
+  if (loopLesson.value) { loopOne.value = false; autoNext.value = false; }
+  saveOpts();
+}
+function toggleAutoNext() {
+  autoNext.value = !autoNext.value;
+  if (autoNext.value) loopLesson.value = false;
+  saveOpts();
 }
 
 const playing = computed(() => audioPlaying.value);
@@ -200,15 +218,17 @@ async function playSentence(i) {
 
 function toggle() { audioEl.paused ? play() : audioEl.pause(); }
 
-/* 逐句串播结束：单句循环重播，否则下一句；到头且自动连播则跳下一课。
-   file 模式下 loadedSrc 不是整课文件，说明播的是无时间轴句子的单句音频，播完直接停。 */
+/* 逐句串播结束：单句循环重播，否则下一句；到头按「本课循环」回首句，
+   再按「自动下一课」跳课。file 模式下 loadedSrc 不是整课文件，说明播的是
+   无时间轴句子的单句音频，播完直接停。 */
 function onEnded() {
   if (mode.value === "file") {
-    if (loadedSrc === fileUrl.value) pauseAtEnd();
+    if (loadedSrc === fileUrl.value) finishLesson();
     return;
   }
   if (loopOne.value) { playSentence(sentIdx.value); return; }
   if (sentIdx.value + 1 < items.value.length) { playSentence(sentIdx.value + 1); return; }
+  if (loopLesson.value) { playSentence(0); return; }
   if (autoNext.value && nextLessonNo.value != null) goLessonAuto(nextLessonNo.value);
 }
 
@@ -220,7 +240,7 @@ function onTime() {
     const it = items.value[activeIdx.value];
     if (it && it.end != null && t >= it.end) { seekTo(it.start); return; }
   }
-  if (t >= segEnd.value) { pauseAtEnd(); return; }
+  if (t >= segEnd.value) { finishLesson(); return; }
   const idx = findActive(t);
   if (idx !== activeIdx.value) activeIdx.value = idx;
 }
@@ -236,9 +256,22 @@ function findActive(t) {
   return idx;
 }
 
-function pauseAtEnd() {
+/* 课末收尾：开了本课循环就回首句继续，否则暂停（自动下一课再跳课） */
+function finishLesson() {
+  if (loopLesson.value) { restartLesson(); return; }
   audioEl.pause();
   if (autoNext.value && nextLessonNo.value != null) goLessonAuto(nextLessonNo.value);
+}
+
+/* 本课循环：整课原声回到本课起点继续播，进度条/高亮立即复位 */
+function restartLesson() {
+  playSeq++;                        // 作废还在加载的单句音频
+  ensureFile();
+  seekTo(segStart.value);
+  now.value = segStart.value;
+  activeIdx.value = findActive(segStart.value);   // 高亮立刻跳回本课第一句
+  audioEl.playbackRate = speed.value;
+  audioEl.play().catch(() => {});
 }
 
 function jump(i) {
@@ -360,9 +393,11 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
       </div>
       <div class="player-opts">
         <button class="lp-chip" :class="{ on: loopOne }" :aria-pressed="loopOne"
-                @click="loopOne = !loopOne; saveOpts()">🔁 单句循环</button>
+                @click="toggleLoopOne">🔂 单句循环</button>
+        <button class="lp-chip" :class="{ on: loopLesson }" :aria-pressed="loopLesson"
+                @click="toggleLoopLesson">🔁 本课循环</button>
         <button class="lp-chip" :class="{ on: autoNext }" :aria-pressed="autoNext"
-                @click="autoNext = !autoNext; saveOpts()">⏭️ 自动下一课</button>
+                @click="toggleAutoNext">⏭️ 自动下一课</button>
         <button class="lp-chip" :class="{ on: !showEn }" :aria-pressed="!showEn"
                 @click="showEn = !showEn; saveOpts()">{{ showEn ? "隐藏英文" : "显示英文" }}</button>
         <button class="lp-chip" :class="{ on: !showZh }" :aria-pressed="!showZh"
