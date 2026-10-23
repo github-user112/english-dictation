@@ -75,6 +75,13 @@ const pct = computed(() => {
 });
 const sentProg = computed(() => items.value.length
   ? Math.min(100, (sentIdx.value + 1) / items.value.length * 100) : 0);
+/* 当前播放句索引：file 模式跟随时间轴高亮，sentences 模式跟随串播 */
+const curIdx = computed(() => {
+  const i = mode.value === "file" ? activeIdx.value : sentIdx.value;
+  return i >= 0 ? i : 0;
+});
+const curItem = computed(() => items.value[curIdx.value] || null);
+const trackPct = computed(() => mode.value === "file" ? pct.value : sentProg.value);
 
 function fmt(t) {
   t = Math.max(0, Math.floor(t));
@@ -335,9 +342,9 @@ function onKey(e) {
   }
 }
 
-watch(activeIdx, async () => {
+watch(curIdx, async () => {
   await nextTick();
-  listEl.value?.querySelector(".sent-row.active")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  listEl.value?.querySelector(".lp-row.active")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
 
 document.addEventListener("keydown", onKey);
@@ -352,69 +359,105 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
     <button class="btn primary" @click="goLists">返回素材库</button>
   </div>
   <div v-else class="listen-page">
-    <div class="listen-top">
-      <select v-model="list" class="lp-select" aria-label="选择教材" @change="switchBook">
-        <option v-for="l in lists" :key="l.key" :value="l.key">{{ l.title }}</option>
-      </select>
-      <div class="lp-lesson-nav">
-        <button class="btn ghost sm" :disabled="prevLessonNo == null"
+    <!-- 顶部工具栏 -->
+    <div class="lp-toolbar">
+      <div class="lp-book">
+        <span class="lp-book-ic" aria-hidden="true">📚</span>
+        <select v-model="list" class="lp-select" aria-label="选择教材" @change="switchBook">
+          <option v-for="l in lists" :key="l.key" :value="l.key">{{ l.title }}</option>
+        </select>
+      </div>
+      <div class="lp-lesson">
+        <button class="lp-arrow" :disabled="prevLessonNo == null"
                 :aria-label="'上一课，第 ' + prevLessonNo + ' 课'" @click="goLesson(prevLessonNo)">‹</button>
         <select v-model.number="lesson" class="lp-select" aria-label="选择课程" @change="switchLesson">
           <option v-for="x in lessons" :key="x.lesson" :value="x.lesson">第 {{ x.lesson }} 课</option>
         </select>
-        <button class="btn ghost sm" :disabled="nextLessonNo == null"
+        <button class="lp-arrow" :disabled="nextLessonNo == null"
                 :aria-label="'下一课，第 ' + nextLessonNo + ' 课'" @click="goLesson(nextLessonNo)">›</button>
       </div>
     </div>
 
-    <div class="player-card">
-      <div class="player-bar" aria-hidden="true"></div>
-      <div class="player-main">
-        <button class="play-btn" :aria-label="playing ? '暂停' : '播放'" @click="toggle">
-          <span v-if="playing" class="ic" aria-hidden="true">⏸</span>
-          <span v-else class="ic" aria-hidden="true">▶</span>
-        </button>
-        <div class="player-mid">
-          <div v-if="mode === 'file'" class="track" role="progressbar"
-               :aria-valuenow="Math.round(pct)" aria-valuemin="0" aria-valuemax="100"
-               aria-label="'课程进度，已播放 ' + Math.round(pct) + '%，点击可跳转'" @click="seek">
-            <div class="track-fill" :style="{ width: pct + '%' }"></div>
+    <!-- 播放器 hero -->
+    <div class="lp-player">
+      <div class="lp-player-inner">
+        <!-- 正在播放 -->
+        <div v-if="curItem" class="lp-now">
+          <div class="lp-now-head">
+            <span class="lp-now-tag">
+              <span class="lp-now-tag-ic" aria-hidden="true">{{ playing ? "🔊" : "🎵" }}</span>
+              {{ playing ? "正在播放" : "准备播放" }}
+            </span>
+            <span class="lp-now-no">第 {{ curIdx + 1 }} 句</span>
           </div>
-          <div v-else class="track" role="progressbar" :aria-valuenow="Math.round(sentProg)"
-               aria-valuemin="0" aria-valuemax="100" aria-label="句子进度，点击可跳转" @click="seek">
-            <div class="track-fill" :style="{ width: sentProg + '%' }"></div>
+          <div class="lp-now-en">{{ showEn ? curItem.text : "· · · · ·" }}</div>
+          <div v-if="showZh && curItem.zh" class="lp-now-zh">{{ curItem.zh }}</div>
+        </div>
+
+        <!-- 播放控制 -->
+        <div class="lp-controls">
+          <button class="lp-play play-btn" :class="{ playing }" :aria-label="playing ? '暂停' : '播放'" @click="toggle">
+            <span v-if="playing" class="lp-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span v-else class="lp-play-ic" aria-hidden="true">▶</span>
+          </button>
+          <div class="lp-controls-mid">
+            <div class="lp-track track" role="progressbar"
+                 :aria-valuenow="Math.round(trackPct)" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="'播放进度，已播放 ' + Math.round(trackPct) + '%，点击可跳转'" @click="seek">
+              <div class="lp-track-fill track-fill" :style="{ width: trackPct + '%' }"></div>
+            </div>
+            <div class="lp-meta">
+              <span class="lp-time">
+                <template v-if="mode === 'file'">{{ curTime }} / {{ totTime }}</template>
+                <template v-else>第 {{ sentIdx + 1 }} / {{ items.length }} 句</template>
+              </span>
+              <button class="lp-speed" aria-label="调节播放速度" @click="cycleSpeed">
+                <span aria-hidden="true">🎚️</span> {{ speedLabel }}
+              </button>
+            </div>
           </div>
-          <div class="times">
-            <span v-if="mode === 'file'">{{ curTime }} / {{ totTime }}</span>
-            <span v-else>第 {{ sentIdx + 1 }} / {{ items.length }} 句</span>
-            <button class="speed-btn" aria-label="调节播放速度" @click="cycleSpeed">🎚️ {{ speedLabel }}</button>
+        </div>
+
+        <!-- 选项 -->
+        <div class="lp-opts">
+          <div class="lp-opts-group">
+            <span class="lp-opts-lbl">循环</span>
+            <button class="lp-chip" :class="{ on: loopOne }" :aria-pressed="loopOne"
+                    @click="toggleLoopOne">🔂 单句循环</button>
+            <button class="lp-chip" :class="{ on: loopLesson }" :aria-pressed="loopLesson"
+                    @click="toggleLoopLesson">🔁 本课循环</button>
+            <button class="lp-chip" :class="{ on: autoNext }" :aria-pressed="autoNext"
+                    @click="toggleAutoNext">⏭️ 自动下一课</button>
+          </div>
+          <div class="lp-opts-group">
+            <span class="lp-opts-lbl">字幕</span>
+            <button class="lp-chip" :class="{ on: showEn }" :aria-pressed="showEn"
+                    @click="showEn = !showEn; saveOpts()">英文</button>
+            <button class="lp-chip" :class="{ on: showZh }" :aria-pressed="showZh"
+                    @click="showZh = !showZh; saveOpts()">中文</button>
           </div>
         </div>
       </div>
-      <div class="player-opts">
-        <button class="lp-chip" :class="{ on: loopOne }" :aria-pressed="loopOne"
-                @click="toggleLoopOne">🔂 单句循环</button>
-        <button class="lp-chip" :class="{ on: loopLesson }" :aria-pressed="loopLesson"
-                @click="toggleLoopLesson">🔁 本课循环</button>
-        <button class="lp-chip" :class="{ on: autoNext }" :aria-pressed="autoNext"
-                @click="toggleAutoNext">⏭️ 自动下一课</button>
-        <button class="lp-chip" :class="{ on: !showEn }" :aria-pressed="!showEn"
-                @click="showEn = !showEn; saveOpts()">{{ showEn ? "隐藏英文" : "显示英文" }}</button>
-        <button class="lp-chip" :class="{ on: !showZh }" :aria-pressed="!showZh"
-                @click="showZh = !showZh; saveOpts()">{{ showZh ? "隐藏中文" : "显示中文" }}</button>
-      </div>
     </div>
 
-    <div class="sent-list" ref="listEl">
+    <!-- 句子列表 -->
+    <div class="lp-list-head">
+      <span class="lp-list-ic" aria-hidden="true">🎵</span>
+      <span class="lp-list-title">本课原声</span>
+      <span class="lp-list-count">{{ items.length }} 句</span>
+      <span class="lp-list-hint">← → 切句 · 空格 播放/暂停</span>
+    </div>
+    <div class="lp-list" ref="listEl">
       <button v-for="(it, i) in items" :key="it.id"
-              class="sent-row" :class="{ active: i === activeIdx, dim: mode === 'file' && it.start == null }"
-              :aria-label="'第 ' + (i + 1) + ' 句' + (i === activeIdx ? '（正在播放）' : '')"
+              class="lp-row sent-row" :class="{ active: i === curIdx, dim: mode === 'file' && it.start == null }"
+              :aria-label="'第 ' + (i + 1) + ' 句' + (i === curIdx ? '（正在播放）' : '')"
               @click="jump(i)">
-        <span class="sent-no">{{ i + 1 }}</span>
-        <span class="sent-body">
-          <span class="sent-en">{{ showEn ? it.text : "· · · · ·" }}</span>
-          <span v-if="showZh && it.zh" class="sent-zh">{{ it.zh }}</span>
+        <span class="lp-row-no">{{ i + 1 }}</span>
+        <span class="lp-row-body">
+          <span class="lp-row-en">{{ showEn ? it.text : "· · · · ·" }}</span>
+          <span v-if="showZh && it.zh" class="lp-row-zh">{{ it.zh }}</span>
         </span>
+        <span class="lp-row-play" aria-hidden="true">▶</span>
       </button>
     </div>
   </div>
