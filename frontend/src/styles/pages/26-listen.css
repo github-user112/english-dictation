@@ -10,8 +10,11 @@
    fixed 定位基准变成 .listen-page 而不是视口，移动端底部条会错位） */
 .listen-page { max-width: 1040px; margin: 0 auto; animation: none; }
 
-/* ---------- 顶部工具栏 ---------- */
+/* ---------- 顶部工具栏（吸顶，滚动时始终可见） ---------- */
 .listen-page .lp-toolbar {
+  position: sticky;
+  top: 70px;
+  z-index: 15;
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; flex-wrap: wrap;
   padding: 11px 14px;
@@ -62,10 +65,10 @@
 .listen-page .lp-arrow:active:not(:disabled) { transform: translateY(1px); }
 .listen-page .lp-arrow:disabled { opacity: .35; cursor: default; }
 
-/* ---------- 播放器 hero ---------- */
+/* ---------- 播放器 hero（吸顶，在工具栏下方） ---------- */
 .listen-page .lp-player {
   position: sticky;
-  top: 76px;
+  top: 140px;
   z-index: 10;
   background: linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
   border-radius: var(--r-hero);
