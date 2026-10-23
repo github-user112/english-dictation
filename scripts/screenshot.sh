@@ -30,7 +30,7 @@ shot() {
 }
 
 if [ "${1:-}" = "all" ]; then
-  for p in catalog wrong daily tree stats word sentence memorize quiz sprint boss match arrange lists report import settings account leaderboard friends groups pk wordtest shadow; do
+  for p in catalog wrong daily tree stats word sentence memorize quiz sprint boss match arrange lists report import settings account leaderboard friends groups pk wordtest shadow listen; do
     shot "$p" "$p" 1440 1000 || true
   done
 else

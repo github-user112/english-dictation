@@ -14,7 +14,7 @@ os.environ["ENGLISH_DICTATION_DB"] = str(_SUITE_DIR / "bootstrap.db")
 
 from backend import create_app
 from backend.config import BASE, DB
-from backend.materials import _material_index, load_material
+from backend.materials import _material_index, _NCE_MAP_CACHE, load_material
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -30,6 +30,7 @@ def clear_material_cache():
     """每个测试前清除素材和索引缓存，避免跨夹具污染。"""
     load_material.cache_clear()
     _material_index.cache_clear()
+    _NCE_MAP_CACHE.clear()
 
 
 @pytest.fixture
@@ -112,6 +113,7 @@ def app(tmp_path):
         patch("backend.match.MATERIALS", test_materials),
         patch("backend.arrange.MATERIALS", test_materials),
         patch("backend.shadow.MATERIALS", test_materials),
+        patch("backend.shadow.AUDIO", audio_path),
         patch("backend.memorize.MATERIALS", test_materials),
         patch("backend.memorize.CONFIG", test_config),
         patch("backend.goal.MATERIALS", test_materials),

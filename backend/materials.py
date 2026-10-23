@@ -81,6 +81,11 @@ def audio_url(list_key, item_id, text):
         if (AUDIO / list_key / fname).exists():
             return f"/audio/{list_key}/{urllib.parse.quote(fname)}"
         return f"/audio/{list_key}/{urllib.parse.quote(mp['file'])}#t={mp['start']:.2f},{mp['end']:.2f}"
+    # 无时间轴的素材也常有按句命名的原声（口语900句：oral900-01-001.mp3），
+    # 优先用真录音，别回落成可能不存在的 /audio/lazy/<md5> 地址
+    by_id = f"{item_id}.mp3"
+    if (AUDIO / list_key / by_id).exists():
+        return f"/audio/{list_key}/{urllib.parse.quote(by_id)}"
     fname = audio_filename(text)
     if (AUDIO / list_key / fname).exists():
         return f"/audio/{list_key}/{fname}"
@@ -88,6 +93,11 @@ def audio_url(list_key, item_id, text):
 
 
 _NCE_MAP_CACHE = {}
+
+
+def audio_segment(list_key, item_id):
+    """原声时间轴片段：{file, start, end} 或 None（按课听录音用）。"""
+    return _load_nce_map(list_key).get(item_id)
 
 
 def _load_nce_map(list_key):

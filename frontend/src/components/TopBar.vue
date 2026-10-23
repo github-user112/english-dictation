@@ -8,7 +8,7 @@ const TITLES = {
   catalog: "今日", lists: "素材库", word: "单词听打", sentence: "句子听写", memorize: "背单词",
   quiz: "听音选词", sprint: "限时冲刺", daily: "每日挑战", tree: "单词树",
   boss: "错词Boss战", match: "配对消消乐", arrange: "听音排句",
-  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战", wordtest: "词汇量测试", shadow: "听读",
+  wrong: "错词本", stats: "统计", report: "学习报告", settings: "设置", account: "账户", leaderboard: "排行榜", friends: "好友", groups: "小组", group: "小组详情", pk: "实时对战", wordtest: "词汇量测试", shadow: "听读", listen: "听录音",
 };
 const title = computed(() => TITLES[page.value] || "英语听打");
 const accountInitial = computed(() => (Account.username || "D").slice(0, 1).toUpperCase());
@@ -20,6 +20,7 @@ const MORE = [
   { p: "lists", t: "素材库", s: "素材" },
   { p: "wordtest", t: "词汇量测试", s: "词测" },
   { p: "shadow", t: "听读跟读", s: "跟读" },
+  { p: "listen", t: "按课听录音", s: "听课" },
   { p: "report", t: "学习报告", s: "报告" },
   { p: "leaderboard", t: "排行榜", s: "排行", sep: true },
   { p: "friends", t: "好友", s: "好友" },

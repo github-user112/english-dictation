@@ -191,6 +191,12 @@ function startShadow(l) {
   if (l.lesson_count && selectedLesson.value[l.key]) p.set("lesson", selectedLesson.value[l.key]);
   location.hash = `#/shadow?${p}`;
 }
+/* 按课听录音：整课原声连续播放 + 逐句高亮 */
+function startListen(l) {
+  const p = new URLSearchParams({ list: l.key });
+  if (l.lesson_count && selectedLesson.value[l.key]) p.set("lesson", selectedLesson.value[l.key]);
+  location.hash = `#/listen?${p}`;
+}
 function title(key) { return lists.value.find((l) => l.key === key)?.title || key; }
 </script>
 
@@ -368,6 +374,7 @@ function title(key) { return lists.value.find((l) => l.key === key)?.title || ke
         <div class="card-actions">
           <button class="btn ghost sm" aria-label="听音排句" @click="startArrange(l)">🧩 排句</button>
           <button class="btn ghost sm" aria-label="听读跟读" @click="startShadow(l)">🎙️ 听读</button>
+          <button v-if="l.lesson_count" class="btn ghost sm" aria-label="按课听录音" @click="startListen(l)">🎧 听录音</button>
           <button class="btn primary sm" :disabled="Boolean(l.lesson_count && !selectedLesson[l.key])" :aria-label="(activeLesson(l) ? '继续第 ' + selectedLesson[l.key] + ' 课' : l.lesson_count ? '按课学习' : '开始听写')" @click="start(l)">👂 {{ activeLesson(l) ? `继续第 ${selectedLesson[l.key]} 课` : l.lesson_count ? '按课学习' : '开始听写' }}</button>
         </div>
       </div>
