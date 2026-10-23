@@ -6,7 +6,7 @@
    级联：legacy.css → base.css → 本文件，同名选择器以本文件为准。
    ============================================================ */
 
-.listen-page { max-width: 860px; margin: 0 auto; overflow-x: hidden; }
+.listen-page { max-width: 1040px; margin: 0 auto; overflow-x: hidden; }
 
 /* ---------- 顶部工具栏 ---------- */
 .listen-page .lp-toolbar {
@@ -63,13 +63,12 @@
 /* ---------- 播放器 hero ---------- */
 .listen-page .lp-player {
   position: sticky;
-  top: 78px;
+  top: 76px;
   z-index: 10;
   background: linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
   border-radius: var(--r-hero);
   overflow: hidden;
   box-shadow: 0 6px 0 var(--blue-dark), 0 14px 34px rgba(28, 176, 246, .26);
-  margin-bottom: 22px;
 }
 /* 装饰光斑（被 overflow:hidden 裁切出柔和高光） */
 .listen-page .lp-player::after {
@@ -232,10 +231,19 @@
   box-shadow: 0 3px 0 rgba(0, 0, 0, .14);
 }
 
+/* ---------- 双栏内容区 ---------- */
+.listen-page .lp-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.listen-page .lp-list-col { min-width: 0; }
+
 /* ---------- 句子列表 ---------- */
 .listen-page .lp-list-head {
   display: flex; align-items: center; gap: 9px;
-  margin: 2px 0 12px;
+  margin: 0 0 12px;
 }
 .listen-page .lp-list-ic {
   font-size: 22px; font-family: var(--emoji);
@@ -260,6 +268,7 @@
 
 .listen-page .lp-row {
   position: relative;
+  scroll-margin-top: 80px;
   display: flex; align-items: center; gap: 12px;
   width: 100%; text-align: left;
   padding: 13px 14px 13px 12px;
@@ -337,15 +346,42 @@
 /* ---------- 响应式 ---------- */
 @media (max-width: 760px) {
   .listen-page .lp-toolbar { padding: 10px 12px; }
-  .listen-page .lp-player { position: static; }
-  .listen-page .lp-player-inner { padding: 14px 14px 16px; }
-  .listen-page .lp-play { width: 56px; height: 56px; }
-  .listen-page .lp-play-ic { font-size: 22px; }
-  .listen-page .lp-eq { height: 22px; }
-  .listen-page .lp-now { padding: 12px 14px; }
-  .listen-page .lp-now-en { font-size: 18px; }
-  .listen-page .lp-opts { gap: 8px 12px; }
+  .listen-page .lp-content { display: block; }
+
+  /* 播放器变底部固定条 */
+  .listen-page .lp-player {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    top: auto;
+    z-index: 30;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 20px rgba(28, 176, 246, .2);
+  }
+  .listen-page .lp-player::before,
+  .listen-page .lp-player::after { display: none; }
+
+  .listen-page .lp-player-inner {
+    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  }
+  .listen-page .lp-now {
+    padding: 0 0 6px; margin-bottom: 0;
+    background: none; border: none; backdrop-filter: none; border-radius: 0;
+  }
+  .listen-page .lp-now-head { display: none; }
+  .listen-page .lp-now-en { font-size: 15px; }
+  .listen-page .lp-now-zh { margin-top: 2px; font-size: 12px; }
+  .listen-page .lp-controls { gap: 10px; }
+  .listen-page .lp-play { width: 40px; height: 40px; }
+  .listen-page .lp-play-ic { font-size: 16px; }
+  .listen-page .lp-eq { height: 18px; }
+  .listen-page .lp-track { height: 6px; }
+  .listen-page .lp-meta { margin-top: 3px; font-size: 11px; }
+  .listen-page .lp-speed { padding: 2px 8px; font-size: 10.5px; }
+  .listen-page .lp-opts { display: none; }
+
   .listen-page .lp-list-hint { display: none; }
+  .listen-page .lp-list { padding-bottom: 110px; }
+  .listen-page .lp-row { scroll-margin-bottom: 120px; }
 }
 
 @media (max-width: 620px) {
@@ -354,6 +390,4 @@
   .listen-page .lp-lesson { flex: 1; min-width: 0; justify-content: flex-end; }
   .listen-page .lp-select { padding: 8px 10px; font-size: 12.5px; }
   .listen-page .lp-arrow { width: 30px; height: 30px; font-size: 16px; }
-  .listen-page .lp-opts-group { width: 100%; }
-  .listen-page .lp-chip { flex: 1 1 auto; justify-content: center; text-align: center; }
 }

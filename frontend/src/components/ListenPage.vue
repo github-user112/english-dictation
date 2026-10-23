@@ -378,6 +378,8 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
       </div>
     </div>
 
+    <!-- 双栏内容区 -->
+    <div class="lp-content">
     <!-- 播放器 hero -->
     <div class="lp-player">
       <div class="lp-player-inner">
@@ -441,6 +443,7 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
     </div>
 
     <!-- 句子列表 -->
+    <div class="lp-list-col">
     <div class="lp-list-head">
       <span class="lp-list-ic" aria-hidden="true">🎵</span>
       <span class="lp-list-title">本课原声</span>
@@ -459,6 +462,8 @@ onUnmounted(() => document.removeEventListener("keydown", onKey));
         </span>
         <span class="lp-row-play" aria-hidden="true">▶</span>
       </button>
+    </div>
+    </div>
     </div>
   </div>
 </template>
