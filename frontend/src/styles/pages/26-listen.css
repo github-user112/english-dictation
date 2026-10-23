@@ -12,7 +12,7 @@
 .listen-page {
   max-width: 1040px; margin: 0 auto; animation: none;
   display: flex; flex-direction: column;
-  height: calc(100vh - 211px); min-height: 380px;
+  height: calc(100vh - 178px); min-height: 380px;
 }
 
 /* ---------- 顶部工具栏（固定不滚） ---------- */
@@ -74,8 +74,7 @@
   z-index: 10;
   background: linear-gradient(135deg, var(--blue) 0%, #4dd0ff 100%);
   border-radius: var(--r-hero);
-  overflow-y: auto; overflow-x: hidden;
-  scrollbar-width: thin;
+  overflow: hidden;
   box-shadow: 0 6px 0 var(--blue-dark), 0 14px 34px rgba(28, 176, 246, .26);
 }
 /* 装饰光斑（被 overflow:hidden 裁切出柔和高光） */
@@ -382,32 +381,44 @@
   .listen-page .lp-player::after { display: none; }
 
   .listen-page .lp-player-inner {
-    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+    padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 4px;
   }
   .listen-page .lp-now {
-    padding: 0 0 6px; margin-bottom: 0;
+    padding: 0; margin: 0;
     background: none; border: none; backdrop-filter: none; border-radius: 0;
   }
   .listen-page .lp-now-head { display: none; }
   .listen-page .lp-now-en {
-    font-size: 15px; white-space: nowrap; overflow: hidden;
+    font-size: 14px; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis;
   }
-  .listen-page .lp-now-zh { margin-top: 2px; font-size: 12px; }
-  .listen-page .lp-controls { gap: 10px; }
-  .listen-page .lp-play { width: 40px; height: 40px; }
-  .listen-page .lp-play-ic { font-size: 16px; }
-  .listen-page .lp-eq { height: 18px; }
-  .listen-page .lp-track { height: 6px; }
-  .listen-page .lp-meta { margin-top: 3px; font-size: 11px; white-space: nowrap; }
-  .listen-page .lp-speed { padding: 2px 8px; font-size: 10.5px; flex-shrink: 0; }
-  .listen-page .lp-opts { display: none; }
+  .listen-page .lp-now-zh { margin-top: 1px; font-size: 11px; }
+  .listen-page .lp-controls { gap: 8px; }
+  .listen-page .lp-play { width: 36px; height: 36px; }
+  .listen-page .lp-play-ic { font-size: 14px; }
+  .listen-page .lp-eq { height: 16px; }
+  .listen-page .lp-track { height: 5px; }
+  .listen-page .lp-meta { margin-top: 2px; font-size: 10px; white-space: nowrap; }
+  .listen-page .lp-speed { padding: 1px 6px; font-size: 10px; flex-shrink: 0; }
+  .listen-page .lp-opts {
+    display: flex; flex-wrap: nowrap;
+    gap: 4px 6px; align-items: center;
+    margin-top: 0; padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, .14);
+    overflow-x: auto; scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .listen-page .lp-opts::-webkit-scrollbar { display: none; }
+  .listen-page .lp-opts-group { gap: 3px; flex-shrink: 0; flex-wrap: nowrap; }
+  .listen-page .lp-opts-lbl { font-size: 9px; margin-right: 0; letter-spacing: 0; text-transform: none; }
+  .listen-page .lp-chip { padding: 3px 7px; font-size: 10.5px; flex-shrink: 0; }
 
   /* 列表占满内容区，内部滚动，底部留白给固定播放条 */
   .listen-page .lp-list-col { flex: 1; }
   .listen-page .lp-list-hint { display: none; }
-  .listen-page .lp-list { padding-bottom: 130px; }
-  .listen-page .lp-row { scroll-margin-bottom: 140px; }
+  .listen-page .lp-list { padding-bottom: 155px; }
+  .listen-page .lp-row { scroll-margin-bottom: 165px; }
 }
 
 @media (max-width: 620px) {
