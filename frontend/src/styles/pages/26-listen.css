@@ -6,7 +6,9 @@
    级联：legacy.css → base.css → 本文件，同名选择器以本文件为准。
    ============================================================ */
 
-.listen-page { max-width: 1040px; margin: 0 auto; overflow-x: hidden; }
+/* 不用 overflow-x（会破坏 sticky/fixed）；不用入场动画（transform 会让内部
+   fixed 定位基准变成 .listen-page 而不是视口，移动端底部条会错位） */
+.listen-page { max-width: 1040px; margin: 0 auto; animation: none; }
 
 /* ---------- 顶部工具栏 ---------- */
 .listen-page .lp-toolbar {
@@ -368,20 +370,23 @@
     background: none; border: none; backdrop-filter: none; border-radius: 0;
   }
   .listen-page .lp-now-head { display: none; }
-  .listen-page .lp-now-en { font-size: 15px; }
+  .listen-page .lp-now-en {
+    font-size: 15px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .listen-page .lp-now-zh { margin-top: 2px; font-size: 12px; }
   .listen-page .lp-controls { gap: 10px; }
   .listen-page .lp-play { width: 40px; height: 40px; }
   .listen-page .lp-play-ic { font-size: 16px; }
   .listen-page .lp-eq { height: 18px; }
   .listen-page .lp-track { height: 6px; }
-  .listen-page .lp-meta { margin-top: 3px; font-size: 11px; }
-  .listen-page .lp-speed { padding: 2px 8px; font-size: 10.5px; }
+  .listen-page .lp-meta { margin-top: 3px; font-size: 11px; white-space: nowrap; }
+  .listen-page .lp-speed { padding: 2px 8px; font-size: 10.5px; flex-shrink: 0; }
   .listen-page .lp-opts { display: none; }
 
   .listen-page .lp-list-hint { display: none; }
-  .listen-page .lp-list { padding-bottom: 110px; }
-  .listen-page .lp-row { scroll-margin-bottom: 120px; }
+  .listen-page .lp-list { padding-bottom: 130px; }
+  .listen-page .lp-row { scroll-margin-bottom: 140px; }
 }
 
 @media (max-width: 620px) {
