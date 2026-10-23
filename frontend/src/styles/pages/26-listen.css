@@ -6,7 +6,7 @@
    级联：legacy.css → base.css → 本文件，同名选择器以本文件为准。
    ============================================================ */
 
-.listen-page { max-width: 860px; margin: 0 auto; }
+.listen-page { max-width: 860px; margin: 0 auto; overflow-x: hidden; }
 
 /* ---------- 顶部工具栏 ---------- */
 .listen-page .lp-toolbar {
@@ -255,9 +255,7 @@
 
 .listen-page .lp-list {
   display: flex; flex-direction: column; gap: 7px;
-  max-height: 56vh; overflow-y: auto;
   padding: 4px 2px 24px;
-  scrollbar-width: thin;
 }
 
 .listen-page .lp-row {
